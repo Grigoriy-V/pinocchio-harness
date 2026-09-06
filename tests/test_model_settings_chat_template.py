@@ -18,6 +18,13 @@ def test_a_blank_line_sends_nothing(monkeypatch) -> None:
     assert ModelSettings(_env_file=None).chat_template_kwargs is None
 
 
+def test_extra_body_is_json_and_blank_is_none(monkeypatch) -> None:
+    monkeypatch.setenv("MODEL_EXTRA_BODY", '{"tool_stream": true}')
+    assert ModelSettings(_env_file=None).extra_body == {"tool_stream": True}
+    monkeypatch.setenv("MODEL_EXTRA_BODY", " ")
+    assert ModelSettings(_env_file=None).extra_body is None
+
+
 def test_unset_sends_nothing(monkeypatch) -> None:
     monkeypatch.delenv("MODEL_CHAT_TEMPLATE_KWARGS", raising=False)
     assert ModelSettings(_env_file=None).chat_template_kwargs is None

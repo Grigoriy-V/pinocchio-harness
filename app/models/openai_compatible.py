@@ -645,6 +645,8 @@ class OpenAICompatibleBackend(ModelBackend):
             # Without this the streamed response carries no usage at all, and a
             # turn whose size is unknown cannot be folded or reported.
             body["stream_options"] = {"include_usage": True}
+        if self.settings.extra_body:
+            body.update(self.settings.extra_body)
         return body
 
     async def _completion(self, body: dict[str, Any]) -> dict[str, Any]:

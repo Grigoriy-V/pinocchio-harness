@@ -266,16 +266,18 @@ class Agent:
         the server said it accepts. The clamp is the whole point of asking the
         server rather than configuring the number: a person, or a stale setting,
         can ask for less than the model allows, never for more than it can
-        serve. With no limit reported there is nothing to clamp against and
-        nothing to take a fraction of, so an unknown model stays unbounded here
-        and is bounded by the overflow path instead.
+        serve. With no limit reported there is nothing to clamp against: a
+        chosen number stands as it is (a hosted service says nothing about its
+        length, and the person's number is then the only one there is), and
+        with no number chosen either there is nothing to take a fraction of, so
+        the request stays unbounded here and is bounded by the overflow path.
         """
 
         if not self._asked_the_limit:
             self._limit = await self.backend.context_limit()
             self._asked_the_limit = True
         if not self._limit:
-            return None
+            return self.context_tokens or None
         if self.context_tokens:
             return min(self.context_tokens, self._limit)
         return int(self._limit * share(context_choice(self.workspace), self.context_fraction))

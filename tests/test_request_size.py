@@ -219,10 +219,28 @@ async def test_a_silent_server_leaves_the_request_unbounded_here(
         ScriptedBackend(limit=None),
         SqliteStore(database),
         workspace,
-        context_tokens=16_000,
     )
 
     assert await agent.budget() is None
+
+
+async def test_a_chosen_budget_stands_when_the_server_says_nothing(
+    database: Path, workspace: Path
+) -> None:
+    """A hosted service reports no length; the person's number is the only one.
+
+    Without it a paid model with a million-token window would never fold and
+    every call would carry the whole thread.
+    """
+
+    agent = Agent(
+        ScriptedBackend(limit=None),
+        SqliteStore(database),
+        workspace,
+        context_tokens=16_000,
+    )
+
+    assert await agent.budget() == 16_000
 
 
 async def test_the_answer_is_unchanged_when_nothing_is_over_budget(

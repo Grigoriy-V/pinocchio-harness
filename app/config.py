@@ -47,8 +47,14 @@ class ModelSettings(BaseSettings):
     # because it is the one model-side dial a person may want to move without
     # booting the model App; empty sends nothing and the server's default holds.
     chat_template_kwargs: dict[str, object] | None = None
+    # Fields merged into the body of every request, last, as JSON: the place
+    # for what one hosted service wants and the OpenAI shape has no word for
+    # (`{"tool_stream": true}` for GLM through CometAPI, `{"thinking":
+    # {"type": "disabled"}}` for DeepSeek). Merged last so it can also override
+    # a field the client sets; empty sends nothing.
+    extra_body: dict[str, object] | None = None
 
-    @field_validator("chat_template_kwargs", mode="before")
+    @field_validator("chat_template_kwargs", "extra_body", mode="before")
     @classmethod
     def _empty_means_none(cls, value: object) -> object:
         # An `.env` line left blank is "send nothing", not a parse error.

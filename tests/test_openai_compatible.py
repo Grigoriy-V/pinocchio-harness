@@ -646,6 +646,36 @@ async def test_chat_template_kwargs_are_sent_when_configured() -> None:
     assert seen["chat_template_kwargs"] == {"enable_thinking": True, "reasoning_effort": "low"}
 
 
+async def test_extra_body_is_merged_last() -> None:
+    """A hosted service's own field goes in, and a field the client sets can be overridden."""
+
+    seen: dict[str, Any] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.update(json.loads(request.content))
+        return httpx.Response(200, json=completion_payload(content="pong"))
+
+    async with backend(handler, extra_body={"tool_stream": True, "temperature": 0.3}) as client:
+        await client.invoke([Message(role="user", content=[text_part()])])
+
+    assert seen["tool_stream"] is True
+    assert seen["temperature"] == 0.3
+
+
+async def test_no_extra_body_by_default() -> None:
+    seen: dict[str, Any] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.update(json.loads(request.content))
+        return httpx.Response(200, json=completion_payload(content="pong"))
+
+    async with backend(handler) as client:
+        await client.invoke([Message(role="user", content=[text_part()])])
+
+    assert "tool_stream" not in seen
+    assert seen["temperature"] == 0.0
+
+
 async def test_no_chat_template_kwargs_by_default() -> None:
     seen: dict[str, Any] = {}
 

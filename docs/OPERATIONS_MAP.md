@@ -529,6 +529,16 @@ is sent on every request as `chat_template_kwargs` and overrides the
 server's default; publish the secret and redeploy `assistant-control`.
 Blank or unset sends nothing.
 
+**A hosted model instead of a model App** is the same four settings pointed
+elsewhere: `MODEL_ENDPOINT` at the service's OpenAI-compatible root,
+`MODEL_NAME` its model id, `MODEL_API_KEY` the key with
+`MODEL_AUTH_STYLE=bearer`, and `MODEL_CHAT_TEMPLATE_KWARGS` blank (vLLM's
+field). `MODEL_EXTRA_BODY` (JSON) is merged into every request body last,
+for what the service wants and the OpenAI shape has no word for
+(`{"tool_stream": true}` for GLM through CometAPI). Such a service usually
+reports no context length on `/v1/models`, so `AGENT_CONTEXT_TOKENS` names
+the budget; publish the secret and redeploy `assistant-control`.
+
 **The order for a Qwen App, each step its own gate:** `fetch_weights`
 (CPU) → `preflight` (CPU: the engine configuration builds, and
 `model_app_qwen.fits` — the pool arithmetic calibrated on the boots of
