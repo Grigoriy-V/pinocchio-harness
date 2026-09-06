@@ -6,16 +6,51 @@ change; this is the only place that reads the environment.
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+class ModelChoice(BaseSettings):
+    """`MODEL=comet` names which set of model lines the assistant reads.
+
+    A set is every `MODEL_<NAME>_*` line, and `AGENT_<NAME>_CONTEXT_TOKENS`
+    for its budget; the plain `MODEL_*` lines are the unnamed set, read when
+    nothing is chosen. Sets live side by side so that switching the model is
+    one line and no key overwrites another (the human, 2026-09-06).
+    """
+
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    model: str | None = None
+
+    @property
+    def name(self) -> str | None:
+        chosen = (self.model or "").strip().upper()
+        return chosen or None
+
+
+def chosen_model(**init: Any) -> str | None:
+    """The chosen set's name in upper case, or None for the unnamed set."""
+
+    return ModelChoice(**{k: v for k, v in init.items() if k == "_env_file"}).name
+
+
 class ModelSettings(BaseSettings):
-    """How to reach the OpenAI-compatible endpoint that serves the model."""
+    """How to reach the OpenAI-compatible endpoint that serves the model.
+
+    Read from `MODEL_<NAME>_*` when `MODEL=<name>` is set, else from `MODEL_*`.
+    """
 
     model_config = SettingsConfigDict(env_prefix="MODEL_", env_file=".env", extra="ignore")
+
+    def __init__(self, **values: Any) -> None:
+        if "_env_prefix" not in values:
+            name = chosen_model(**values)
+            if name:
+                values["_env_prefix"] = f"MODEL_{name}_"
+        super().__init__(**values)
 
     endpoint: str = "http://127.0.0.1:8000/v1"
     name: str = "gemma-4-12b-it"
@@ -164,10 +199,32 @@ class WebSettings(BaseSettings):
     max_render_height: int = 4000
 
 
+class ModelBudget(BaseSettings):
+    """`AGENT_<NAME>_CONTEXT_TOKENS`: the budget that goes with a named model set."""
+
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    context_tokens: int | None = None
+
+
 class AgentSettings(BaseSettings):
     """Where the agent stores memory, what it may read, and how much it keeps."""
 
     model_config = SettingsConfigDict(env_prefix="AGENT_", env_file=".env", extra="ignore")
+
+    def __init__(self, **values: Any) -> None:
+        super().__init__(**values)
+        # The context budget belongs with the model, because it is the one
+        # agent setting that changes with the endpoint (a hosted service
+        # reports no length). A named set's budget wins over the plain one.
+        name = chosen_model(**values)
+        if name and "context_tokens" not in values:
+            budget = ModelBudget(
+                _env_prefix=f"AGENT_{name}_",
+                **{k: v for k, v in values.items() if k == "_env_file"},
+            )
+            if budget.context_tokens is not None:
+                self.context_tokens = budget.context_tokens
 
     database: str = "data/memory.sqlite3"
     # Where the deployed profile keeps conversations instead. Empty means the

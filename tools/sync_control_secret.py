@@ -21,6 +21,7 @@ the only output is key names.
 
 from __future__ import annotations
 
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -38,7 +39,16 @@ SECRET_NAME = "assistant-control"
 # what decides where a page is opened, so a copy sitting in `.env` under its own
 # name would silently send every local `view_web_page` to the deployed renderer,
 # starting a container to do what the browser on this machine does for free.
+# A named model set: `MODEL=comet` chooses `MODEL_COMET_*` and
+# `AGENT_COMET_CONTEXT_TOKENS`. Every set in `.env` is published, so the
+# deployment can switch between them without a new secret.
+MODEL_SET = re.compile(
+    r"^(?:MODEL_[A-Z0-9]+_(?:ENDPOINT|NAME|API_KEY|AUTH_STYLE|CHAT_TEMPLATE_KWARGS|EXTRA_BODY)"
+    r"|AGENT_[A-Z0-9]+_CONTEXT_TOKENS)$"
+)
+
 ALLOWED: tuple[str | tuple[str, str], ...] = (
+    "MODEL",
     "TELEGRAM_TOKEN",
     "TELEGRAM_WEBHOOK_SECRET",
     "TELEGRAM_ALLOWED_USERS",
@@ -88,6 +98,7 @@ def plan(values: dict[str, str]) -> tuple[list[tuple[str, str]], list[tuple[str,
     """
 
     pairs = [named(entry) for entry in ALLOWED]
+    pairs += [(key, key) for key in sorted(values) if MODEL_SET.match(key)]
     present = [(source, target) for source, target in pairs if values.get(source)]
     missing = [(source, target) for source, target in pairs if not values.get(source)]
     return present, missing

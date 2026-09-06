@@ -529,15 +529,22 @@ is sent on every request as `chat_template_kwargs` and overrides the
 server's default; publish the secret and redeploy `assistant-control`.
 Blank or unset sends nothing.
 
-**A hosted model instead of a model App** is the same four settings pointed
-elsewhere: `MODEL_ENDPOINT` at the service's OpenAI-compatible root,
-`MODEL_NAME` its model id, `MODEL_API_KEY` the key with
-`MODEL_AUTH_STYLE=bearer`, and `MODEL_CHAT_TEMPLATE_KWARGS` blank (vLLM's
-field). `MODEL_EXTRA_BODY` (JSON) is merged into every request body last,
-for what the service wants and the OpenAI shape has no word for
+**Model sets.** `MODEL=comet` makes the assistant read `MODEL_COMET_*`
+(endpoint, name, API key, auth style, chat-template kwargs, extra body) and
+`AGENT_COMET_CONTEXT_TOKENS` instead of the plain `MODEL_*` lines, which
+remain the unnamed set. `tools/sync_control_secret.py` publishes every set
+found in `.env`, so switching the deployment is the `MODEL` line and a
+control-plane redeploy, no GPU, and no key overwrites another. (2026-09-06;
+the Telegram command that switches between published sets is roadmap item 13.)
+
+**A hosted model instead of a model App** is a set pointed elsewhere:
+the endpoint at the service's OpenAI-compatible root, the name its model
+id, the key with `AUTH_STYLE=bearer`, no chat-template kwargs (vLLM's
+field). `EXTRA_BODY` (JSON) is merged into every request body last, for
+what the service wants and the OpenAI shape has no word for
 (`{"tool_stream": true}` for GLM through CometAPI). Such a service usually
-reports no context length on `/v1/models`, so `AGENT_CONTEXT_TOKENS` names
-the budget; publish the secret and redeploy `assistant-control`.
+reports no context length on `/v1/models`, so the set's `CONTEXT_TOKENS`
+names the budget.
 
 **The order for a Qwen App, each step its own gate:** `fetch_weights`
 (CPU) → `preflight` (CPU: the engine configuration builds, and

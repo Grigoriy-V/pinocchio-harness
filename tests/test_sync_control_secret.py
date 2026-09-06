@@ -42,6 +42,30 @@ def test_the_renderer_address_is_carried_under_a_name_the_local_profile_ignores(
     assert "WEB_RENDERER_URL" not in [named(entry)[0] for entry in ALLOWED]
 
 
+def test_every_model_set_is_published_and_nothing_else_under_its_name() -> None:
+    """`MODEL_COMET_*` and `AGENT_COMET_CONTEXT_TOKENS` go; a stray `MODEL_COMET_NOTE` stays."""
+
+    values = {
+        "MODEL": "comet",
+        "MODEL_COMET_ENDPOINT": "https://api.cometapi.com/v1",
+        "MODEL_COMET_API_KEY": "sk",
+        "AGENT_COMET_CONTEXT_TOKENS": "131072",
+        "MODEL_INT4_API_KEY": "wk.ws",
+        "MODEL_COMET_NOTE": "not a setting",
+        "AGENT_COMET_WORKSPACE": "not a setting",
+    }
+
+    present, _missing = plan(values)
+
+    assert [target for _source, target in present] == [
+        "MODEL",
+        "AGENT_COMET_CONTEXT_TOKENS",
+        "MODEL_COMET_API_KEY",
+        "MODEL_COMET_ENDPOINT",
+        "MODEL_INT4_API_KEY",
+    ]
+
+
 def test_an_empty_value_counts_as_absent() -> None:
     """A key present and blank is not configuration; publishing it would hide that."""
 
