@@ -327,7 +327,27 @@ slugs are `google-ai-studio/flex`, `google-ai-studio`, `novita/fp8`,
 `google-ai-studio-flex`, which matches nothing — the published secret
 carries the corrected line until `.env` is fixed.
 
-## 12. Open
+## 12. GLM 5.3 Flash at the four $0.075 hosts, B's real first request twice each
+
+`reasoning_effort: low` with `thinking: disabled` (together they leave no
+reasoning tokens with tools, where `disabled` alone left 5–75); the
+worker's own B request (system, tools, the question) sent twice to each
+host with `allow_fallbacks: false`, the second to see the cache.
+
+| Host | Quant | 1st call | 2nd call | Cached on 2nd | Cost per call |
+|---|---|---|---|---|---|
+| Z.ai | fp8 | 4.8 s | 4.9 s | 4,480 of 4,504 | $0.000072 |
+| Novita | fp8 | 4.9 s | 5.7 s | 4,480 of 4,488 | $0.000071 |
+| GMICloud | fp8 | 6.3 s | 6.1 s | hit on the 1st, miss on the 2nd | $0.00007 / $0.00034 |
+| DeepInfra | fp4 | 1.3 s | 1.1 s | 0, both | $0.00034 |
+
+DeepInfra is four times faster and, with no cache landing, five times
+the price per call; Z.ai and Novita cache every repeat at ~5 s per call;
+GMICloud caches unreliably. The earlier "DeepInfra" B (`c67da908`) was
+in fact served by GMICloud through the fallback: `allow_fallbacks: true`
+falls to any host, not the next in `order`.
+
+## 13. Open
 
 - The plain `MODEL_ENDPOINT` and `MODEL_NAME` lines are no longer in
   `.env` (the sync reported them absent), so `MODEL=` empty would now point
