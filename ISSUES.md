@@ -51,6 +51,27 @@ Rules that keep the file honest:
 
 ---
 
+### ISS-0055 — a call that spends its whole output cap on reasoning is delivered as an answer with nothing said
+
+- **Status:** open, observed 2026-09-06
+- **Seen:** 2026-09-06, scenario G on `glm-5.3-flash` through CometAPI
+  (`deployed-2491a3c4-70`): one model call, 4,597 tokens in, 8,192 out,
+  `finish_reason=length`, no tool call, empty `content`; the loop logged
+  `nothing_to_add` and ended the turn `answer_delivered`, and the person
+  would have received nothing after 204 s. The FP8 App's first G with
+  thinking at `low` had the same shape (2026-09-05).
+- **Costs:** the person waits minutes and gets silence, billed as 8,192
+  output tokens; the turn is recorded as a delivered answer, so nothing
+  in the record says a request failed.
+- **Reproduce:** any reasoning model whose thinking runs past
+  `MODEL_MAX_TOKENS` before its first visible token.
+- **Cause:** the loop treats an empty completion as "nothing to add"
+  whatever its `finish_reason`; `length` with nothing visible is a cut,
+  not a choice.
+- **Evidence:** `reports/2026-09-06_hosted_model_cometapi.md` §4.
+- **Related:** ISS-0031 (the cap and a cut call), the thinking dial in
+  `docs/OPERATIONS_MAP.md`.
+
 ### ISS-0054 — the model is put to sleep in the middle of a turn whenever a tool outlives the idle window
 
 - **Status:** open, recorded 2026-09-05 on the human's word; not scheduled

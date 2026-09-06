@@ -345,7 +345,11 @@ an observed defect is described in `ISSUES.md`, not here.
   deployment on GLM, scenario B passed (39.7 s, cache hits passed through
   and discounted; `reports/2026-09-06_hosted_model_cometapi.md`). Four
   candidates named: GLM 5.3 Flash, Qwen3.8-Flash-Next, DeepSeek V4 Flash
-  Vision, Gemini 3.1 Flash-Lite. Next, its own gate: the rest of the suite.
+  Vision, Gemini 3.1 Flash-Lite. The suite on GLM the same day: 13 of 15
+  pass, $0.0081 for fifteen turns, 3–20x slower per turn than a warm
+  INT4 and no cold start; G spends its cap on reasoning (ISS-0055), P
+  checks the PDF without looking (ISS-0040). Next, its own gate: G with
+  a larger cap or an effort field; the other candidates when listed.
 - **The whole-code review of 2026-09-03**, thirteen findings ranked and an
   order proposed: `reports/2026-09-03_v2_whole_code_review.md`. Items 1 and 2
   of its order (§2.1–2.4: the summarizer reads stubs, a fold cannot fail a
