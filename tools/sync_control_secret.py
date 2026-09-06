@@ -52,6 +52,8 @@ ALLOWED: tuple[str | tuple[str, str], ...] = (
     "MODEL_AUTH_STYLE",
     "MODEL_CHAT_TEMPLATE_KWARGS",
     "MODEL_EXTRA_BODY",
+    # The context budget in tokens, for a model whose server reports no length.
+    "AGENT_CONTEXT_TOKENS",
     # The web capability. The search key and the renderer's proxy token are
     # credentials; the identity is a courtesy to sites that ask for one.
     "WEB_FIRECRAWL_API_KEY",
