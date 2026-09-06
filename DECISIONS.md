@@ -1258,7 +1258,7 @@ other than CometAPI, because through CometAPI it is delivered whole after
 **Amended the same evening, the human's words.** The hosted models are
 reached through OpenRouter, not CometAPI (report §11–§12: Gemini 2–3x
 faster there and half the price on the Flex rate; GLM 3–8x faster). The
-**default is GLM 5.3 Flash at Z.ai, Novita as the fallback**
+**default is GLM 5.3 Flash at Novita, Z.ai as the fallback** (Z.ai's first B call stalled 19 s; Novita's timings were the steadier)
 (`provider.order`, `allow_fallbacks: false`), with `thinking: disabled`
 and `reasoning_effort: low`, which together leave no reasoning tokens
 with tools: ~5 s per call, the cache on every repeat, $0.00007 a call.

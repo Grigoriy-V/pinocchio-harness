@@ -320,8 +320,8 @@ application; see the amended FastAPI decision in `DECISIONS.md`.
     models: default Gemini 3.1 Flash-Lite, stronger Gemini 3.5 Flash-Lite,
     low-price GLM 5.3 Flash. Later the same day, after B and C on
     OpenRouter (report §11): the deployment runs on OpenRouter, not
-    CometAPI, and **the default is GLM 5.3 Flash served by Z.ai (fp8),
-    Novita as the fallback**, thinking off and `reasoning_effort: low`
+    CometAPI, and **the default is GLM 5.3 Flash served by Novita (fp8),
+    Z.ai as the fallback**, thinking off and `reasoning_effort: low`
     (the human, after the four-host comparison of report §12: ~5 s per
     call, the cache on every repeat, $0.00007 a call). Gemini is paused
     until its cache can be made to land. Next, each on the human's word: (a) Gemini
