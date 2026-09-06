@@ -302,7 +302,32 @@ with the provider chosen per request (`provider` in the body, which
 `MODEL_EXTRA_BODY` can carry), so the low-price tier can be one set
 pointed at OpenRouter with Baseten or DeepInfra named.
 
-## 11. Open
+## 11. OpenRouter: the same two models, B and C
+
+The `OR` set (`https://openrouter.ai/api/v1`), provider named in the
+extra body. Four turns, the raw dumps say which host served each call and
+what OpenRouter charged (`usage.cost`).
+
+| | Gemini 3.1 Flash-Lite, OR | Gemini, CometAPI | GLM 5.3 Flash, OR (Novita fp8) | GLM, CometAPI |
+|---|---|---|---|---|
+| B | 7.0 s, 3 calls | 8.3 s | 14.7 s, 2 calls | 39.7 / 111 s |
+| C | 5.5 s, 3 calls | 10.8 s | 22.6 s, 3 calls | 37.7 s |
+| per call | 0.5–1.0 s, streamed | 1.5–3 s | 4.5–7.7 s, mostly whole | 13–100 s |
+| cache | 0 of 6 | 2 of 60 | 3 of 3 after the first, discounted (call cost $0.000076 against $0.00035 uncached) | discounted |
+| served by | "Google AI Studio", billed at the Flex rate ($0.128/M observed) | — | Novita | — |
+| thinking | none | none | 5–75 reasoning tokens with `thinking: disabled` | 0–596 |
+
+Gemini through OpenRouter is 2–3x faster per call than through CometAPI
+and half the price on the Flex rate; the implicit cache still did not
+land in six calls (explicit `cache_control` breakpoints are the next
+lever, item 13b). GLM through Novita is 3–8x faster than through CometAPI
+and caches every call after the first, at $0.075 in. The `provider.order`
+slugs are `google-ai-studio/flex`, `google-ai-studio`, `novita/fp8`,
+`modal/fp8` (the endpoints API); `.env` still says
+`google-ai-studio-flex`, which matches nothing — the published secret
+carries the corrected line until `.env` is fixed.
+
+## 12. Open
 
 - The plain `MODEL_ENDPOINT` and `MODEL_NAME` lines are no longer in
   `.env` (the sync reported them absent), so `MODEL=` empty would now point
