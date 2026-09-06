@@ -332,6 +332,13 @@ application; see the amended FastAPI decision in `DECISIONS.md`.
     0.5 s / 150 tok/s, DeepInfra 1.8 s / 41 tok/s at $0.075; report
     §10); (d) the Telegram command that switches between published sets.
 
+**Direction, the human's words 2026-09-06:** the main vector is now
+cleaning defects and polishing the base. The model is cheap (GLM through
+OpenRouter, $0.00007 a call), so the latency to fight is the harness's
+own — the unattributed seconds inside a turn (ISS-0056), what a tool
+says it returns and leaves (ISS-0010 again the same day), the suite that
+measures it — and efficiency, not the model's speed.
+
 Order: 10, 11, 12 together are one cohesive change to how the model is
 told what it can do and how that is measured; 13 after. The analysis and
 the proposal for the three: `reports/2026-09-05_suite_and_tools_review.md`,

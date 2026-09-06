@@ -51,6 +51,29 @@ Rules that keep the file honest:
 
 ---
 
+### ISS-0056 — a turn spends seconds between its own steps that no model, tool or store accounts for
+
+- **Status:** open, observed 2026-09-06
+- **Seen:** 2026-09-06, live, run `42cebe2d531c4a1199b8b663c6f8832c`
+  (Telegram, GLM at Novita): 71.8 s in all, of which model 46.6 s, tools
+  1.9 s, persist 2.7 s, the queue 4.9 s, and **18.3 s unattributed**.
+  Between `model_finished` and the next `tool_started` there are 1.8 s
+  on every step (36.53→38.29, 40.97→42.77, 50.61→52.99), and 5.3 s from
+  the last `persist_finished` to `turn_finished`. The previous turn
+  (`e33fc1d3…`, one call): 27.1 s with 11.9 s model, 3.5 s queue.
+- **Costs:** on a model that answers a call in 2–6 s, a quarter of the
+  turn is the harness's own gaps; the person's first visible word came at
+  51 s in a turn whose model produced it by 36 s.
+- **Reproduce:** any deployed turn with tools; read the timeline's gaps.
+- **Cause:** unknown. Candidates, not findings: the Telegram preview
+  edits between steps, the checkpoint write after each node, the
+  telemetry flush, the workspace Volume commit. The timeline does not
+  yet name them, which is the first thing to fix.
+- **Evidence:** `tools/show_run.py 42cebe2d531c4a1199b8b663c6f8832c`
+- **Related:** roadmap item 10 (time split into model, tool, wait);
+  the human's direction of 2026-09-06: the model is cheap now, the
+  latency to fight is the harness's.
+
 ### ISS-0055 — a call that spends its whole output cap on reasoning is delivered as an answer with nothing said
 
 - **Status:** fixed in the tree, 2026-09-06 — an empty completion at
@@ -1057,6 +1080,15 @@ Rules that keep the file honest:
 - **Also seen:** 2026-09-03, thread `3261ae8f`: "не могу напрямую отправить
   скриншот из системы", this time with every tool halted by ISS-0013 so no
   send was possible — the honest sentence was that the look had been refused.
+- **Seen again:** 2026-09-06, live, GLM 5.3 Flash at Novita, run
+  `42cebe2d531c4a1199b8b663c6f8832c`: `write_file`, `inspect_page`,
+  `send_file` of `calculator.html`, and the answer "Калькулятор создан —
+  calculator.html (в чате выше скриншот)". Only the HTML left; the
+  screenshot the model saw in `inspect_page`'s result stayed in the
+  workspace. The human's reading: the tools do not say plainly what leaves
+  the workspace by default and what stays, so a model that has looked at
+  a page takes the look for a delivery — the contract of roadmap item 11
+  (what a tool returns, what it leaves and where), not a case to patch.
 - **Evidence:** runs `8ffab1aa` (inspect, "вот скриншот", nothing outbound),
   `240f09ea` (same), `eda12665` ("не могу прикрепить"), `29c2bd17`
   (`send_file` of the PNG, delivered), 2026-09-03T04:06–04:09Z; `reports/2026-09-03_v2_first_session_on_the_tool_system.md`
