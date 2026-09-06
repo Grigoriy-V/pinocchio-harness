@@ -354,6 +354,9 @@ an observed defect is described in `ISSUES.md`, not here.
   not streamed (report §5–§7). The raw stream can now be kept
   (`MODEL_DUMP_DIR`). Found on the way, for items 11–12: the model builds
   its own browser because the page tool returns refs and no click.
+  Gemini 3.1 Flash-Lite through the same set: 14 of 16, G passes all its
+  checks, 1.5–3 s per call, $0.0585 for the suite, cache rarely hit and
+  not discounted (report §8).
 - **The whole-code review of 2026-09-03**, thirteen findings ranked and an
   order proposed: `reports/2026-09-03_v2_whole_code_review.md`. Items 1 and 2
   of its order (§2.1–2.4: the summarizer reads stubs, a fold cannot fail a

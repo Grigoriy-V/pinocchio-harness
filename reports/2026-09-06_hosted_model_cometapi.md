@@ -209,7 +209,44 @@ What the raw `.sse` files say that the telemetry could not:
   CometAPI's queue and 2 s to tools; on this route the seconds budget
   measures the provider, not the work.
 
-## 8. Open
+## 8. Gemini 3.1 Flash-Lite, the same set with one line changed
+
+`MODEL_COMET_NAME=gemini-3.1-flash-lite` (the GLM extra body left in
+place; Gemini ignores it), the whole suite in one batch
+(`deployed-cac14ccc-*`, 11:29–11:37 UTC): **14 of 16 pass**, $0.0585
+for sixteen turns.
+
+| Scenario | Gemini, s | GLM, s | INT4 warm, s | Result |
+|---|---|---|---|---|
+| A | 7.5 | 17.1 | (26.7) | pass |
+| B | 8.3 | 39.7 | 4.1 | pass |
+| C | 10.8 | 37.7 | 6.6 | pass |
+| D | 8.4 | 40.3 | 22.2 | pass |
+| E | 12.9 | 39.3 | 5.9 | **fail: the repeat guard ended the turn** (the edit retried unchanged before the read) |
+| F | 12.0 | 67.7 | 11.3 | pass |
+| G | 39.5 | fail | fail | **pass, all eight checks**: three files, `inspect_page`, files and screenshot sent, 7 calls |
+| H | 10.3 | 29.4 | (40.8) | pass |
+| I | 9.0 | 27.7 | 4.0 | pass |
+| K | 27.0 | 141.9 | 20.7 | pass |
+| J | 6.8 | 77.8 | 3.3 | pass |
+| O | 14.3 | 187.1 | 15.3 | pass |
+| P | 45.7 | 51.0 | 21.6 | **fail: not looked at** (ISS-0040, same as GLM) |
+| Q | 22.5 | 24.7 | 8.1 | pass |
+| R | 36.6 | 49.5 | 26.6 | pass |
+| S | 36.0 | 35.2 | 14.4 | pass |
+
+Per call 1.5–3 s, streamed; the turn times are close to a warm INT4's
+and there is no cold start. G passed on the first try with the route the
+brief names, which neither INT4 nor GLM managed in five runs between them.
+
+**Cache and bill.** 60 calls, 276k input tokens, 2 cache hits (8k tokens)
+— Gemini's implicit cache is best-effort and through CometAPI it rarely
+lands, as the narrative-game probes found. The bill, $0.0585, equals the
+page prices with no cache discount ($0.0593 at $0.20/$1.20): what little
+was cached was not discounted, or the rounding ate it. Seven times GLM's
+suite ($0.0081) and a sixth of INT4's derived A100 time.
+
+## 9. Open
 
 - The plain `MODEL_ENDPOINT` and `MODEL_NAME` lines are no longer in
   `.env` (the sync reported them absent), so `MODEL=` empty would now point
