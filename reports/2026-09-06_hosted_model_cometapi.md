@@ -246,7 +246,38 @@ page prices with no cache discount ($0.0593 at $0.20/$1.20): what little
 was cached was not discounted, or the rounding ate it. Seven times GLM's
 suite ($0.0081) and a sixth of INT4's derived A100 time.
 
-## 9. Open
+## 9. Neighbours of Gemini 3.1 Flash-Lite on price, speed and quality
+
+The human's reading after §8: Gemini 3.1 Flash-Lite leads on
+price/quality/speed, speed above all. What else sits near it (prices
+per 1M in/out; "on CometAPI" means listed in `/v1/models` on 2026-09-06):
+
+| Model | In / out | Vision | Tools | Speed (published) | Where | Note |
+|---|---|---|---|---|---|---|
+| Gemini 3.5 Flash-Lite | $0.24 / $2.02 | yes | yes | same family; TTFT not published | CometAPI | Terminal-Bench 2.1 54%; the one-line upgrade to try |
+| Mistral Small 4 (2026-03) | $0.075 / $0.20 (provider-dependent) | yes | yes | "40% faster than Small 3", 262k | not on CometAPI; Mistral direct, OpenAI-compatible | cheapest credible neighbour; needs its own set and key |
+| Grok 4 Fast non-reasoning | $0.20 / $0.50 | yes | yes | 2M context; AA index 17 | not on CometAPI (only grok-4.20 non-reasoning, $1/$2, text) | xAI direct |
+| GPT-5.4 mini | $0.60 / $3.60 | yes | yes, `reasoning_effort: none` | ~180–190 tok/s | CometAPI | 3x the price |
+| GPT-5.4 nano | $0.16 / $1.00 | **no** | basic | ~1.6 s avg | CometAPI | text-only, out |
+| Doubao Seed 2.0 Lite | $0.08 / $0.48 | yes | yes | not published | CometAPI | Chinese route through CometAPI: expect GLM/Qwen's queue |
+| Claude Haiku 4.5 | $0.80 / $4.00 | yes | yes, computer use | "200+ tok/s" | CometAPI | best tool discipline in the class, 4x the price |
+| Llama 4 Scout on Groq | $0.11 / $0.34 | yes | yes | 448 tok/s | Groq direct | open model; tool-calling quality unmeasured here |
+
+Published numbers for the leader itself: Gemini 3.1 Flash-Lite ~362
+tok/s, BFCL v3 76.5%, MMLU-Pro 78%.
+
+What would change the picture, each one set and one key, B and G to
+compare: Gemini 3.5 Flash-Lite (one line on CometAPI); Mistral Small 4
+direct; Grok 4 Fast direct. Google AI Studio direct instead of CometAPI
+is worth one comparison too: same price plus 25%, but the implicit cache
+lands there and the latency has no reseller in front.
+
+Sources: CometAPI model pages; artificialanalysis.ai (Gemini 3.1
+Flash-Lite providers, Grok 4 Fast); openrouter.ai (Mistral Small 4);
+layerlens.ai (Gemini 3.1 Flash-Lite benchmarks); cloudzero.com and
+artificialanalysis.ai (Llama 4 Scout on Groq).
+
+## 10. Open
 
 - The plain `MODEL_ENDPOINT` and `MODEL_NAME` lines are no longer in
   `.env` (the sync reported them absent), so `MODEL=` empty would now point
