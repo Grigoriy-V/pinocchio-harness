@@ -318,7 +318,11 @@ application; see the amended FastAPI decision in `DECISIONS.md`.
     chosen 2026-09-06.** Model sets exist (`MODEL=<name>`, every set in
     the secret; DECISIONS 2026-09-06). The human's tiers among hosted
     models: default Gemini 3.1 Flash-Lite, stronger Gemini 3.5 Flash-Lite,
-    low-price GLM 5.3 Flash. Next, each on the human's word: (a) Gemini
+    low-price GLM 5.3 Flash. Later the same day, after B and C on
+    OpenRouter (report §11): the deployment runs on OpenRouter, not
+    CometAPI, and the default for now is GLM 5.3 Flash served by DeepInfra
+    (fp4), Modal fp8 as the fallback, thinking off — 6–7 s per call, the
+    cache on every call. Next, each on the human's word: (a) Gemini
     3.1 Flash-Lite with thinking against without, B and G; (b) a thin
     adapter for Google's native request format, so Gemini's cache can be
     made to land (explicit caching is native-only; report §8); (c) GLM
