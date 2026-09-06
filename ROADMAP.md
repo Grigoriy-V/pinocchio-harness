@@ -340,7 +340,12 @@ an observed defect is described in `ISSUES.md`, not here.
   `MODEL_AUTH_STYLE=bearer`), so it is a secret change and a control
   deploy, no GPU; what has to be checked is the served context limit (the
   client reads `/v1/models`), the thinking dial and the tool-call format,
-  then the same scenarios. Fits item 13's list of model choices.
+  then the same scenarios. Fits item 13's list of model choices. **Begun
+  2026-09-06:** model sets (`MODEL=comet` reads `MODEL_COMET_*`), the
+  deployment on GLM, scenario B passed (39.7 s, cache hits passed through
+  and discounted; `reports/2026-09-06_hosted_model_cometapi.md`). Four
+  candidates named: GLM 5.3 Flash, Qwen3.8-Flash-Next, DeepSeek V4 Flash
+  Vision, Gemini 3.1 Flash-Lite. Next, its own gate: the rest of the suite.
 - **The whole-code review of 2026-09-03**, thirteen findings ranked and an
   order proposed: `reports/2026-09-03_v2_whole_code_review.md`. Items 1 and 2
   of its order (§2.1–2.4: the summarizer reads stubs, a fold cannot fail a
