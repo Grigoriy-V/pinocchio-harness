@@ -10,6 +10,9 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
+import os
+from datetime import datetime, timezone
+from pathlib import Path
 from collections.abc import AsyncIterator, Sequence
 from dataclasses import dataclass, replace
 from typing import Any, Self
@@ -735,6 +738,7 @@ class OpenAICompatibleBackend(ModelBackend):
         while True:
             streamed = StreamedCompletion()
             received = False
+            dump = self._dump(body)
             try:
                 async with self._client.stream("POST", "/chat/completions", json=body) as response:
                     if response.status_code >= 400:
@@ -748,6 +752,8 @@ class OpenAICompatibleBackend(ModelBackend):
                         )
                         raise error_type(f"HTTP {response.status_code}: {response.text}")
                     async for line in response.aiter_lines():
+                        if dump is not None:
+                            dump.write(line + "\n")
                         chunk = parse_stream_line(line)
                         if chunk is None:
                             continue
@@ -761,9 +767,37 @@ class OpenAICompatibleBackend(ModelBackend):
                     raise
                 await asyncio.sleep(self.settings.retry_backoff * 2**attempt)
                 attempt += 1
+            finally:
+                if dump is not None:
+                    dump.close()
         finished = streamed.result()
         self._calibrate(messages, finished.usage)
         yield CompletionDone(readable(finished))
+
+    _dumped = 0
+
+    def _dump(self, body: dict[str, Any]) -> Any | None:
+        """A file for one streamed call's raw lines, when `MODEL_DUMP_DIR` names a place.
+
+        The request body goes first so the file explains itself. A directory
+        that cannot be written costs the call nothing: a dump is evidence, not
+        a step of the turn.
+        """
+
+        if not self.settings.dump_dir:
+            return None
+        try:
+            directory = Path(self.settings.dump_dir)
+            directory.mkdir(parents=True, exist_ok=True)
+            type(self)._dumped += 1
+            stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
+            handle = (directory / f"{stamp}-{os.getpid()}-{type(self)._dumped}.sse").open(
+                "w", encoding="utf-8"
+            )
+            handle.write("=== request\n" + json.dumps(body, ensure_ascii=False) + "\n=== response\n")
+            return handle
+        except OSError:
+            return None
 
     def estimate_tokens(self, messages: Sequence[Message]) -> int:
         """The inherited estimate, at the ratio this endpoint has been observed at.

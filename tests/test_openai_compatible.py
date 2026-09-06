@@ -664,6 +664,43 @@ async def test_chat_template_kwargs_are_sent_when_configured() -> None:
     assert seen["chat_template_kwargs"] == {"enable_thinking": True, "reasoning_effort": "low"}
 
 
+async def test_a_streamed_call_is_kept_raw_when_a_dump_dir_is_named(tmp_path) -> None:
+    """What the model wrote, as it arrived, whatever the parser made of it."""
+
+    lines = [
+        'data: {"choices":[{"delta":{"reasoning_content":"hmm"}}]}',
+        'data: {"choices":[{"delta":{"content":"pong"}}]}',
+        'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}',
+        "data: [DONE]",
+    ]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content="\n".join(lines) + "\n", headers={"content-type": "text/event-stream"})
+
+    async with backend(handler, dump_dir=str(tmp_path / "dumps")) as client:
+        async for _ in client.stream([Message(role="user", content=[text_part("ping")])]):
+            pass
+
+    [dump] = list((tmp_path / "dumps").glob("*.sse"))
+    text = dump.read_text(encoding="utf-8")
+    assert text.startswith("=== request\n")
+    assert '"ping"' in text
+    assert '"reasoning_content":"hmm"' in text
+    assert text.rstrip().endswith("data: [DONE]")
+
+
+async def test_nothing_is_kept_by_default(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=completion_payload(content="pong"))
+
+    async with backend(handler) as client:
+        await client.invoke([Message(role="user", content=[text_part()])])
+
+    assert not list(tmp_path.glob("**/*.sse"))
+
+
 async def test_extra_body_is_merged_last() -> None:
     """A hosted service's own field goes in, and a field the client sets can be overridden."""
 

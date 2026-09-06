@@ -88,6 +88,12 @@ class ModelSettings(BaseSettings):
     # {"type": "disabled"}}` for DeepSeek). Merged last so it can also override
     # a field the client sets; empty sends nothing.
     extra_body: dict[str, object] | None = None
+    # A directory where every streamed response is kept as it arrived, one
+    # `.sse` file per call with the request body first. Empty keeps nothing.
+    # The one way to know what a model wrote when the parser kept none of it
+    # (2026-09-06: 8,192 tokens, no text, no call); it holds conversation
+    # content, so it is a workspace or a scratch path, never the repository.
+    dump_dir: str | None = None
 
     @field_validator("chat_template_kwargs", "extra_body", mode="before")
     @classmethod

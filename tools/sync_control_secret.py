@@ -43,7 +43,7 @@ SECRET_NAME = "assistant-control"
 # `AGENT_COMET_CONTEXT_TOKENS`. Every set in `.env` is published, so the
 # deployment can switch between them without a new secret.
 MODEL_SET = re.compile(
-    r"^(?:MODEL_[A-Z0-9]+_(?:ENDPOINT|NAME|API_KEY|AUTH_STYLE|CHAT_TEMPLATE_KWARGS|EXTRA_BODY)"
+    r"^(?:MODEL_[A-Z0-9]+_(?:ENDPOINT|NAME|API_KEY|AUTH_STYLE|CHAT_TEMPLATE_KWARGS|EXTRA_BODY|DUMP_DIR)"
     r"|AGENT_[A-Z0-9]+_CONTEXT_TOKENS)$"
 )
 
@@ -62,6 +62,7 @@ ALLOWED: tuple[str | tuple[str, str], ...] = (
     "MODEL_AUTH_STYLE",
     "MODEL_CHAT_TEMPLATE_KWARGS",
     "MODEL_EXTRA_BODY",
+    "MODEL_DUMP_DIR",
     # The context budget in tokens, for a model whose server reports no length.
     "AGENT_CONTEXT_TOKENS",
     # The web capability. The search key and the renderer's proxy token are
