@@ -168,7 +168,48 @@ Two readings, kept apart:
   turn with a message that the cap was spent before a visible word,
   instead of "(nothing said)" recorded as a delivered answer.
 
-## 7. Open
+## 7. G with the raw stream kept: what the model actually does
+
+`MODEL_DUMP_DIR` on (`/workspaces/.dumps`), the redeploy carrying ISS-0055
+and `reasoning_tokens`; run `deployed-90000c35-70`, 393.6 s, 8 model
+calls, 6 tool calls, ended by the seconds budget. The route this time was
+the one the brief names — `set_goal`, three `write_file`, `inspect_page`,
+`read_file` of the screenshot — and then the budget, before `send_file`.
+The 8,192-token silence of the two earlier runs did not recur; the dumps
+are on for when it does.
+
+What the raw `.sse` files say that the telemetry could not:
+
+- **CometAPI does not stream GLM.** Every chunk of a call carries the same
+  `created` second, and the first arrives 96 s (call 6), 75 s (call 7),
+  13 s (call 8) after the request: the whole response is generated
+  server-side and delivered at once. "Time to first token" on this route
+  is the whole call; our stream retry logic and the person's streamed
+  answer gain nothing.
+- **Call 6: 96 s for 21 output tokens, 0 reasoning**, a `read_file` of the
+  screenshot on a 10.5k-token prompt with 4.5k cached. That is the
+  provider's latency, nothing the model did.
+- **`thinking: disabled` is not fully honoured with tools offered.**
+  Call 7 carried 2,717 characters of `reasoning_content` (596 reasoning
+  tokens), call 8 858 characters; the probe without tools had none.
+- **Why the model reaches for a browser of its own** (call 7's reasoning,
+  verbatim): "The inspect_page tool doesn't let me click. Hmm —
+  inspect_page returns refs but I have no click tool. I can't interact
+  with the page directly via tools." Then `run_command` with `node --check`
+  and `which chromium`. This is the same route INT4 took on 2026-09-05
+  (`npm install puppeteer`, `apt-get`): a model asked to make a working
+  app wants to press its buttons, the toolbox returns refs it cannot
+  use, and the shell is the only way left. The references offer a click
+  and a type on the same page the screenshot came from; ours offers the
+  refs and no verb. Belongs with items 11–12, as the reason the route
+  exists rather than a case to patch.
+- **Call 8, after the budget** (reasoning, verbatim): "I should send the
+  screenshot and files — but I can't call send_file anymore." The model
+  answered honestly with what it had. The turn's 300 s went 381 s to
+  CometAPI's queue and 2 s to tools; on this route the seconds budget
+  measures the provider, not the work.
+
+## 8. Open
 
 - The plain `MODEL_ENDPOINT` and `MODEL_NAME` lines are no longer in
   `.env` (the sync reported them absent), so `MODEL=` empty would now point

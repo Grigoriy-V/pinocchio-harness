@@ -348,8 +348,12 @@ an observed defect is described in `ISSUES.md`, not here.
   Vision, Gemini 3.1 Flash-Lite. The suite on GLM the same day: 13 of 15
   pass, $0.0081 for fifteen turns, 3–20x slower per turn than a warm
   INT4 and no cold start; G spends its cap on reasoning (ISS-0055), P
-  checks the PDF without looking (ISS-0040). Next, its own gate: G with
-  a larger cap or an effort field; the other candidates when listed.
+  checks the PDF without looking (ISS-0040). Thinking flags reach GLM
+  through CometAPI; with them G took the brief's route and lost to the
+  seconds budget: CometAPI delivers a GLM response whole after 13–100 s,
+  not streamed (report §5–§7). The raw stream can now be kept
+  (`MODEL_DUMP_DIR`). Found on the way, for items 11–12: the model builds
+  its own browser because the page tool returns refs and no click.
 - **The whole-code review of 2026-09-03**, thirteen findings ranked and an
   order proposed: `reports/2026-09-03_v2_whole_code_review.md`. Items 1 and 2
   of its order (§2.1–2.4: the summarizer reads stubs, a fold cannot fail a
