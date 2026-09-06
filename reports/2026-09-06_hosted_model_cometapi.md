@@ -119,7 +119,56 @@ one (ISS-0055).
 A100 time for the same sixteen on INT4 (the suite's own upper bound), a
 factor of ~40; and no restore, no idle window, no ISS-0044/ISS-0054.
 
-## 5. Open
+## 5. Thinking off, by probe and by scenario
+
+Three direct streamed calls (one-word question, 25 tokens in):
+
+| body | total | reasoning tokens | output | answer |
+|---|---|---|---|---|
+| as is | 2.6 s | 22 | 25 | Yellow |
+| `thinking: {"type": "disabled"}` | 3.0 s | 0 | 5 | Yellow |
+| `reasoning_effort: "low"` | 1.8 s | 0 | 3 | Yellow |
+
+Both flags reach the model through CometAPI and switch reasoning off,
+against Z.ai's own note that GLM-5.3-Flash cannot; CometAPI streams
+`reasoning_content` and reports `completion_tokens_details.reasoning_tokens`,
+and `completion_tokens` includes the reasoning. The set's extra body is
+now `{"tool_stream": true, "thinking": {"type": "disabled"}}`.
+
+B, G, K, O again with it (`deployed-553dcc1e-*`, $0.0043 for four turns):
+
+| Scenario | thinking on | thinking off | Calls | Result |
+|---|---|---|---|---|
+| B | 39.7 | 111.3 | 2m/1t | pass; call 2: 90 s to the first token for 15 output tokens |
+| G | 207.8 | 224.7 | 1m/0t | **fail again: 8,192 out at `length`, nothing said** |
+| K | 141.9 | 135.4 | 5m/5t | pass; call 1: 1,141 output tokens in 71 s |
+| O | 187.1 | 100.2 | 3m/2t | pass; call 1: 104 output tokens in 59 s |
+
+Two readings, kept apart:
+
+- **The time is CometAPI's, not the thinking's.** 90 s to the first
+  token for a 15-token answer, 59 s for 104 tokens: with reasoning off
+  the calls are as slow as before, and the delay is before the first
+  token. Wall time on this route is the provider's queue, and it varies
+  by a factor of five between runs of the same scenario.
+- **G's 8,192 tokens are still unaccounted for.** No text, no tool call
+  visible to the parser, not a cut call (that would be a `tool_failed`
+  with `output_cut`), so either the flag is ignored when tools are
+  offered and the tokens were reasoning again, or the model wrote 8k
+  tokens of something the stream parser did not keep. The client did not
+  record `reasoning_tokens` at the time; it does now (§6), so the next G
+  answers this from telemetry instead of a guess.
+
+## 6. Harness changes from this day's evidence
+
+- `Usage.reasoning_tokens` read from `completion_tokens_details`, carried
+  into `model_finished` and the run inspector ("reasoning N" beside the
+  call), so thinking time and queue time are told apart.
+- ISS-0055: an empty completion at `finish_reason=length` now ends the
+  turn with a message that the cap was spent before a visible word,
+  instead of "(nothing said)" recorded as a delivered answer.
+
+## 7. Open
 
 - The plain `MODEL_ENDPOINT` and `MODEL_NAME` lines are no longer in
   `.env` (the sync reported them absent), so `MODEL=` empty would now point

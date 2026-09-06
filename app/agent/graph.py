@@ -396,6 +396,31 @@ def stopped_message() -> Message:
     )
 
 
+def silent_cut() -> Message:
+    """A completed assistant turn when the model's output ran out before a word.
+
+    `finish_reason == "length"` with no text and no call: the whole cap went
+    to reasoning the person never sees (ISS-0055, GLM through CometAPI,
+    2026-09-06). Ending the turn silently would record a delivered answer
+    that nobody received.
+    """
+
+    return Message(
+        role="assistant",
+        content=[
+            ContentPart(
+                kind="text",
+                text=(
+                    "I ran out of room for this answer before saying anything: the "
+                    "model's output limit was spent before its first visible word. "
+                    "Nothing was done. Ask for a smaller piece, or raise "
+                    "MODEL_MAX_TOKENS."
+                ),
+            )
+        ],
+    )
+
+
 def context_refusal() -> Message:
     """A completed assistant turn when even one bounded recovery cannot fit."""
 
@@ -709,6 +734,11 @@ def build_agent(
                 # again was a second generation of the same words (ISS-0009).
                 trace.event("steered_candidate_kept", step=state.steps + 1)
                 return {**keep, "messages": [state.steered.candidate]}
+            if completion.finish_reason == "length":
+                # Not a choice to say nothing: the cap was reached before a
+                # visible token (ISS-0055). Said so, rather than silence.
+                trace.event("output_cut_silent", step=state.steps + 1)
+                return {**keep, "messages": [silent_cut()]}
             # Nothing new after what was already said beside the last call.
             # The turn ends here with no further message.
             trace.event("nothing_to_add", step=state.steps + 1)

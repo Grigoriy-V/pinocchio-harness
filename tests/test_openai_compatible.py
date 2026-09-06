@@ -379,6 +379,24 @@ def test_streamed_text_assembles_into_the_same_answer() -> None:
     assert result.usage.cached_tokens == 16
 
 
+def test_reasoning_tokens_are_read_from_the_output_details() -> None:
+    """A model that thinks first bills the thinking as output; the split is the measurement."""
+
+    from app.models.openai_compatible import parse_usage
+
+    usage = parse_usage(
+        {
+            "prompt_tokens": 25,
+            "completion_tokens": 25,
+            "completion_tokens_details": {"reasoning_tokens": 22},
+        }
+    )
+
+    assert usage.output_tokens == 25
+    assert usage.reasoning_tokens == 22
+    assert parse_usage({"prompt_tokens": 1, "completion_tokens": 1}).reasoning_tokens is None
+
+
 def test_a_leaked_end_of_turn_marker_is_not_text() -> None:
     """Run `9c42241c`, 2026-09-03: the last request answered `<eos>`, one token,
     and the person received it as a message."""

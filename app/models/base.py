@@ -170,6 +170,10 @@ class Usage:
     # `None` when the server does not say; a server that says is the one
     # measurement of context assembly that costs nothing.
     cached_tokens: int | None = None
+    # How many of the output tokens were reasoning the person never sees.
+    # `None` when the server does not say. Billed as output, and the whole of
+    # a slow call's time on a model that thinks first (2026-09-06).
+    reasoning_tokens: int | None = None
 
 
 @dataclass(frozen=True)

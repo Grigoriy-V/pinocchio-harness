@@ -53,7 +53,13 @@ Rules that keep the file honest:
 
 ### ISS-0055 — a call that spends its whole output cap on reasoning is delivered as an answer with nothing said
 
-- **Status:** open, observed 2026-09-06
+- **Status:** fixed in the tree, 2026-09-06 — an empty completion at
+  `finish_reason=length` ends the turn with a message that says the cap
+  was spent before a visible word (`silent_cut`, event
+  `output_cut_silent`); an empty completion at `stop` still ends it
+  silently, as the prompt asks. Not yet deployed. `reasoning_tokens`
+  now read from usage and written to `model_finished`, so the next such
+  call says where the tokens went
 - **Seen:** 2026-09-06, scenario G on `glm-5.3-flash` through CometAPI
   (`deployed-2491a3c4-70`): one model call, 4,597 tokens in, 8,192 out,
   `finish_reason=length`, no tool call, empty `content`; the loop logged

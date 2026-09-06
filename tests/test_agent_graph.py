@@ -77,6 +77,27 @@ async def test_an_answer_without_tool_calls_ends_the_graph(workspace: Path, stor
     assert [message.role for message in result["messages"]] == ["user", "assistant"]
 
 
+async def test_a_call_cut_at_the_cap_before_a_word_is_said_so(workspace: Path, store: SqliteStore) -> None:
+    """ISS-0055: reasoning spent the whole output cap; silence is not an answer."""
+
+    backend = ScriptedBackend(Completion(text="", finish_reason="length"))
+    agent = agent_over(backend, workspace, store)
+
+    result = await agent.ainvoke(ask("Make the pages."))
+
+    assert [message.role for message in result["messages"]] == ["user", "assistant"]
+    assert "output limit" in result["messages"][-1].content[0].text
+
+
+async def test_an_empty_completion_that_chose_silence_stays_silent(workspace: Path, store: SqliteStore) -> None:
+    backend = ScriptedBackend(calls("read_file", path="notes.txt"), Completion(text="", finish_reason="stop"))
+    agent = agent_over(backend, workspace, store)
+
+    result = await agent.ainvoke(ask("Read notes.txt and say nothing."))
+
+    assert [message.role for message in result["messages"]] == ["user", "assistant", "tool"]
+
+
 async def test_the_loop_runs_more_than_once(workspace: Path, store: SqliteStore) -> None:
     backend = ScriptedBackend(
         calls("list_files"),

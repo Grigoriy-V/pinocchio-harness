@@ -346,10 +346,12 @@ def repaired(call: ToolCall) -> ToolCall:
 
 def parse_usage(usage: dict[str, Any] | None) -> Usage:
     details = (usage or {}).get("prompt_tokens_details") or {}
+    output = (usage or {}).get("completion_tokens_details") or {}
     return Usage(
         input_tokens=(usage or {}).get("prompt_tokens"),
         output_tokens=(usage or {}).get("completion_tokens"),
         cached_tokens=details.get("cached_tokens") if isinstance(details, dict) else None,
+        reasoning_tokens=output.get("reasoning_tokens") if isinstance(output, dict) else None,
     )
 
 

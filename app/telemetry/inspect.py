@@ -82,6 +82,7 @@ def model_calls(events: Sequence[TraceEvent]) -> list[dict[str, object]]:
                 "input": None,
                 "cached": None,
                 "output": None,
+                "reasoning": None,
                 "finish": None,
                 "error": None,
             },
@@ -93,6 +94,7 @@ def model_calls(events: Sequence[TraceEvent]) -> list[dict[str, object]]:
             call["input"] = event.data.get("input_tokens")
             call["cached"] = event.data.get("cached_tokens")
             call["output"] = event.data.get("output_tokens")
+            call["reasoning"] = event.data.get("reasoning_tokens")
             call["finish"] = event.data.get("finish_reason")
         elif event.type == "model_failed":
             call["duration_ms"] = event.duration_ms
@@ -227,6 +229,8 @@ def model_section(events: Sequence[TraceEvent]) -> list[str]:
         tokens = f"{call['input'] or 0:>6} -> {call['output'] or 0:<5}"
         if call["cached"] is not None:
             tokens += f" cached {call['cached']:>5}"
+        if call["reasoning"]:
+            tokens += f" reasoning {call['reasoning']:>5}"
         ttft = (
             f" first token {seconds(call['ttft_ms'])}"
             if call["ttft_ms"] is not None
