@@ -314,11 +314,17 @@ application; see the amended FastAPI decision in `DECISIONS.md`.
     `inspect_page`, its brief line and the scenario checks that name it
     go. No new tool, no new name.
 
-13. **The model chosen from Telegram, and a default model.** A command
-    in the chat picks which deployed model App the assistant talks to;
-    the default is not yet chosen. Needs a design first: today the model
-    is one endpoint in the control secret, and the context ceiling, the
-    served name and the thinking setting go with it.
+13. **The model chosen from Telegram, and a default model — tiers
+    chosen 2026-09-06.** Model sets exist (`MODEL=<name>`, every set in
+    the secret; DECISIONS 2026-09-06). The human's tiers among hosted
+    models: default Gemini 3.1 Flash-Lite, stronger Gemini 3.5 Flash-Lite,
+    low-price GLM 5.3 Flash. Next, each on the human's word: (a) Gemini
+    3.1 Flash-Lite with thinking against without, B and G; (b) a thin
+    adapter for Google's native request format, so Gemini's cache can be
+    made to land (explicit caching is native-only; report §8); (c) GLM
+    5.3 Flash from a provider that streams it (OpenRouter lists Baseten
+    0.5 s / 150 tok/s, DeepInfra 1.8 s / 41 tok/s at $0.075; report
+    §10); (d) the Telegram command that switches between published sets.
 
 Order: 10, 11, 12 together are one cohesive change to how the model is
 told what it can do and how that is measured; 13 after. The analysis and

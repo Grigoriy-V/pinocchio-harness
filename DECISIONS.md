@@ -1238,6 +1238,46 @@ extension, the todo list's. Measured next on G and P deployed, goal on and
 off; if the parts written down do not change what is handed over, the tool
 comes out the way the check did.
 
+## 2026-09-06 — A hosted model is a set of lines, and the assistant keeps three: a default, a stronger one and a cheaper one
+
+Decision
+
+A model the assistant can talk to is a named set in configuration
+(`MODEL=<name>` reads `MODEL_<NAME>_*` and `AGENT_<NAME>_CONTEXT_TOKENS`;
+the plain `MODEL_*` lines are the unnamed set), every set is published
+with the control secret, and switching is the `MODEL` line and a
+control-plane redeploy. Among hosted models the human chose, 2026-09-06:
+**Gemini 3.1 Flash-Lite as the default** (to be compared with and without
+thinking through CometAPI's `-thinking` id), **Gemini 3.5 Flash-Lite as
+the stronger tier**, **GLM 5.3 Flash as the low-price tier**. A thin
+adapter for Google's native request format is to be built so that
+Gemini's cache can be made to land; GLM is to be served by a provider
+other than CometAPI, because through CometAPI it is delivered whole after
+13–100 s.
+
+Why
+
+The suite of 2026-09-06 on three hosted models through one OpenAI-
+compatible client: Gemini 3.1 Flash-Lite passed 14 of 16 with 1.5–3 s per
+streamed call and the first G that ever passed all its checks, at $0.06
+for the suite; GLM 5.3 Flash passed 13 of 15 at $0.008 with every call
+cached, but CometAPI returns it whole after a 13–100 s wait; INT4 on the
+A100 is faster per call when warm and pays 20–45 s restores and sleeps
+mid-turn. Price, quality and speed together put Gemini first, speed above
+all (the human). Gemini's implicit cache landed on 2 of 60 calls through
+CometAPI although the prefix is byte-identical (the dumps), which is the
+provider's routing; explicit caching exists only in the native API.
+`reports/2026-09-06_hosted_model_cometapi.md`.
+
+Consequences
+
+`ModelSettings` and `AgentSettings` read the chosen set; `MODEL_EXTRA_BODY`
+carries what a service wants and the OpenAI shape has no word for;
+`MODEL_DUMP_DIR` keeps a call's raw stream. The GPU Apps remain sets of
+their own (`MODEL_INT4_*` to be written before switching back). Which set
+the assistant uses from Telegram is roadmap item 13; the adapter and the
+GLM provider are its next work, each begun on the human's word.
+
 ## 2026-09-05 — A second model is a second App, and the assistant is pointed at one by configuration
 
 Decision

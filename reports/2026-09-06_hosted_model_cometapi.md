@@ -277,7 +277,32 @@ Flash-Lite providers, Grok 4 Fast); openrouter.ai (Mistral Small 4);
 layerlens.ai (Gemini 3.1 Flash-Lite benchmarks); cloudzero.com and
 artificialanalysis.ai (Llama 4 Scout on Groq).
 
-## 10. Open
+## 10. The human's tiers, and where GLM could be faster
+
+Decided 2026-09-06 (DECISIONS): default Gemini 3.1 Flash-Lite, stronger
+Gemini 3.5 Flash-Lite, low-price GLM 5.3 Flash; a native-format adapter
+for Gemini's cache; GLM from another provider.
+
+GLM 5.3 Flash by provider, OpenRouter's own measurements (input/output
+per 1M, latency to first token, throughput, cached input):
+
+| Provider | In / out | Latency | tok/s | Cached in |
+|---|---|---|---|---|
+| Baseten | $0.15 / $0.50 | 0.53 s | 150 | $0.03 |
+| Modal | $0.15 / $0.50 | 0.47 s | 118 | $0.03 |
+| Makora | $0.14 / $0.47 | 0.46 s | 112 | $0.024 |
+| Fireworks | $0.15 / $0.50 | 1.80 s | 71 | $0.03 |
+| DeepInfra | $0.075 / $0.25 | 1.78 s | 41 | $0.015 |
+| Z.ai direct | $0.075 / $0.25 | 4.59 s | 28 | $0.015 |
+| CometAPI, measured here | $0.06 / $0.20 | 13–100 s, whole | — | discounted |
+
+CometAPI's price is the lowest and its delivery the slowest by an order
+of magnitude. OpenRouter is one OpenAI-compatible key over all of these,
+with the provider chosen per request (`provider` in the body, which
+`MODEL_EXTRA_BODY` can carry), so the low-price tier can be one set
+pointed at OpenRouter with Baseten or DeepInfra named.
+
+## 11. Open
 
 - The plain `MODEL_ENDPOINT` and `MODEL_NAME` lines are no longer in
   `.env` (the sync reported them absent), so `MODEL=` empty would now point
