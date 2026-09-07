@@ -356,7 +356,13 @@ def capability_brief(
                 "check that it works"
             )
         if len(ways) > 1:
-            lines.append(f"- For a page on the internet: {'; '.join(ways)}.")
+            line = f"- For a page on the internet: {'; '.join(ways)}."
+            if "use_page" in tools.names:
+                line += (
+                    " A page that is a file in your workspace is opened only with "
+                    "use_page, and its screenshot action is how you see it rendered."
+                )
+            lines.append(line)
         if "search_web" in tools.names:
             lines.append(
                 "- A search query leaves this machine for an outside provider: say so "

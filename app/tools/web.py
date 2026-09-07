@@ -193,7 +193,9 @@ def web_view_tools(root: Path, settings: WebSettings | None = None) -> list[Tool
             description=(
                 "Open a public web page in a real browser, with its JavaScript run, and "
                 "look at it. For a page that needs JavaScript to show anything, or when the "
-                "layout, a chart or a picture is what matters; slower than fetch_page."
+                "layout, a chart or a picture is what matters; slower than fetch_page. "
+                "Public addresses only: a page that is a file in your workspace is opened "
+                "with use_page."
             ),
             returns=(
                 "the rendered text, a screenshot shown to you, and the workspace path the "
