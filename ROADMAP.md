@@ -179,6 +179,15 @@ Recorded, not approved, not begun. One line each.
   through the same interrupt seam consent uses.
 - **Throttle the edits that write a streamed answer.** How often to edit
   is a measurement, not a constant to pick.
+- **A message during a long tool is answered while the tool runs.** Seen
+  2026-09-07: "Статус" sent during a four-minute render was read only at the
+  next step boundary (item 20 reads between tools). In the same worker, whose
+  loop is free while a remote command or the renderer runs: listen to the
+  conversation's queue during a tool, answer at once from what the harness
+  knows (step, tool, elapsed, done so far), a side model call with the
+  current trace and no tools where words are needed; the message still
+  reaches the turn at the step boundary as now. Not a second worker: it would
+  need the first one's state.
 - **Sound routed by the configuration, and transcribed.** The model does not
   declare what it hears; audio is admitted and sent regardless, and GLM
   fails the request. The configuration should say whether the model takes
