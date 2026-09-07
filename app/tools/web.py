@@ -150,8 +150,9 @@ def web_fetch_tools(root: Path, settings: WebSettings | None = None) -> list[Too
             replay_safe=True,
             description=(
                 "Read one public web page as text over a direct HTTP request, without "
-                "running its JavaScript. The cheapest way to read the web. A page that "
-                "builds itself in the browser comes back nearly empty: open those with "
+                "running its JavaScript. The default for any page on the internet, "
+                "unless you need to see it rendered or act on it. A page that builds "
+                "itself in the browser comes back nearly empty: open those with "
                 "view_web_page. Public http and https addresses only."
             ),
             returns=(

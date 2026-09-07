@@ -318,7 +318,11 @@ def capability_brief(
             f"- The person can also send documents ({documents()}); they arrive as "
             "files in your workspace."
         )
-    web = [name for name in ("search_web", "fetch_page", "view_web_page") if name in tools.names]
+    web = [
+        name
+        for name in ("search_web", "fetch_page", "view_web_page", "use_page")
+        if name in tools.names
+    ]
     if web:
         # Guidance about the web lives here rather than in the system prompt for
         # the same reason the tool list does: a grant can withhold any of these,
@@ -337,6 +341,22 @@ def capability_brief(
             "not know or that may have changed, go and look instead of guessing, and say "
             "which page it came from."
         )
+        # Which of the three page tools, as one condition each (the human,
+        # 2026-09-07, after W opened example.com in a browser to read a
+        # heading): the default is the cheapest, and the other two are named
+        # by what only they can give.
+        ways = []
+        if "fetch_page" in tools.names:
+            ways.append("fetch_page reads a page as text and is the default")
+        if "view_web_page" in tools.names:
+            ways.append("view_web_page only when you need to see the page rendered")
+        if "use_page" in tools.names:
+            ways.append(
+                "use_page only when you need to act on the page: click, type, press, "
+                "check that it works"
+            )
+        if len(ways) > 1:
+            lines.append(f"- For a page on the internet: {'; '.join(ways)}.")
         if "search_web" in tools.names:
             lines.append(
                 "- A search query leaves this machine for an outside provider: say so "

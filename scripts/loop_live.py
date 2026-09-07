@@ -443,6 +443,8 @@ async def run_scenarios(
             fetched = (
                 w.read_from("fetch_page") + w.read_from("view_web_page") + w.read_from("use_page")
             )
+            print(f"  chose       {[t for t in w.tools if t in ('fetch_page', 'view_web_page', 'use_page')]}"
+                  "   (fetch_page is the default for a read)")
             done(
                 "W", "W the web", w,
                 checks={
