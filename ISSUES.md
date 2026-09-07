@@ -51,6 +51,35 @@ Rules that keep the file honest:
 
 ---
 
+### ISS-0058 — a command's temporary files and caches live on the Volume path, which is too long for a Unix socket and owned by the wrong user
+
+- **Status:** open, observed 2026-09-06
+- **Seen:** 2026-09-06, live, run `75c145f09f624ef5b311517c7e889058`
+  (Telegram, GLM at Novita), the model installing a headless browser to
+  play a game it made: `npm i puppeteer` failed twice on the workspace's
+  own `.npm` cache ("please run: sudo chown -R 0:0 …/.npm"); Chrome then
+  refused to start three times with "Socket path too long" because the
+  process's `TMPDIR` is the workspace on the Volume
+  (`/__modal/volumes/vo-…/<user>/…`, over the 108-byte limit); the model
+  found `npm_config_cache=/tmp/.npm` and `TMPDIR=/tmp` itself, ten
+  commands and ~4 minutes in, and the turn's budget ended before the
+  diagnosis it had set up (ISS-0057).
+- **Costs:** minutes of a turn and the person's patience spent on the
+  sandbox rather than the work, every time a tool needs a socket or a
+  package cache; and what is put in `/tmp` to escape it is gone with the
+  container (ISS-0053).
+- **Reproduce:** in the deployed command environment, launch Chrome (or
+  anything that binds a Unix socket) from the workspace; run `npm i`
+  with the default cache.
+- **Cause:** the command environment sets `HOME` and the working
+  directory to the workspace on the Volume, so every default cache and
+  temp path lands there: the path is long and the Volume's files carry
+  another uid. Not diagnosed further.
+- **Evidence:** the thread `ba7fe8cd-7816-4467-a22c-0921ac319c32`,
+  `tools/show_run.py 75c145f09f624ef5b311517c7e889058`.
+- **Related:** ISS-0053 (what belongs in the workspace and what does
+  not, the same environment), ISS-0057.
+
 ### ISS-0057 — a turn that is working is ended by a clock that counts its tools' run time
 
 - **Status:** open, observed 2026-09-06
@@ -1211,6 +1240,19 @@ Rules that keep the file honest:
   it with sample tasks so the picture would show columns in use (run
   `8ffab1aa`) — an unasked change to the deliverable made for the sake of the
   evidence. The person reports the application itself works.
+- **Seen again:** 2026-09-06, live, GLM at Novita, run
+  `601f1fc81c7849c8b02e76f5a7ffe768`: told "В гонках нет препятствий",
+  the model simulated its own copy of the spawn loop in node (which
+  passed), then blamed `ctx.roundRect` (Safari), edited, looked at a
+  static screenshot with the car on it, sent the file and said
+  "Исправлено". The bug was elsewhere (`frame % (60 - speed*3)` with a
+  fractional divisor, never zero) and was found only after the person
+  said "поиграй немного в игру чтобы проверить до сдачи" — two turns and
+  a headless browser later (`75c145f0…`, `1becd06b…`), with the right
+  fix and a real test drive. A screenshot is a look, not a run; the tool
+  that gives the look does not say so (roadmap item 11), and no tool
+  lets the model press a key on the page it made (item 12's merged tool
+  needs the verb; the same reason G reaches for puppeteer, report §7).
 - **Evidence:** `reports/2026-08-31_v2_todo_live_failure.md`, section "Three
   live tests on a task big enough for a plan"
 - **Related:** ISS-0004; roadmap 4.5.5. Since 2026-09-03 `BrowserSession`
