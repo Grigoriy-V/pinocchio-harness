@@ -51,6 +51,35 @@ Rules that keep the file honest:
 
 ---
 
+### ISS-0057 — a turn that is working is ended by a clock that counts its tools' run time
+
+- **Status:** open, observed 2026-09-06
+- **Seen:** 2026-09-06, live, run `489357808c644569b787da03ac500663`
+  (Telegram, GLM at Novita): Blender installed into the workspace the
+  turn before; this turn wrote a scene, fixed two errors from their
+  tracebacks, rendered (199 s: a fresh command container's first launch
+  of Blender from the Volume; the second render took 19.6 s), looked at
+  the picture, judged the camera too close, moved it, re-rendered, and
+  asked to look again — refused: "this turn has reached the limit of what
+  it may spend", `turn_max_seconds` 300. The model answered honestly
+  ("не успел просмотреть перед лимитом") and handed over both files on
+  the next request. Model time in the turn was 86 s of 349 s; the
+  tools' 231 s counted against the same budget.
+- **Costs:** the person's request is cut one step before the check that
+  would have finished it, for a reason that has nothing to do with the
+  work: a render or a download is paid to the clock, not to the model.
+  With a hosted model at $0.00007 a call the budget no longer protects
+  anything worth 300 s.
+- **Reproduce:** any turn whose commands run for minutes.
+- **Cause:** the seconds budget was written for a GPU App billed by the
+  second (the model's time was the cost); it counts wall time, so a
+  tool's run and the provider's queue (report §7, GLM through CometAPI)
+  are spent as if they were the model's.
+- **Evidence:** `tools/show_run.py 489357808c644569b787da03ac500663`;
+  the thread `ba7fe8cd-7816-4467-a22c-0921ac319c32`.
+- **Related:** ISS-0056, ISS-0054 (the same clock on the GPU side), the
+  human's direction of 2026-09-06.
+
 ### ISS-0056 — a turn spends seconds between its own steps that no model, tool or store accounts for
 
 - **Status:** open, observed 2026-09-06
@@ -69,6 +98,16 @@ Rules that keep the file honest:
   edits between steps, the checkpoint write after each node, the
   telemetry flush, the workspace Volume commit. The timeline does not
   yet name them, which is the first thing to fix.
+- **Also seen:** the same evening, run `489357808c644569b787da03ac500663`
+  (12 calls, 10 tools): 0.7–1.2 s between every `model_finished` and the
+  next `tool_started`, and **12.7 s from `persist_finished` to
+  `turn_finished`** (5.3 s in the run above). What runs in that tail, by
+  the code: the Telegram status cleared and the preview discarded (API
+  calls), the fold notice, the pending-approval read, the graph's own
+  close; and around every `run_command` the worker commits and reloads
+  the workspaces Volume twice (`ModalRunner.run`, `run_command`), a cost
+  that grows with the workspace — this one held Blender, 350 MB
+  downloaded plus its unpacked tree.
 - **Evidence:** `tools/show_run.py 42cebe2d531c4a1199b8b663c6f8832c`
 - **Related:** roadmap item 10 (time split into model, tool, wait);
   the human's direction of 2026-09-06: the model is cheap now, the
