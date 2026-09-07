@@ -9,7 +9,7 @@ own, and what a tool tells the model it does. The order below was approved
 by the human on 2026-09-07; each item still gets its own start signal, and
 research before code where the item says so.
 
-**Current approved step:** none started; 14 is next.
+**Current approved step:** 14, started 2026-09-07 (the human's word); 20 follows it, then 15.
 
 Observed defects are in `ISSUES.md`, which is not a plan and authorizes
 nothing. `docs/PRODUCT.md` is the product contract (it carries the rule that
@@ -65,7 +65,10 @@ noted; the human's word starts each.
     count (`summarize_after` goes). Provider: one provider by default,
     Novita; a fallback to Z.ai only after a retry shows the provider is
     really down, never because it answered slowly, since a provider change
-    loses the cache and the speed gain is unproven. **Draft, for
+    loses the cache (11 of 89 deployed calls switched and every one lost it;
+    `reports/2026-09-07_turn_bounds_context_provider.md`). First step:
+    settings move out of `.env` into a committed `config.toml` that the
+    agent may edit; `.env` keeps secrets only; environment still overrides. **Draft, for
     discussion, not approved:** a deadline per tool (ISS-0033), because a
     hung tool holds the worker and no model check can reach it.
     ISS-0057, ISS-0032.
@@ -111,7 +114,8 @@ noted; the human's word starts each.
     assistant works, as in a coding agent's chat: a comment or a question
     arrives at the loop's next step boundary as the person's words, through
     the out-of-band lane `/stop` already uses, and the model decides what to
-    do with it. Order relative to 16–19 is the human's call.
+    do with it. Right after 14, the same step boundary (the human,
+    2026-09-07).
 
 Waiting, not in the order above:
 
