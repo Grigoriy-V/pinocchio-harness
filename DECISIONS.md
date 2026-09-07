@@ -57,6 +57,7 @@ and says what replaced it.
 | 2026-09-05 | The goal is the request's parts, written once by the model | standing, measured next |
 | 2026-09-05 | A second model is a second App, pointed at by configuration | standing, GPU Apps |
 | 2026-09-06 | A hosted model is a set of lines; default GLM at Novita/Z.ai | standing |
+| 2026-09-07 | Settings in `config.toml`, secrets in `.env`; a turn bounded by health; one host, fallback after failure | standing |
 
 ---
 
@@ -624,3 +625,38 @@ no word for; `MODEL_DUMP_DIR` keeps a call's raw stream; the chosen
 The GPU Apps remain sets of their own. Which set the assistant uses from
 Telegram, and Gemini's cache, are roadmap item 13.
 `reports/2026-09-06_hosted_model_cometapi.md`.
+
+## 2026-09-07 — Settings live in `config.toml`, a turn is bounded by health, and one host serves the model
+
+Decision: every setting that is not a secret lives in `config.toml` at the
+repository root, committed and shipped in the image (`[model]`,
+`[model.sets.<name>]`, `[agent]`, `[telegram]`, `[web]`); `.env` and the
+platform secret carry credentials only; the environment wins over the file
+and the file over the defaults. A turn has no ceiling on steps, tool calls
+or seconds: after `turn_check_seconds` (600) of work the harness asks the
+model, between two steps, whether it is on track and what is left, and the
+model's answer is its decision; a model that does not answer is a timed-out
+call, which fails the turn as any does. A fold happens only when the request
+would not fit the budget (256k on the hosted default) or on `/compact`,
+never by message count. The model is served by one host (`providers[0]`,
+`allow_fallbacks: false`); the next host is asked by the client only after
+the first failed its retries with a refused connection or a "later" status,
+never because it was slow.
+
+Why: the human, 2026-09-07. A settings file the agent may edit keeps keys
+out of what it touches and makes a change a commit. A ceiling ends work
+that is going well (the Blender turn, ISS-0057) and a hosted model has no
+bill it protects; a step count is what kills autonomy. Folds by count fired
+every ~15 tool turns at 13–25k of a 131k budget on a service that reports
+no window (ISS-0032). Of 89 deployed calls, 11 were moved between hosts by
+the router with no error to show for it, and every move lost the prefix
+cache at four to five times the price
+(`reports/2026-09-07_turn_bounds_context_provider.md`).
+
+Consequences: `app/config.py` (`Configured`, `load_config`, `CONFIG_FILE`),
+`config.toml`, `tools/sync_control_secret.py` (keys only); `TurnWatch`,
+`HEALTH_QUESTION`, `checked_seconds`, `turn_health_check`, `RECURSION_LIMIT`
+in `app/agent/`; `summarize_after` gone from `ContextPolicy`;
+`ModelSettings.providers` and `_next_host` in the client. Draft, not
+decided: a deadline per tool (ISS-0033).
+

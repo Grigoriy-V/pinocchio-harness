@@ -9,7 +9,7 @@ own, and what a tool tells the model it does. The order below was approved
 by the human on 2026-09-07; each item still gets its own start signal, and
 research before code where the item says so.
 
-**Current approved step:** 14, started 2026-09-07 (the human's word); 20 follows it, then 15.
+**Current approved step:** 14, started 2026-09-07 (the human's word): built in the tree (config split, the watch, the fold rule, the provider fallback), not yet deployed or seen live; 20 follows it, then 15.
 
 Observed defects are in `ISSUES.md`, which is not a plan and authorizes
 nothing. `docs/PRODUCT.md` is the product contract (it carries the rule that

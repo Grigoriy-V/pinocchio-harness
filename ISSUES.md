@@ -23,7 +23,7 @@ authorizes nothing; `ROADMAP.md` alone orders work. Evidence lives in
 | Id | Status | Defect | Related |
 |---|---|---|---|
 | ISS-0058 | open | command temp files and caches on the Volume path: too long for a socket, wrong uid | 0053, 0057 |
-| ISS-0057 | open | the turn's seconds budget counts tool run time and provider queue | 0056, 0054 |
+| ISS-0057 | fixed 2026-09-07 | the turn's seconds budget counts tool run time and provider queue | 0056, 0054 |
 | ISS-0056 | open | seconds between a turn's steps that no model, tool or store accounts for | roadmap 10 |
 | ISS-0055 | fixed 2026-09-06 | an output cap spent on reasoning delivered as an empty answer | 0031 |
 | ISS-0054 | open, GPU Apps only | the model endpoint sleeps mid-turn when a tool outlives the idle window | 0044 |
@@ -48,7 +48,7 @@ authorizes nothing; `ROADMAP.md` alone orders work. Evidence lives in
 | ISS-0035 | open | the approval-resume path in Telegram lacks the answer path's fixes | 0009 |
 | ISS-0034 | fixed 2026-09-04 | a worker's lease outlives the container's kill by five minutes | 0033 |
 | ISS-0033 | open | no tool has a deadline; a hung tool holds the worker until the platform kills it | 0034 |
-| ISS-0032 | fixed 2026-09-04 | the conversation folds every twelve messages whatever their size | 0057 |
+| ISS-0032 | fixed 2026-09-04, count rule removed 2026-09-07 | the conversation folds every twelve messages whatever their size | 0057 |
 | ISS-0031 | fixed 2026-09-04 | a tool call cut at the output limit reported as bad JSON | 0055 |
 | ISS-0030 | fixed 2026-09-04 | the summarizer handed every tool result in full | 0029 |
 | ISS-0029 | fixed 2026-09-04 | a summarizer request that does not fit fails a delivered turn | 0030 |
@@ -110,27 +110,6 @@ in use since 2026-09-06; it is not seen on the hosted model.
 - **Evidence:** thread `ba7fe8cd-7816-4467-a22c-0921ac319c32`,
   `tools/show_run.py 75c145f09f624ef5b311517c7e889058`.
 - **Related:** ISS-0053, ISS-0057.
-
-### ISS-0057 — a turn that is working is ended by a clock that counts its tools' run time
-
-- **Status:** open
-- **Seen:** 2026-09-06, live, run `489357808c644569b787da03ac500663`
-  (Telegram, GLM at Novita): Blender scene written, two tracebacks fixed,
-  a render of 199 s (a fresh command container's first launch from the
-  Volume; the second took 19.6 s), the picture judged, camera moved,
-  re-rendered, and the last look refused: "this turn has reached the limit
-  of what it may spend", `turn_max_seconds` 300. Model time 86 s of 349 s;
-  the tools' 231 s counted against the same budget.
-- **Costs:** the request is cut one step before the check that would have
-  finished it, for a reason unrelated to the work. With a hosted model at
-  $0.00007 a call the seconds budget protects nothing worth 300 s.
-- **Reproduce:** any turn whose commands run for minutes.
-- **Cause:** the budget was written for a GPU App billed by the second and
-  counts wall time, so a tool's run and the provider's queue are spent as
-  if they were the model's.
-- **Evidence:** `tools/show_run.py 489357808c644569b787da03ac500663`.
-- **Related:** ISS-0056, ISS-0054; roadmap Queue (the first proposed
-  change of the new stage).
 
 ### ISS-0056 — a turn spends seconds between its own steps that no model, tool or store accounts for
 
@@ -431,6 +410,18 @@ in use since 2026-09-06; it is not seen on the hosted model.
 
 Shortened to what a later reader needs; the linked report has the rest.
 
+### ISS-0057 — a turn that is working is ended by a clock that counts its tools' run time
+
+- **Status:** fixed 2026-09-07: the step, tool-call and seconds ceilings are
+  gone; after `turn_check_seconds` (600) of work the harness asks the model,
+  between steps, whether it is on track, and the model decides
+  (`TurnWatch`, `turn_health_check`; DECISIONS 2026-09-07). Deployed with
+  the next control-plane deploy.
+- **Seen:** 2026-09-06, run `489357808c644569b787da03ac500663`: a Blender
+  turn cut at 349 s one step before the check that would have finished it;
+  model time 86 s, tools 231 s against `turn_max_seconds` 300.
+- **Related:** ISS-0056, ISS-0054.
+
 ### ISS-0055 — a call that spends its whole output cap on reasoning is delivered as an answer with nothing said
 
 - **Status:** fixed 2026-09-06, deployed: an empty completion at
@@ -569,10 +560,11 @@ Shortened to what a later reader needs; the linked report has the rest.
 ### ISS-0032 — the conversation folds every twelve messages whatever their size
 
 - **Status:** fixed 2026-09-04: `summarize_after` 60 as a fallback for a
-  server that reports no window; the size trigger is the rule. **Note
-  2026-09-06:** OpenRouter reports no window, so the fallback binds again
-  (a fold every ~15 tool turns at 13–25k of 131k); the count rule is
-  proposed to go (roadmap Queue).
+  server that reports no window; the size trigger is the rule. On
+  OpenRouter, which reports no window, the fallback bound again (a fold
+  every ~15 tool turns at 13–25k of 131k), so on 2026-09-07 the count rule
+  was removed: a fold happens only when the request would not fit the set's
+  budget, or on `/compact`.
 - **Seen:** 2026-09-03, thread `4fd35f80`: four folds in sixteen turns at
   4–10k tokens against 52k.
 

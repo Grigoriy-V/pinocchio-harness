@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
+import logging
 import os
 from datetime import datetime, timezone
 from pathlib import Path
@@ -77,6 +78,9 @@ TRANSIENT_STATUS = frozenset({408, 409, 425, 429, 500, 502, 503, 504})
 # How many edge redirects one request may follow while an endpoint boots: at
 # 150 s each, eight is twenty minutes.
 REDIRECT_HOPS = 8
+
+
+logger = logging.getLogger(__name__)
 
 
 class _Later(Exception):
@@ -659,15 +663,37 @@ class OpenAICompatibleBackend(ModelBackend):
             body.update(self.settings.extra_body)
         return body
 
+    def _next_host(self, body: dict[str, Any], host: int) -> int | None:
+        """Point the request at the next of `providers`, or None when there is none.
+
+        Asked only after the current host has failed every retry with a
+        refused connection or a "later" status: a host that is really down. A
+        slow host is never left, because the move loses the prefix cache
+        (11 of 89 deployed calls on 2026-09-06 paid that for no reason the
+        dumps could show).
+        """
+
+        hosts = list(self.settings.providers or [])
+        if host + 1 >= len(hosts):
+            return None
+        body["provider"] = {"order": [hosts[host + 1]], "allow_fallbacks": False}
+        logger.warning(
+            "model provider %s failed its retries; asking %s", hosts[host], hosts[host + 1]
+        )
+        return host + 1
+
     async def _completion(self, body: dict[str, Any]) -> dict[str, Any]:
         """Post one request, trying again while the failure looks transient.
 
         The graph sees one failure mode instead of two: either an answer, or a
         server that is really not going to answer. Backoff doubles, because the
         common case is a server that is busy, and asking it faster does not help.
+        When the retries are spent and `providers` names another host, the
+        request goes there once more with a fresh count.
         """
 
         attempt = 0
+        host = 0
         while True:
             try:
                 response = await self._client.post("/chat/completions", json=body)
@@ -692,8 +718,14 @@ class OpenAICompatibleBackend(ModelBackend):
                 )
                 failure = error_type(f"HTTP {response.status_code}: {response.text}")
                 transient = response.status_code in TRANSIENT_STATUS
-            if not transient or attempt >= self.settings.retries:
+            if not transient:
                 raise failure
+            if attempt >= self.settings.retries:
+                following = self._next_host(body, host)
+                if following is None:
+                    raise failure
+                host, attempt = following, 0
+                continue
             await asyncio.sleep(self.settings.retry_backoff * 2**attempt)
             attempt += 1
 
@@ -740,6 +772,7 @@ class OpenAICompatibleBackend(ModelBackend):
 
         body = self._body(messages, tools, response_format, stream=True)
         attempt = 0
+        host = 0
         while True:
             streamed = StreamedCompletion()
             received = False
@@ -748,7 +781,7 @@ class OpenAICompatibleBackend(ModelBackend):
                 async with self._client.stream("POST", "/chat/completions", json=body) as response:
                     if response.status_code >= 400:
                         await response.aread()
-                        if response.status_code in TRANSIENT_STATUS and attempt < self.settings.retries:
+                        if response.status_code in TRANSIENT_STATUS:
                             raise _Later(f"HTTP {response.status_code}: {response.text}")
                         error_type = (
                             ContextOverflowError
@@ -768,8 +801,16 @@ class OpenAICompatibleBackend(ModelBackend):
                             yield TextDelta(text)
                 break
             except (httpx.HTTPError, _Later) as error:
-                if received or attempt >= self.settings.retries or isinstance(error, httpx.TimeoutException):
+                if received or isinstance(error, httpx.TimeoutException):
                     raise
+                if attempt >= self.settings.retries:
+                    following = self._next_host(body, host)
+                    if following is None:
+                        if isinstance(error, _Later):
+                            raise BackendError(str(error)) from None
+                        raise
+                    host, attempt = following, 0
+                    continue
                 await asyncio.sleep(self.settings.retry_backoff * 2**attempt)
                 attempt += 1
             finally:

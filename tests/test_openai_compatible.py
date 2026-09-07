@@ -893,6 +893,66 @@ async def test_a_stream_refused_with_a_later_status_is_sent_again() -> None:
     assert events[0] == TextDelta("now")
 
 
+async def test_the_next_provider_is_asked_only_after_the_first_failed_its_retries() -> None:
+    """Novita down (503 on every try) -> Z.AI, once, with a fresh count; the
+    move is the client's, so the router is told one host each time."""
+
+    orders: list[list[str]] = []
+    body = "data: " + json.dumps(delta({"content": "now"})) + "\n\ndata: [DONE]\n\n"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        order = json.loads(request.content)["provider"]["order"]
+        orders.append(order)
+        if order == ["novita/fp8"]:
+            return httpx.Response(503, text="down")
+        return httpx.Response(200, content=body.encode())
+
+    async with backend(
+        handler, retries=2, retry_backoff=0.0, providers=["novita/fp8", "z-ai/fp8"]
+    ) as client:
+        events = [
+            event async for event in client.stream([Message(role="user", content=[text_part()])])
+        ]
+
+    assert orders == [["novita/fp8"]] * 3 + [["z-ai/fp8"]]
+    assert events[0] == TextDelta("now")
+
+
+async def test_a_slow_provider_is_never_left() -> None:
+    """A timeout means the request is queued at the host; it is not a move."""
+
+    orders: list[list[str]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        orders.append(json.loads(request.content)["provider"]["order"])
+        raise httpx.ReadTimeout("slow")
+
+    async with backend(
+        handler, retries=2, retry_backoff=0.0, providers=["novita/fp8", "z-ai/fp8"]
+    ) as client:
+        with pytest.raises(httpx.ReadTimeout):
+            async for _ in client.stream([Message(role="user", content=[text_part()])]):
+                pass
+
+    assert orders == [["novita/fp8"]]
+
+
+async def test_every_provider_down_fails_with_the_last_status() -> None:
+    orders: list[list[str]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        orders.append(json.loads(request.content)["provider"]["order"])
+        return httpx.Response(503, text="down")
+
+    async with backend(
+        handler, retries=1, retry_backoff=0.0, providers=["novita/fp8", "z-ai/fp8"]
+    ) as client:
+        with pytest.raises(BackendError, match="HTTP 503"):
+            await ask(client)
+
+    assert orders == [["novita/fp8"]] * 2 + [["z-ai/fp8"]] * 2
+
+
 async def test_a_completion_that_timed_out_is_not_sent_again() -> None:
     attempts = 0
 
