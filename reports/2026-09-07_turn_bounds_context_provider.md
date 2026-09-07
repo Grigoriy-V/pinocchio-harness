@@ -181,3 +181,37 @@ lose the ceilings.
 - The tool deadline draft (§3), unresolved on purpose.
 - Whether the fallback order is a second list in `EXTRA_BODY` or its own
   setting; I would keep it in the set's lines so one set stays one block.
+
+## 7. Built, deployed, seen live (2026-09-07)
+
+Built in the tree and deployed to `assistant-control`: `config.toml` with
+the sets, `TurnWatch`, folds by size only, one host with a client-side
+fallback (commits 069eced … ab6d1c4 and after).
+
+- **B deployed** (`deployed-a26a5c4e-20`): passed, 11.6 s, two calls at
+  ~5 s; both requests carried `provider.order = ["novita/fp8"]`,
+  `allow_fallbacks: false`, `thinking: disabled`; answered by Novita. Cache
+  0 on both calls where the day before the second B call was cached 4,480;
+  the request body has the same shape apart from the one-host order. Not
+  explained; watched under item 18.
+- **G deployed with `turn_check_seconds = 60`** (`deployed-08b15f16-70`):
+  the question followed the third batch at 60.5 s of work
+  (`turn_health_check`, step 3, six tool calls); the model answered in one
+  line ("Готово: … отправлены в чат выше") and finished. The turn: three
+  `write_file`, `inspect_page`, `send_file` of the screenshot, `send_file`
+  of the three files, 72 s, four model calls. The check's own call cost
+  5.6 s, 8,448 of 8,630 tokens cached.
+- **A defect the run showed, fixed before this section was written:** the
+  tools node's patch carrying the question was taken by the runtime for a
+  withdrawn draft (`steered` set), so the two `send_file` results of that
+  batch were never yielded to the interface; the suite's "files were sent"
+  and "screenshot was sent" failed although the store held both with
+  `outbound`. In Telegram the person would not have received the files. The
+  runtime now withdraws only a candidate; a check delivers its batch
+  (`test_the_results_of_the_batch_that_carried_the_check_are_still_delivered`).
+  Needs a redeploy; the file is back at 600 s.
+- **First deploy failed the suite before the model:** `relation "threads"
+  does not exist`. The deployed tables live in schema `assistant`, which
+  `AGENT_DATABASE_SCHEMA` had named and the cleaned `.env` no longer did; it
+  is a setting, now `database_schema = "assistant"` in `config.toml`.
+

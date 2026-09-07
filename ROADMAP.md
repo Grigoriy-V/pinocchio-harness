@@ -9,7 +9,7 @@ own, and what a tool tells the model it does. The order below was approved
 by the human on 2026-09-07; each item still gets its own start signal, and
 research before code where the item says so.
 
-**Current approved step:** 14, started 2026-09-07 (the human's word): built and deployed 2026-09-07 (config split, the watch, the fold rule, one host with a client-side fallback); scenario B passed deployed on Novita alone; the watchdog's question itself not yet seen live. 20 follows it, then 15.
+**Current approved step:** 14, started 2026-09-07 (the human's word): built and deployed 2026-09-07 (config split, the watch, the fold rule, one host with a client-side fallback); B and G passed deployed on Novita alone, the watchdog's question seen on G at 60 s; a delivery defect the check exposed is fixed in the tree and awaits a redeploy (report §7). 20 follows it, then 15.
 
 Observed defects are in `ISSUES.md`, which is not a plan and authorizes
 nothing. `docs/PRODUCT.md` is the product contract (it carries the rule that
