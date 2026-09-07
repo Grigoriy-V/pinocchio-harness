@@ -849,19 +849,21 @@ def side_by_side(local: list[Result], remote: list[Result]) -> str:
 
     here = {row.letter: row for row in local}
     there = {row.letter: row for row in remote}
+    width = 36
     lines = [
-        f"{'':<3}{'local':<28}{'deployed':<28}{'difference':<12}",
-        f"{'':<3}{'result  seconds  calls tokens':<28}{'result  seconds  calls tokens':<28}{'seconds':<12}",
+        f"{'':<3}{'local':<{width}}{'deployed':<{width}}{'difference':<12}",
+        f"{'':<3}{'result  seconds  calls  tokens in/out':<{width}}"
+        f"{'result  seconds  calls  tokens in/out':<{width}}{'seconds':<12}",
     ]
 
     def cell(row: Result | None) -> str:
         if row is None:
-            return f"{'-':<28}"
+            return f"{'-':<{width}}"
         verdict = "PASS" if row.passed else f"FAIL {row.failed}"
         return (
-            f"{verdict:<7} {row.seconds:7.1f}  {row.model_calls}m/{row.tool_calls}t "
-            f"{row.input_tokens}/{row.output_tokens}"
-        ).ljust(28)
+            f"{verdict:<7} {row.seconds:7.1f}  {row.model_calls:>2}m/{row.tool_calls:<2}t "
+            f"{row.input_tokens:>6}/{row.output_tokens:<4}"
+        ).ljust(width)
 
     for letter in sorted(set(here) | set(there), key=lambda l: (MINI + WIDER).index(l)):
         a, b = here.get(letter), there.get(letter)
