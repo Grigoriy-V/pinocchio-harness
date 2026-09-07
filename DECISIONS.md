@@ -633,7 +633,7 @@ repository root, committed and shipped in the image (`[model]`,
 `[model.sets.<name>]`, `[agent]`, `[telegram]`, `[web]`); `.env` and the
 platform secret carry credentials only; the environment wins over the file
 and the file over the defaults. A turn has no ceiling on steps, tool calls
-or seconds: after `turn_check_seconds` (600) of work the harness asks the
+or seconds: after `turn_check_seconds` (360 in the file since 2026-09-07) of work the harness asks the
 model, between two steps, whether it is on track and what is left, and the
 model's answer is its decision; a model that does not answer is a timed-out
 call, which fails the turn as any does. A fold happens only when the request

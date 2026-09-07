@@ -69,7 +69,7 @@ load context ─> model ─> tools ─> model ─> … ─> persist
   workspace, grant, checkpointer and telemetry for one user; a graph is
   compiled per thread.
 - `TurnWatch`: no ceiling on steps, calls or seconds. After
-  `check_seconds` (600) of work the tools node follows its results with one
+  `check_seconds` (360 in `config.toml`) of work the tools node follows its results with one
   turn-control question (progress, what is left; continue or finish); the
   model's next completion answers and decides; asked again after each
   further interval. Time is accumulated by the nodes, so a wait for approval

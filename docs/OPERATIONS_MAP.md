@@ -86,7 +86,7 @@ The deployed default, `[model.sets.or]`: GLM 5.3 Flash through OpenRouter,
 ### Turn and context settings
 
 A turn has no ceiling on steps, tool calls or seconds (2026-09-07). After
-`turn_check_seconds` (600) of work the harness asks the model, between two
+`turn_check_seconds` (360 in the file, 600 in code) of work the harness asks the model, between two
 steps, whether it is on track and what is left; the model's answer streams
 to the chat and the decision is the model's; zero asks never. Context:
 `context_fraction` 0.8 of a reported ceiling, or the set's `context_tokens`;
