@@ -103,9 +103,12 @@ class Interjections(Protocol):
   death) is `running` and not taken. The implementation lives in
   `ui/telegram/` because turning a payload into a `Message` is
   `adapter.to_message`; it is built by the adapter and injected like
-  `stops`. Version 1 takes text messages only; a message with an attachment
-  stays queued for its own turn (its file download belongs to a turn of its
-  own, and a failed download must not lose the message).
+  `stops`. Attachments are taken too (the human, 2026-09-07: a screenshot
+  with an empty caption is nothing without its file): the worker holding the
+  turn has the same client and workspace as a fresh turn would. Order: take
+  the row, download, and on a failed download put the row back to `pending`,
+  so the message gets its own turn and the usual "Upload refused" answer
+  instead of being lost.
 - **Local polling:** a memory lane. The front door offers an ordinary
   message *before* waiting on the chat lock; the turn takes it at a
   boundary; the handler, once it has the lock, asks whether its message was
@@ -155,7 +158,7 @@ new to configure). ISS: none observed yet.
 - Whether Telegram acknowledges a taken message (a reaction emoji on it via
   `setMessageReaction`, cheap, silent) or nothing until the model speaks.
   Proposed: nothing in version 1; the model's next text is the answer.
-- Version 1 takes text only; attachments wait for their own turn.
+- Attachments: taken with the text (decided 2026-09-07).
 
 ## 7. How the references do it (read 2026-09-07, after the human asked)
 
