@@ -62,6 +62,9 @@ name = "gemma-4-12b-it"
 auth_style = "modal_proxy"
 
 [agent]
+# The PostgreSQL schema the deployed store, checkpoints, inbox and telemetry
+# live in (the URL itself is a secret in `.env`). Ignored by the local SQLite.
+database_schema = "assistant"
 # After how many seconds of work a turn is asked, between two steps, whether
 # it is on track; again after each further interval. No ceiling on steps,
 # calls or seconds. Zero asks never.
