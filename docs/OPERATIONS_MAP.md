@@ -55,7 +55,8 @@ Deploying `assistant-control` never touches a model App.
 `[model].chosen = "or"` names the set; `[model.sets.or]` holds its
 `endpoint`, `name`, `auth_style`, `providers`, `extra_body`,
 `chat_template_kwargs`, `dump_dir` and `context_tokens`; its key is
-`MODEL_OR_API_KEY` in `.env`. The plain `[model]` keys are the unnamed set.
+`MODEL_OR_API_KEY` in `.env` (a Modal App set without its own key uses the
+shared `MODEL_API_KEY` proxy token). The plain `[model]` keys are the unnamed set.
 Switching the deployment is the `chosen` line and a control-plane deploy (a
 warm worker keeps the old values until it sleeps). The environment names are
 `MODEL` and `MODEL_<SET>_<FIELD>`, `AGENT_<SET>_CONTEXT_TOKENS`.

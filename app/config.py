@@ -176,10 +176,11 @@ class ModelSettings(Configured):
         if named:
             values["_env_prefix"] = f"MODEL_{named}_"
         super().__init__(**values)
-        if named and self.api_key is None:
-            # A set without a key of its own uses the plain `MODEL_API_KEY`:
-            # the Modal Apps share one proxy token, and one line should cover
-            # them (the human, 2026-09-07).
+        if named and self.api_key is None and self.auth_style == "modal_proxy":
+            # A Modal App set without a key of its own uses the plain
+            # `MODEL_API_KEY`: the Apps share one proxy token, and one line
+            # should cover them (the human, 2026-09-07). A hosted service's
+            # set gets no such fallback: a wrong key there fails plainly.
             shared = _SharedKey(**_passthrough(values))
             if shared.api_key is not None:
                 self.api_key = shared.api_key
