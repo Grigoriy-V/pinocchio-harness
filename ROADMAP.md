@@ -9,7 +9,7 @@ own, and what a tool tells the model it does. The order below was approved
 by the human on 2026-09-07; each item still gets its own start signal, and
 research before code where the item says so.
 
-**Current approved step:** 14, 15 and 20 are in Done (2026-09-07). 16 researched (`reports/2026-09-07_item16_research.md`), the page tool's shape approved; 17 absorbs the folder-per-task rule. 16 built and run locally, 30/32 with W failing on its own check shape, F acting on the page (`reports/2026-09-07_mini_set.md` §3); next: deploy, then the set deployed, each on the human's word.
+**Current approved step:** 14, 15 and 20 are in Done (2026-09-07). 16 researched (`reports/2026-09-07_item16_research.md`), the page tool's shape approved; 17 absorbs the folder-per-task rule. 16 deployed and run on both sides, in Done. Next: 17 (the command environment, a folder per task), on the human's word.
 
 Observed defects are in `ISSUES.md`, which is not a plan and authorizes
 nothing. `docs/PRODUCT.md` is the product contract (it carries the rule that
@@ -61,39 +61,23 @@ Items of the 2026-09-07 order, closed:
 - **20, a message in the middle of a turn** (2026-09-07): taken at the tools
   boundary as the person's words, memory lane locally, the inbox deployed;
   seen live. `reports/2026-09-07_mid_turn_message.md`.
+- **16, tools with contracts, a page with hands, the prompt reviewed**
+  (2026-09-07): every tool states what it does, returns and leaves, an
+  offline test refuses one that does not; `use_page` (open, snapshot, click,
+  type, press, select, evaluate, screenshot, console, one page kept per
+  turn) replaces `inspect_page`; the brief and the prompt cut to what is
+  true of the grant, figures of speech replaced by conditions, the plan
+  line Codex's; one routing line for fetch / view / use. Mini set after it:
+  local 30/32 (W on its old check shape), deployed 31/32 (H on stale
+  memory, now cleared by a bare run); F opens, clicks twice and reads 2 on
+  both sides. `reports/2026-09-07_item16_research.md`,
+  `reports/2026-09-07_item16_build.md`, `reports/2026-09-07_mini_set.md` §3–4.
+  ISS-0008, ISS-0010, ISS-0016 stay open until the wider set measures them.
 
 ## Queue
 
 The order approved 2026-09-07. One item at a time; research first where
 noted; the human's word starts each.
-
-16. **Tools with contracts, a browser with hands, a literal brief, and the
-    whole system prompt reviewed.** Every
-    tool's description states what it takes, returns and leaves where, and
-    an offline test refuses a tool without all three. `inspect_page`, a
-    remnant of the old system, goes: one page tool on the renderer with the
-    actions the model built for itself when it was given none (click, type,
-    press a key, evaluate, console, screenshot, on the refs the snapshot
-    returns); `BrowserSession` already has them. Approved 2026-09-07: one
-    tool, `use_page(action, ...)`, on the condition that its description
-    teaches its use through what the model already knows — "the same thing
-    as Playwright or Puppeteer, packed into one tool: one call per action"
-    — and states, per action, what it takes and what comes back, that
-    `open` comes first, that a ref lives until the next `open`, and that a
-    screenshot returns to the model and is a file the person has not seen.
-    Every brief line is a
-    literal condition and action (the plan line first). Research: how
-    DeepSeek Harness and Hermes describe tools and drive a page, tool by
-    tool, in a report before the rewrite (`reports/2026-09-07_item16_research.md`,
-    2026-09-07). With it, a review of everything the
-    system prompt is assembled from (`DEFAULT_SYSTEM_PROMPT`, `WORKING_METHOD`,
-    the capability list, the tool descriptions, the standing instructions,
-    the brief lines): what each line is for, what it costs, what stays (the
-    human, 2026-09-07). The review's findings and the rewrite's draft:
-    `reports/2026-09-07_item16_research.md`. Built 2026-09-07, offline
-    suite green, prefix measured (`reports/2026-09-07_item16_build.md`);
-    open until the mini set has run on it, local and deployed. ISS-0008,
-    ISS-0010, ISS-0016.
 
 17. **The command environment is a place to develop, and a folder per
     task.** Where a command runs and where what it installs lands, both

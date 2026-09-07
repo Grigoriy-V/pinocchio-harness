@@ -18,6 +18,7 @@ class Probe:
     def __init__(self, store: SqliteStore, checkpoints: Path) -> None:
         self.store = store
         self.checkpoints = checkpoints
+        self.user_id = "probe"
 
 
 async def test_the_selected_threads_and_the_workspace_are_emptied(tmp_path: Path) -> None:
@@ -28,9 +29,15 @@ async def test_the_selected_threads_and_the_workspace_are_emptied(tmp_path: Path
     with SqliteStore(str(tmp_path / "c.db")) as store:
         for thread in ("chat-g", "chat-b"):
             store.append(thread, [Message(role="user", content=[ContentPart(kind="text", text="hi")])], "probe")
+        store.remember("likes Antonovka", "probe", "chat-h")
+        store.remember("likes plums", "someone-else", "t")
 
         await start_clean(Probe(store, tmp_path / "missing.sqlite3"), frozenset("G"), root)
 
         assert store.messages("chat-g") == []
         assert len(store.messages("chat-b")) == 1  # not selected: untouched
+        # A bare run has no memory either (deployed H, 2026-09-07), and only
+        # the probe user's.
+        assert store.facts("probe") == []
+        assert store.facts("someone-else") == ["likes plums"]
     assert list(root.iterdir()) == []

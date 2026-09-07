@@ -311,6 +311,9 @@ async def start_clean(agent, selected, root: Path) -> None:
     for letter in sorted(selected):
         for thread in threads_of(letter):
             await delete_conversation(agent.store, thread, agent.checkpoints)
+    # And the probe user's facts: deployed H's second run found "Antonovka"
+    # already saved, said so, and saved nothing (2026-09-07).
+    agent.store.forget(agent.user_id)
     for entry in sorted(Path(root).iterdir(), key=lambda path: path.is_dir()):
         if entry.is_dir():
             shutil.rmtree(entry, ignore_errors=True)

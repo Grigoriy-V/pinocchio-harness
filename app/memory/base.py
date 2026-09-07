@@ -207,6 +207,15 @@ class ConversationStore(ABC):
     def facts(self, user_id: str, limit: int = 50) -> list[str]:
         """This user's most recently saved facts."""
 
+    @abstractmethod
+    def forget(self, user_id: str) -> int:
+        """Drop every fact saved for this user; returns how many went.
+
+        For a bare run (roadmap 15): a scenario that saves a fact must find
+        none before it, or the model answers "already saved" and saves
+        nothing (deployed H, 2026-09-07).
+        """
+
     def turn_context(
         self,
         thread_id: str,

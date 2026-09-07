@@ -470,6 +470,11 @@ class SqliteStore(ConversationStore):
         ).fetchall()
         return [row["text"] for row in rows]
 
+    def forget(self, user_id: str) -> int:
+        with self._db:
+            gone = self._db.execute("DELETE FROM facts WHERE user_id = ?", (user_id,)).rowcount
+        return int(gone or 0)
+
     # --- lifecycle -----------------------------------------------------------
 
     def close(self) -> None:

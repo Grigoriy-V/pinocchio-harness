@@ -649,6 +649,11 @@ class PostgresStore(ConversationStore):
             rows = cursor.fetchall()
         return [row["text"] for row in rows]
 
+    def forget(self, user_id: str) -> int:
+        with self._cursor() as cursor:
+            cursor.execute("DELETE FROM facts WHERE user_id = %s", (user_id,))
+            return int(cursor.rowcount or 0)
+
     def turn_context(
         self,
         thread_id: str,
