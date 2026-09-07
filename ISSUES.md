@@ -22,6 +22,9 @@ authorizes nothing; `ROADMAP.md` alone orders work. Evidence lives in
 
 | Id | Status | Defect | Related |
 |---|---|---|---|
+| ISS-0063 | open | a dead worker's lease holds the conversation; nothing wakes the queue when it expires | 0061, 0062 |
+| ISS-0062 | open | the retry of a killed turn sends the final answer a second time | 0061 |
+| ISS-0061 | open | a turn runs up to the worker's own timeout and is killed while persisting | 0057, 0056, roadmap 14 |
 | ISS-0060 | open | deployed `use_page open url` renders a public page in the worker, beside the secrets | 0051, roadmap 21 |
 | ISS-0059 | open | a question sent mid-turn is answered and the task it interrupted stops to ask "continue?" | roadmap 15, 20 |
 | ISS-0058 | open | command temp files and caches on the Volume path: too long for a socket, wrong uid | 0053, 0057 |
@@ -89,6 +92,61 @@ in use since 2026-09-06; it is not seen on the hosted model.
 ---
 
 ## Open
+
+### ISS-0063 — a dead worker's lease holds the conversation; nothing wakes the queue when it expires
+
+- **Status:** open
+- **Seen:** 2026-09-07 14:43 UTC, deployed. After the worker of ISS-0061 was
+  killed, its row stayed `running` with a lease to 14:53:02 (attempts 2).
+  Two later messages (814913247, 814913248) were queued `pending` with
+  `spawning: false`, because the webhook saw the conversation as busy. No
+  worker existed to drain them, and when the lease expires nothing spawns
+  one: only the next message would.
+- **Costs:** the bot goes silent for ten minutes, then stays silent until
+  the person writes again.
+- **Reproduce:** deployed, a turn killed by the platform; send two messages
+  within `LEASE_SECONDS`.
+- **Cause:** the lease is a fixed 590 s set once at the claim, so a dead
+  worker is indistinguishable from a working one for that long; and the
+  webhook's "busy, do not spawn" leaves no one responsible for the queue
+  after the lease ends.
+- **Evidence:** `reports/2026-09-07_worker_timeout_logs.txt`; the inbox rows
+  read at 14:45 UTC (244 running/held, 247 and 248 pending, attempts 0).
+- **Related:** ISS-0061, ISS-0062.
+
+### ISS-0062 — the retry of a killed turn sends the final answer a second time
+
+- **Status:** open
+- **Seen:** 2026-09-07 14:43 UTC, deployed. The turn of ISS-0061 sent its
+  final at 14:42:58; the platform's retry (`retries=1`) reclaimed the row at
+  14:43:12, resumed from the checkpoint and sent the same final again at
+  14:43:15, then was killed in `persist` with the rest of the container.
+- **Costs:** the person gets the same long message twice, and the turn is
+  still not persisted.
+- **Reproduce:** deployed, a turn killed after `final_sent` and before
+  `persist` finished.
+- **Cause:** that the answer was delivered is known only in the worker's
+  memory (`delivered`); the checkpoint the retry resumes from does not
+  carry it.
+- **Evidence:** `reports/2026-09-07_worker_timeout_logs.txt`.
+- **Related:** ISS-0061.
+
+### ISS-0061 — a turn runs up to the worker's own timeout and is killed while persisting
+
+- **Status:** open
+- **Seen:** 2026-09-07 14:33–14:43 UTC, deployed. A Blender scene turn
+  (23 steps, 28 tool calls) reached `persist_started` at 598 s of elapsed
+  time; at 600 s the platform cancelled the input
+  (`WORKER_TIMEOUT_SECONDS`), and 30 s later killed the container.
+- **Costs:** the turn's history is not saved, the answer is duplicated
+  (ISS-0062) and the conversation is blocked (ISS-0063).
+- **Reproduce:** deployed, a request the model works on for ten minutes.
+- **Cause:** item 14 bounded the turn by health, not by a ceiling, and the
+  health check (`turn_check_seconds` 360) lets the turn continue; nothing
+  in the turn knows the container it runs in dies at 600 s, so no hand-off
+  to a fresh worker happens before that.
+- **Evidence:** `reports/2026-09-07_worker_timeout_logs.txt`.
+- **Related:** ISS-0057, ISS-0056; roadmap 14.
 
 ### ISS-0060 — deployed, `use_page open url` renders a public page in the worker, beside the secrets
 

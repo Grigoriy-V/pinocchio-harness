@@ -1,0 +1,18 @@
+{"run_id": "d5d89ade874c46ccb035c9c0a45b6a86", "event": "loop_step", "seq": 170, "timestamp": "2026-09-07T14:42:44.368+00:00", "step": 23, "tool_calls": 28, "spent_ms": 568714}
+{"run_id": "d5d89ade874c46ccb035c9c0a45b6a86", "event": "context_prepared", "seq": 171, "timestamp": "2026-09-07T14:42:44.369+00:00", "step": 23, "schemas": 5748, "prelude": 2832, "history": 5033, "facts": 0, "turn": 14544, "stubbed": 5, "placeholders": 8}
+{"run_id": "d5d89ade874c46ccb035c9c0a45b6a86", "event": "model_started", "seq": 172, "timestamp": "2026-09-07T14:42:44.369+00:00", "purpose": "answer", "call_index": 23}
+{"run_id": "d5d89ade874c46ccb035c9c0a45b6a86", "event": "model_first_token", "seq": 173, "timestamp": "2026-09-07T14:42:50.864+00:00", "purpose": "answer", "call_index": 23, "duration_ms": 6494}
+{"run_id": "d5d89ade874c46ccb035c9c0a45b6a86", "event": "telegram_preview_started", "seq": 174, "timestamp": "2026-09-07T14:42:51.348+00:00", "elapsed_ms": 591470}
+{"run_id": "d5d89ade874c46ccb035c9c0a45b6a86", "event": "model_finished", "seq": 175, "timestamp": "2026-09-07T14:42:57.817+00:00", "purpose": "answer", "call_index": 23, "input_tokens": 23597, "output_tokens": 214, "cached_tokens": 23424, "reasoning_tokens": 0, "finish_reason": "stop", "duration_ms": 13447}
+{"run_id": "d5d89ade874c46ccb035c9c0a45b6a86", "event": "telegram_final_sent", "seq": 176, "timestamp": "2026-09-07T14:42:58.035+00:00", "elapsed_ms": 598157}
+{"run_id": "d5d89ade874c46ccb035c9c0a45b6a86", "event": "persist_started", "seq": 177, "timestamp": "2026-09-07T14:42:58.042+00:00"}
+Task's current input(s) ["in-01M1Y4JSCF5GMYS0KZ462BGJVY:1788791580068-0"] cancelled because: Task's current input in-01M1Y4JSCF5GMYS0KZ462BGJVY:1788791580068-0 hit its timeout of 600s
+[modal-client] 2026-09-07T14:43:03+0000 Received a cancellation signal while processing input ('in-01M1Y4JSCF5GMYS0KZ462BGJVY:1788791580068-0',)
+{"run_id": "4fb67ea09dce40479da7577733ee61c2", "event": "update_enqueued", "seq": 0, "timestamp": "2026-09-07T14:43:06.690+00:00", "update_id": 814913247, "spawning": true}
+   POST / -> 200 OK  (duration: 5.11 s, execution: 1.29 s)
+{"run_id": "d5d89ade874c46ccb035c9c0a45b6a86", "event": "turn_started", "seq": 1, "timestamp": "2026-09-07T14:43:12.861+00:00", "source": "telegram", "queued_ms": 613005}
+{"run_id": "d5d89ade874c46ccb035c9c0a45b6a86", "event": "telegram_final_sent", "seq": 2, "timestamp": "2026-09-07T14:43:15.094+00:00", "elapsed_ms": 615237}
+{"run_id": "d5d89ade874c46ccb035c9c0a45b6a86", "event": "persist_started", "seq": 3, "timestamp": "2026-09-07T14:43:15.102+00:00"}
+{"run_id": "ce5a716cfc7244a39d3060c2f2f780ed", "event": "update_enqueued", "seq": 0, "timestamp": "2026-09-07T14:43:37.428+00:00", "update_id": 814913248, "spawning": false}
+   POST / -> 200 OK  (duration: 1.01 s, execution: 905.2 ms)
+Input in-01M1Y4JSCF5GMYS0KZ462BGJVY:1788791580068-0 failed to respond to cancellation for too long: 30 seconds - killing task
