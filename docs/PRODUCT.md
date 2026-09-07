@@ -1,6 +1,6 @@
 # Product
 
-This document is the stable product contract for Pinocchio Harness (`pinocchio-harness`, until 2026-09-05 `local-multimodal-agent`).
+This document is the stable product contract for Pinocchio Harness (`pinocchio-harness`).
 It explains what the product is and the principles that should survive implementation changes.
 It is **not** a roadmap, work log, architecture history, or evidence report.
 
@@ -108,7 +108,8 @@ The application core must not fork into a local implementation and a cloud imple
 Provider/platform choices should sit behind configuration or infrastructure boundaries. The current examples are:
 
 - SQLite locally versus PostgreSQL in the deployed profile behind one `ConversationStore` contract;
-- a local OpenAI-compatible endpoint versus the Modal vLLM endpoint behind `ModelBackend`;
+- any OpenAI-compatible endpoint behind `ModelBackend`: a hosted service, a
+  Modal vLLM App or a local server, chosen by configuration;
 - local browser execution where trusted versus an isolated renderer for public web pages in deployment.
 
 A feature that only works in one profile should be treated as an implementation asymmetry to understand, not as permission to create a second product core.
@@ -153,11 +154,15 @@ The current accepted deployed baseline includes:
 - text, image and audio input where supported;
 - document upload, structured reading and PDF page viewing in the Telegram path;
 - autonomous filesystem read/write/edit inside scoped per-user workspace paths;
+- commands run in the person's workspace, in a container that holds no secret
+  when deployed;
 - local HTML/browser inspection;
 - public web search, bounded text fetch and isolated visual browser view;
 - explicit agent-controlled file/media delivery;
 - resumable approvals, and one turn bounded by its own budget that a person can stop while it runs;
-- a scale-to-zero OpenAI-compatible multimodal model endpoint.
+- a person's own standing instructions, plan switch, work mode and context size;
+- an OpenAI-compatible multimodal model chosen by configuration: a hosted
+  service by default, with scale-to-zero GPU Apps kept as alternatives.
 
 `ROADMAP.md` is authoritative for what is accepted next and for known product gaps.
 
