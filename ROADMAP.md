@@ -82,7 +82,8 @@ noted; the human's word starts each.
     let a scenario run with instructions. The wider suite is 19.
     `reports/2026-09-05_suite_and_tools_review.md`.
 
-16. **Tools with contracts, a browser with hands, a literal brief.** Every
+16. **Tools with contracts, a browser with hands, a literal brief, and the
+    whole system prompt reviewed.** Every
     tool's description states what it takes, returns and leaves where, and
     an offline test refuses a tool without all three. `inspect_page`, a
     remnant of the old system, goes: one page tool on the renderer with the
@@ -91,7 +92,11 @@ noted; the human's word starts each.
     returns); `BrowserSession` already has them. Every brief line is a
     literal condition and action (the plan line first). Research: how
     DeepSeek Harness and Hermes describe tools and drive a page, tool by
-    tool, in a report before the rewrite. ISS-0008, ISS-0010, ISS-0016.
+    tool, in a report before the rewrite. With it, a review of everything the
+    system prompt is assembled from (`DEFAULT_SYSTEM_PROMPT`, `WORKING_METHOD`,
+    the capability list, the tool descriptions, the standing instructions,
+    the brief lines): what each line is for, what it costs, what stays (the
+    human, 2026-09-07). ISS-0008, ISS-0010, ISS-0016.
 
 17. **The command environment is a place to develop.** Deployed, the command
     container is the assistant's own server: what a command needs works

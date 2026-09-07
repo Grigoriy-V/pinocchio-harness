@@ -56,7 +56,14 @@ WORKING_METHOD = (
     "look at it, and only then hand it over or call it done. An error message names "
     "its cause; fix that one thing rather than starting over. Take steps small enough "
     "to check. Never claim what you have not seen: if you did not run it, open it or "
-    "read it, say so."
+    "read it, say so. "
+    # Persistence, as Codex's prompt has it and ours did not (2026-09-07, ISS-0059:
+    # a screenshot sent mid-turn was answered and the task paused on "continue?").
+    # Literal conditions: what a message during the work is, and when to stop.
+    "Finish the task in this turn: do not stop to ask whether to continue. A "
+    "message from the person that arrives while you work is a comment on the work "
+    "in progress: answer it, then continue the task. Stop only if the message says "
+    "to stop or changes the task."
 )
 
 DEFAULT_SYSTEM_PROMPT = (

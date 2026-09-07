@@ -115,6 +115,12 @@ in use since 2026-09-06; it is not seen on the hosted model.
   the work in progress; answer it, then continue the task without asking
   unless it says to stop or change it"). To be measured with the mini suite
   (roadmap 15) before either is chosen; not a harness mechanism.
+  2026-09-07, the human's word: Codex's prompt has a general persistence
+  rule ("keep going until the task is completely resolved, before ending
+  your turn") and ours had none, so one literal persistence rule was added
+  to `WORKING_METHOD` (finish the task in this turn; a message during the
+  work is a comment, answer and continue; stop only if told). Effect not
+  yet measured; the scenario goes into item 15's set.
 - **Evidence:** `reports/2026-09-07_mid_turn_message.md` §9.
 - **Related:** roadmap 15, 20.
 
