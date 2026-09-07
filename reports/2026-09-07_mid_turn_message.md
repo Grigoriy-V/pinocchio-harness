@@ -210,7 +210,7 @@ What this changes in §2–§6:
 
 ## 8. Built (2026-09-07), awaiting the deploy
 
-Commits cf44925 (step 1) and 29bc... (steps 2–3, see `git log`): 
+Commits cf44925 (step 1) and 29fbcf1 (steps 2–3):
 
 - `app/agent/interjections.py`: `Interjections`, `NO_INTERJECTIONS`,
   `MemoryInterjections` (`offer` / `take` / `settle`). `build_agent`, `Agent`
