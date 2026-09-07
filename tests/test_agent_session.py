@@ -209,6 +209,40 @@ async def test_folding_never_deletes_a_message(database: Path, workspace: Path) 
     assert [body(m) for m in agent.history("t1")][:2] == ["turn 0", "ok"]
 
 
+# --- the health check rides beside the results, not instead of them ----------
+
+
+async def test_the_results_of_the_batch_that_carried_the_check_are_still_delivered(
+    database: Path, workspace: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The first G with the check on, 2026-09-07: the tools node's patch held
+    the question, the runtime took it for a withdrawn draft, and two
+    `send_file` results never reached the interface."""
+
+    from app.agent.graph import TurnWatch
+    from app.agent.runtime import AnswerWithdrawn, MessageProduced
+
+    from types import SimpleNamespace
+
+    ticks = iter(range(0, 10_000, 5))
+    monkeypatch.setattr("app.agent.graph.time", SimpleNamespace(monotonic=lambda: float(next(ticks))))
+    (workspace / "a.txt").write_text("alpha", encoding="utf-8")
+    backend = ScriptedBackend(calls("read_file", path="a.txt"), says("done"))
+    agent = Agent(
+        backend, SqliteStore(database), workspace, turn_watch=TurnWatch(check_seconds=1.0)
+    )
+
+    events = [event async for event in agent.events("t1", user("read it"))]
+
+    produced = [event.message for event in events if isinstance(event, MessageProduced)]
+    assert [message.role for message in produced] == ["assistant", "tool", "assistant"]
+    assert "alpha" in body(produced[1])
+    assert not any(isinstance(event, AnswerWithdrawn) for event in events)
+    # The question itself was asked, and stayed out of the conversation.
+    assert any("Turn control" in prompt_text(request) for request in backend.requests)
+    assert not any("Turn control" in body(message) for message in agent.history("t1"))
+
+
 # --- multimodal turns --------------------------------------------------------
 
 

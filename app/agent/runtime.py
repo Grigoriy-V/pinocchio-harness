@@ -451,11 +451,15 @@ class Agent:
                 if usage is not None:
                     self._usage = usage
                 steered = patch.get("steered")
-                if steered is not None:
+                if steered is not None and steered.candidate is not None:
                     # The graph kept this out of the conversation; the only
                     # thing left to undo is whatever the stream already showed.
                     yield AnswerWithdrawn(steered.candidate)
                     continue
+                # A health check (`steered` with no candidate) rides on the
+                # tools node's patch beside that batch's results, which are
+                # conversation and are delivered like any other: the first G
+                # with the check on lost two `send_file` results here.
                 for produced in patch.get("messages") or []:
                     yield MessageProduced(produced)
 
