@@ -29,6 +29,7 @@ from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 from typing import Any
 
+from app.agent.interjections import Interjections, MemoryInterjections
 from app.agent.runtime import (
     Agent,
     AnswerWithdrawn,
@@ -54,6 +55,7 @@ from app.memory import ConversationStore, Thread
 from app.tools import Runner
 from app.models import ContentPart, Message
 from app.telemetry import NO_TRACE, Telemetry, TurnTrace
+from ui.telegram.interjections import InboxInterjections
 from ui.telegram.api import (
     MAX_PHOTO_BYTES,
     PRODUCT_COMMANDS,
@@ -77,6 +79,7 @@ from ui.telegram.wire import (
     canonical_user_id,
     needs_model,
     read_update,
+    travels_out_of_band,
 )
 
 REFUSAL = (
@@ -593,6 +596,7 @@ class TelegramAdapter:
         telemetry: Telemetry | None = None,
         stops: StopRequests | None = None,
         runner: Runner | None = None,
+        inbox: Any | None = None,
     ) -> None:
         self.client = client
         self.settings = settings or TelegramSettings()
@@ -615,6 +619,12 @@ class TelegramAdapter:
             else MemoryStopRequests()
         )
         # Supplied by tests so a turn can be driven without a model endpoint.
+        # Where a running turn takes what the person wrote meanwhile. With
+        # the durable inbox (deployed) the inbox is the lane; in one process
+        # (polling) the lane is memory and `offer`/`taken` below feed it.
+        self.interjections: Interjections = (
+            InboxInterjections(inbox, self) if inbox is not None else MemoryInterjections()
+        )
         self.agent_factory = agent_factory or self._default_agent
         self._agents: dict[str, Agent] = {}
 
@@ -626,6 +636,7 @@ class TelegramAdapter:
             telemetry=self.telemetry,
             stops=self.stops,
             runner=self.runner,
+            interjections=self.interjections,
         )
 
     # --- identity and access -------------------------------------------------
@@ -672,6 +683,40 @@ class TelegramAdapter:
         if not parts:
             raise AttachmentError("the message has no text or usable attachments")
         return Message(role="user", content=parts)
+
+    async def offer(self, update: dict[str, Any]) -> tuple[str, int] | None:
+        """Offer an ordinary message to the turn that may be running (polling).
+
+        Returns the lane key and the sequence to `settle` with once the
+        caller holds the conversation, or `None` when this update is not a
+        message a turn could read: it then takes the ordinary path.
+        """
+
+        lane = self.interjections
+        if not isinstance(lane, MemoryInterjections):
+            return None
+        incoming = read_update(update)
+        if (
+            incoming is None
+            or incoming.callback_data is not None
+            or not self.allows(incoming.telegram_user_id)
+            or travels_out_of_band(incoming)
+            or not needs_model(incoming)
+        ):
+            return None
+        user_id = canonical_user_id(incoming.telegram_user_id)
+        try:
+            message = await self.to_message(incoming, self.agent(user_id).capability_grant.root)
+        except Exception:  # noqa: BLE001 - answered as its own turn, with the refusal
+            return None
+        await lane.offer(user_id, incoming.update_id, message)
+        return user_id, incoming.update_id
+
+    async def taken(self, key: str, sequence: int) -> bool:
+        """Whether an offered message was read by a running turn (polling)."""
+
+        lane = self.interjections
+        return isinstance(lane, MemoryInterjections) and await lane.settle(key, sequence)
 
     async def handle_update(
         self, update: dict[str, Any], trace: TurnTrace = NO_TRACE

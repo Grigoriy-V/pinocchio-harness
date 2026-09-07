@@ -83,7 +83,14 @@ class PollingBot:
             # `/stop`, which is useless anywhere but here.
             await self._handle(update)
             return
+        # Offered to the turn that may be running before waiting for it, so
+        # the person's comment reaches the model at that turn's next step.
+        # Once the conversation is free, a message the turn read is done
+        # with; the rest are answered as their own turn, as before.
+        offered = await self.adapter.offer(update)
         async with self._lock(self._chat_of(update)):
+            if offered is not None and await self.adapter.taken(*offered):
+                return
             await self._handle(update)
 
     async def _handle(self, update: dict[str, Any]) -> None:

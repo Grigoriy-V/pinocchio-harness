@@ -28,6 +28,10 @@ from typing import Any, Protocol
 
 SCHEMA_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
+# What `last_error` says for a row the running turn read mid-turn: not an
+# error, the place the update went.
+TAKEN = "taken by the running turn"
+
 
 def lock_id(conversation_key: str) -> int:
     """One conversation's advisory-lock identifier, as a signed 64-bit integer.
@@ -388,6 +392,44 @@ class PostgresUpdateInbox:
 
     async def complete(self, job: InboxJob) -> None:
         await self._finish(job, "done", None)
+
+    async def take_pending(self, conversation_key: str, after: int) -> list[dict[str, Any]]:
+        """Hand a conversation's waiting messages to the turn that is running.
+
+        One statement, `pending` to `done`, so a taken row belongs to the
+        caller and to nobody else: `claim_next` never takes a done row, and
+        a row another worker holds is `running` and is not touched. Only
+        messages, only after `after` (the running turn's own update id),
+        never a control row. Marked in `last_error` so the table says
+        where the update went.
+        """
+
+        connection = await self._connection()
+        async with connection:
+            async with connection.cursor() as cursor:
+                await cursor.execute(
+                    f"UPDATE {self.table} SET state = 'done', last_error = %s,"
+                    " updated_at = CURRENT_TIMESTAMP"
+                    " WHERE conversation_key = %s AND state = 'pending' AND NOT control"
+                    " AND update_id > %s AND payload ? 'message'"
+                    " RETURNING update_id, payload, run_id",
+                    (TAKEN, conversation_key, after),
+                )
+                rows = await cursor.fetchall()
+        return [dict(row) for row in rows]
+
+    async def release(self, update_id: int) -> None:
+        """Put a taken row back, for a message the turn could not read."""
+
+        connection = await self._connection()
+        async with connection:
+            async with connection.cursor() as cursor:
+                await cursor.execute(
+                    f"UPDATE {self.table} SET state = 'pending', last_error = NULL,"
+                    " updated_at = CURRENT_TIMESTAMP"
+                    " WHERE update_id = %s AND state = 'done' AND last_error = %s",
+                    (update_id, TAKEN),
+                )
 
     async def retry(self, job: InboxJob, error: str) -> None:
         await self._finish(job, "pending", error[:1000])

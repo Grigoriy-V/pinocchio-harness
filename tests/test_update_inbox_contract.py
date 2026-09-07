@@ -389,3 +389,62 @@ async def test_setting_the_queue_up_twice_changes_nothing(
     claimed = await inbox.claim(5)
 
     assert claimed is not None and claimed.update_id == 5
+
+
+# --- the running turn takes what arrived behind it (item 20) -----------------
+
+
+async def test_a_running_turn_takes_the_messages_queued_behind_it(
+    inbox: PostgresUpdateInbox,
+) -> None:
+    await queue(inbox, 5, 7, 8)
+    first = await inbox.claim(5)
+    assert first is not None
+
+    taken = await inbox.take_pending(ALICE, 5)
+
+    assert sorted(row["update_id"] for row in taken) == [7, 8]
+    assert all(row["payload"]["message"]["text"] == "hello" for row in taken)
+    # Done: the drain after the turn finds nothing, and nothing runs them twice.
+    await inbox.complete(first)
+    assert await inbox.claim_next(ALICE) is None
+    assert await inbox.take_pending(ALICE, 5) == []
+
+
+async def test_a_control_row_and_another_persons_row_are_not_taken(
+    inbox: PostgresUpdateInbox,
+) -> None:
+    await queue(inbox, 5, 9)
+    await queue(inbox, 6, key=BOB)
+    await inbox.enqueue(7, payload(7), run_id="run-7", conversation_key=ALICE, control=True)
+    first = await inbox.claim(5)
+    assert first is not None
+
+    assert [row["update_id"] for row in await inbox.take_pending(ALICE, 5)] == [9]
+    assert await inbox.claim(7) is not None, "the control row is still there to claim"
+    assert await inbox.claim(6) is not None
+
+
+async def test_a_row_another_worker_holds_is_not_taken(inbox: PostgresUpdateInbox) -> None:
+    """A lease that expired after a death: the later worker's claim wins."""
+
+    await queue(inbox, 5, 7)
+    await inbox.claim(5, lease_seconds=0)
+    later = await inbox.claim(7)
+    assert later is not None and later.update_id == 5, "the oldest, resumed by the later worker"
+
+    assert [row["update_id"] for row in await inbox.take_pending(ALICE, 5)] == [7]
+
+
+async def test_a_released_row_is_answered_as_its_own_turn(
+    inbox: PostgresUpdateInbox,
+) -> None:
+    await queue(inbox, 5, 7)
+    first = await inbox.claim(5)
+    assert first is not None
+    assert [row["update_id"] for row in await inbox.take_pending(ALICE, 5)] == [7]
+
+    await inbox.release(7)
+    await inbox.complete(first)
+    following = await inbox.claim_next(ALICE)
+    assert following is not None and following.update_id == 7

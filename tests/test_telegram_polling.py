@@ -33,6 +33,12 @@ class RecordingAdapter:
         if text == self.hold:
             await self.release.wait()
 
+    async def offer(self, update: dict[str, Any]) -> tuple[str, int] | None:
+        return None
+
+    async def taken(self, key: str, sequence: int) -> bool:
+        return False
+
 
 def message(text: str, update_id: int = 1) -> dict[str, Any]:
     return {
@@ -71,3 +77,60 @@ async def test_an_ordinary_message_still_waits_for_the_one_before_it() -> None:
     adapter.release.set()
     await asyncio.gather(turn, second)
     assert adapter.seen == ["first", "second"]
+
+
+# --- a message during a turn is offered to it (item 20) -----------------------
+
+
+class OfferingAdapter(RecordingAdapter):
+    """The adapter with the memory lane: offers, and answers whether a turn took it."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.offered: list[tuple[str, int]] = []
+        self.taken_by_turn: set[int] = set()
+
+    async def offer(self, update: dict[str, Any]) -> tuple[str, int] | None:
+        text = update["message"]["text"]
+        if text.startswith("/"):
+            return None
+        key = ("alice", int(update["update_id"]))
+        self.offered.append(key)
+        return key
+
+    async def taken(self, key: str, sequence: int) -> bool:
+        return sequence in self.taken_by_turn
+
+
+async def test_a_message_during_a_turn_is_offered_before_it_waits() -> None:
+    adapter = OfferingAdapter()
+    adapter.hold = "first"
+    bot = PollingBot(adapter)  # type: ignore[arg-type]
+
+    turn = asyncio.create_task(bot._guarded(message("first", 1)))
+    await asyncio.sleep(0)
+    second = asyncio.create_task(bot._guarded(message("a comment", 2)))
+    await asyncio.sleep(0)
+
+    assert adapter.offered == [("alice", 1), ("alice", 2)]
+    assert adapter.seen == ["first"], "still waiting for the conversation"
+    # The running turn read it at its next step.
+    adapter.taken_by_turn.add(2)
+    adapter.release.set()
+    await asyncio.gather(turn, second)
+    assert adapter.seen == ["first"], "a message the turn read is not answered again"
+
+
+async def test_a_message_the_turn_did_not_read_is_answered_as_its_own() -> None:
+    adapter = OfferingAdapter()
+    adapter.hold = "first"
+    bot = PollingBot(adapter)  # type: ignore[arg-type]
+
+    turn = asyncio.create_task(bot._guarded(message("first", 1)))
+    await asyncio.sleep(0)
+    second = asyncio.create_task(bot._guarded(message("a comment", 2)))
+    await asyncio.sleep(0)
+    adapter.release.set()
+    await asyncio.gather(turn, second)
+
+    assert adapter.seen == ["first", "a comment"]

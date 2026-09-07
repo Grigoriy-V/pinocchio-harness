@@ -390,8 +390,11 @@ async def process_telegram_update(update_id: int) -> bool:
     telemetry = open_telemetry(agent)
     # The runner is passed, never defaulted: without it the agent would run
     # commands in this container, beside the secrets.
-    adapter = TelegramAdapter(client, telegram, agent, telemetry=telemetry, runner=ModalRunner())
     inbox = PostgresUpdateInbox(agent.database_url, agent.database_schema)
+    # The inbox is also the lane a running turn reads mid-turn messages from.
+    adapter = TelegramAdapter(
+        client, telegram, agent, telemetry=telemetry, runner=ModalRunner(), inbox=inbox
+    )
     # Around the turn, not around the process. A container is reused for as long
     # as its idle window holds, so a container that has been alive since before
     # another one wrote a file would keep serving the version it first saw, and
