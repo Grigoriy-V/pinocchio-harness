@@ -29,7 +29,7 @@ owns current work, order and authorization.
   sets, scaled to zero, not in use.
 - **Control plane:** `assistant-control` on Modal serves the webhook, the
   update worker, `render_web_page`, `run_command` and `scenarios`; the
-  database is Neon at schema version 3; secrets are published from the
+  database is Neon at schema version 4; secrets are published from the
   owner's `.env` by `tools/sync_control_secret.py`.
 - **Local profile:** the same `app/` runs on the owner's machine with
   Chainlit; the boundary for commands exists on Windows only (item 7).
