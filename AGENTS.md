@@ -29,88 +29,42 @@ general property of the system rather than the case (human's rule,
 2026-09-04). What belongs to the model is measured with the scenario suite,
 not scripted.
 
-## Execution
+## How to work
 
-Codex is the primary project agent and Supervisor. It owns architecture,
-planning, canonical documents, repository inspection, review, verification and
-the final report. It also implements small, localized code changes itself.
-
-Route a large cohesive source-code implementation batch to Claude through Orca
-by default unless the human says to keep that task in Codex. "Large" means the
-task requires a substantial package of implementation and tests, typically
-across several modules or an architectural boundary; do not route merely
-because a task is difficult. Routing is a proposal, not start authority. Before
-large implementation begins, the human must separately and explicitly say that
-the large implementation may start. Approval of a roadmap step or a request to
-begin analysis and planning does not substitute for this implementation gate.
-After the human gives that start signal, Codex prepares the bounded brief,
-acceptance criteria and checks itself and proceeds with the intended executor;
-it does not need another approval of the resulting brief unless the human asks
-to review it.
-
-Analysis, design, documentation, code review and small fixes stay with Codex
-unless the human asks otherwise. Do not create other subagents. The human
-controls direction and may override this routing for any task.
-
-### Claude implementation through Orca
-
-The routing rule above never authorizes a Claude process by itself. The human's
-explicit signal to begin the large implementation authorizes one bounded
-supervised Claude workflow, including fresh correction Tasks required to meet
-its original acceptance criteria. Codex then prepares the Worker brief and
-starts the workflow without asking the human to approve the brief. Tell the
-human when the Claude route is being used. This authorization does not cover
-widened work, product-runtime workers, model endpoints, containers, deployments,
-or other externally consequential actions.
-
-For that workflow the primary Codex chat becomes the Supervisor. It owns
-inspection, discussion, planning, the Worker brief, review, and the final report,
-but does not implement or correct source code while the delegated task is
-active. Use `$orca-claude-bridge` and a supervised Orca Task in the current
-checkout. Codex and Claude must never edit that checkout concurrently.
-
-Every delegation brief must be self-contained. Include the goal, bounded scope,
-accepted decisions, exclusions, relevant evidence and canonical documents,
-acceptance criteria, and required or intentionally skipped checks. Do not assume
-Claude received the preceding chat history. Keep task-specific content in the
-brief and let Orca inject its own lifecycle protocol.
-
-Claude is the sole Worker and owns the delegated implementation loop:
-
-`inspect -> implement -> test -> diagnose -> fix -> evaluate -> record -> report`
-
-Delegation depth is one: `Codex Supervisor -> Claude Worker`. Claude must not
-spawn agents or invoke Orca recursively. The Supervisor waits for `worker_done`,
-then independently reviews the claimed files or diff and verifies the result in
-proportion to risk. If source-code corrections are needed, the Supervisor
-returns them through a fresh supervised Claude Task within the authorized
-workflow, reusing the same Claude session when the correction is immediate; it
-does not silently take over implementation. Stop and ask the human if a
-correction would widen scope or cross another gate. Review-only delegations do
-not authorize edits.
+Whichever application runs the agent, it is the project agent: it owns
+analysis, planning, implementation, tests, review, the canonical documents
+and the final report, and takes its authorization from the human in the
+chat. Do not spawn other agents or delegate to another process.
 
 Before selecting or changing work, read `ROADMAP.md`. It is the only current
 plan. Work on one approved step at a time and do not create a competing plan.
 Discussion, analysis and roadmap edits do not authorize implementation,
-downloads, destructive actions, publication or materially expensive GPU work.
+downloads, destructive actions, publication or materially expensive GPU work;
+the human's explicit word does.
 
 Within an approved step, own the complete loop:
 
 `inspect -> implement -> test -> diagnose -> fix -> evaluate -> record -> report`
 
-Continue through routine implementation choices, proportional checks, debugging
-and correction of your own changes without asking. Stop only when a human gate
-is reached, strategic scope must change, required credentials or external facts
-are unavailable, unrelated user changes conflict with the work, or repeated
-diagnostics produce no new evidence.
+Continue through routine implementation choices, proportional checks,
+debugging and correction of your own changes without asking. Stop only when a
+human gate is reached, strategic scope must change, required credentials or
+external facts are unavailable, unrelated user changes conflict with the
+work, or repeated diagnostics produce no new evidence.
 
-A user-facing capability is complete only after a short end-to-end check of the
-actual app experience. Technical presence is not product acceptance. Never
-describe planned work as implemented or make a claim stronger than the evidence.
+A user-facing capability is complete only after a short end-to-end check of
+the actual app experience. Technical presence is not product acceptance.
+Never describe planned work as implemented or make a claim stronger than the
+evidence.
 
-The repository may be used from different agent applications. Outside the
-explicit Claude-through-Orca workflow, do not rely on application-specific
-behavior and assume only one application works in it at a time.
+Instructions to a model, whether a brief line, a tool description or a
+scenario, are literal conditions and actions. No figures of speech: a cheap
+model reads "when you can hold it in your head" as permission to skip the
+tool.
+
+The repository is used from different agent applications; assume only one
+works in it at a time, and do not rely on application-specific behaviour in
+rules, documents or records.
 
 ## Context
 
@@ -151,8 +105,8 @@ a deploy that causes any of these. Permission is per action, never per session,
 never implied by approval of the surrounding step, and never inferred from an
 earlier yes. A cheap worker and a CPU worker are still workers. When evidence
 could come from a log, a document or the human instead, ask for it rather than
-starting anything. The separately authorized Claude development workflow above
-does not authorize any of these product or infrastructure actions.
+starting anything. Approval of a development step never authorizes any of
+these product or infrastructure actions.
 
 Before a human-run command, state what it does, expected duration, VRAM cost and
 the exact command. Never expand work into another repository.
