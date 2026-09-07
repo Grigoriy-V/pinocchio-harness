@@ -22,8 +22,8 @@ authorizes nothing; `ROADMAP.md` alone orders work. Evidence lives in
 
 | Id | Status | Defect | Related |
 |---|---|---|---|
-| ISS-0059 | open | a question sent mid-turn is answered and the task it interrupted stops to ask "continue?" | roadmap 15, 20 |
 | ISS-0060 | open | deployed `use_page open url` renders a public page in the worker, beside the secrets | 0051, roadmap 21 |
+| ISS-0059 | open | a question sent mid-turn is answered and the task it interrupted stops to ask "continue?" | roadmap 15, 20 |
 | ISS-0058 | open | command temp files and caches on the Volume path: too long for a socket, wrong uid | 0053, 0057 |
 | ISS-0057 | fixed 2026-09-07 | the turn's seconds budget counts tool run time and provider queue | 0056, 0054 |
 | ISS-0056 | open | seconds between a turn's steps that no model, tool or store accounts for | roadmap 10 |
@@ -90,6 +90,23 @@ in use since 2026-09-06; it is not seen on the hosted model.
 
 ## Open
 
+### ISS-0060 — deployed, `use_page open url` renders a public page in the worker, beside the secrets
+
+- **Status:** open
+- **Seen:** 2026-09-07, by reading the code after the deployed mini set run
+  (W chose `fetch_page`; had it chosen `use_page`, the page would have
+  rendered in the worker).
+- **Costs:** a stranger's JavaScript runs in the container that holds the
+  bot token, the model key and the database URL, under Chromium with
+  `--no-sandbox` as root — the boundary `render_web_page` exists to keep.
+- **Reproduce:** deployed, ask to click something on a public page.
+- **Cause:** item 16 gave `use_page open` a `url` and opened it with the
+  worker's own browser, ignoring `WEB_LOCAL_BROWSER=0`; the author (the
+  agent) knew the flag, edited the comment beside it, and did not raise the
+  change as a gate before the deploy. A rule breach, not an oversight.
+- **Evidence:** `app/tools/browser.py` `Pages.open`; `reports/2026-09-07_item16_build.md` §3.
+- **Related:** ISS-0051; roadmap 21 closes it.
+
 ### ISS-0059 — a question sent mid-turn is answered and the task it interrupted stops to ask "continue?"
 
 - **Status:** open
@@ -124,23 +141,6 @@ in use since 2026-09-06; it is not seen on the hosted model.
   yet measured; the scenario goes into item 15's set.
 - **Evidence:** `reports/2026-09-07_mid_turn_message.md` §9.
 - **Related:** roadmap 15, 20.
-
-### ISS-0060 — deployed, `use_page open url` renders a public page in the worker, beside the secrets
-
-- **Status:** open
-- **Seen:** 2026-09-07, by reading the code after the deployed mini set run
-  (W chose `fetch_page`; had it chosen `use_page`, the page would have
-  rendered in the worker).
-- **Costs:** a stranger's JavaScript runs in the container that holds the
-  bot token, the model key and the database URL, under Chromium with
-  `--no-sandbox` as root — the boundary `render_web_page` exists to keep.
-- **Reproduce:** deployed, ask to click something on a public page.
-- **Cause:** item 16 gave `use_page open` a `url` and opened it with the
-  worker's own browser, ignoring `WEB_LOCAL_BROWSER=0`; the author (the
-  agent) knew the flag, edited the comment beside it, and did not raise the
-  change as a gate before the deploy. A rule breach, not an oversight.
-- **Evidence:** `app/tools/browser.py` `Pages.open`; `reports/2026-09-07_item16_build.md` §3.
-- **Related:** ISS-0051; roadmap 21 closes it.
 
 ### ISS-0058 — a command's temporary files and caches live on the Volume path, which is too long for a Unix socket and owned by the wrong user
 
