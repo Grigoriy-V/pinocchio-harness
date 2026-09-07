@@ -734,6 +734,11 @@ class Agent:
         return self.store.threads(self.user_id)
 
     async def aclose(self) -> None:
+        # The page a turn left open goes with the agent, on this loop, rather
+        # than with the idle timer on a loop that may be gone by then.
+        pages = getattr(self.capability_registry, "pages", None)
+        if pages is not None:
+            await pages.close_all()
         close = getattr(self.backend, "aclose", None)
         if close is not None:
             await close()

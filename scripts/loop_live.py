@@ -26,8 +26,8 @@ accepted when all eight pass deployed in one run.
                                       answer uses it
     C  files and a command            write_file, run_command exit 0, the
                                       command's output in the answer
-    F  the browser                    a page the model wrote, opened on the
-                                      renderer, the structure with refs read
+    F  the browser                    a page the model wrote, opened with
+                                      use_page, clicked twice, the effect read
     W  the web                        a fixed page fetched, its title in the
                                       answer
     H  memory and history             a fact saved in one turn is found in a
@@ -438,11 +438,15 @@ async def run_scenarios(
                 "chat-w",
                 "Open https://example.com and tell me the exact text of its heading.",
             )
-            fetched = w.read_from("fetch_page") + w.read_from("view_web_page")
+            # Since roadmap 16 a public address can also be opened with
+            # use_page: the check is that the page was read, whichever way.
+            fetched = (
+                w.read_from("fetch_page") + w.read_from("view_web_page") + w.read_from("use_page")
+            )
             done(
                 "W", "W the web", w,
                 checks={
-                    "a web tool ran": bool({"fetch_page", "view_web_page"} & set(w.tools)),
+                    "a web tool ran": bool({"fetch_page", "view_web_page", "use_page"} & set(w.tools)),
                     "no tool failed": not w.failures,
                     "the page reached the model": "Example Domain" in fetched,
                     "the heading is in the answer": "example domain" in w.answer.lower(),

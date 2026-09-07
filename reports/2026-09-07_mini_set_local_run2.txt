@@ -1,0 +1,133 @@
+telemetry C:\Users\user\AppData\Local\Temp\loop-live-rzv5_r8k\telemetry.sqlite3
+workspace C:\Users\user\AppData\Local\Temp\loop-live-rzv5_r8k\workspace\loop-live-check
+
+A a plain question
+  model calls 1   tool calls 0   approvals 0   tokens 4800 in / 14 out
+  tools       -
+  seconds       6.72   run live-10
+  answer      Привет! Всё хорошо, спасибо 🙂 Чем могу помочь?
+  PASS  one model call
+  PASS  no tool
+  PASS  an answer was given
+
+B one tool
+  model calls 2   tool calls 1   approvals 0   tokens 9637 in / 25 out
+  tools       ['read_file']
+  seconds       9.66   run live-20
+  answer      The passphrase is **marmalade**.
+  PASS  read_file ran
+  PASS  no tool failed
+  PASS  the result reached the model
+  PASS  the answer uses it
+
+C files and a command
+  model calls 3   tool calls 2   approvals 0   tokens 14716 in / 135 out
+  tools       ['write_file', 'run_command']
+  seconds      18.03   run live-30
+  answer      Done — wrote `primes.py` and ran it. It printed exactly:
+
+```
+2 3 5 7 11 13 17 19 23 29 31 37 41 43 47
+```
+
+(the primes below 50, space-separated on one line)
+  PASS  write_file then run_command
+  PASS  primes.py exists
+  PASS  the command exited 0
+  PASS  no tool failed
+  PASS  the output reached the answer
+model provider novita/fp8 failed its retries; asking z-ai/fp8
+
+F the browser
+  model calls 5   tool calls 4   approvals 0   tokens 25231 in / 206 out
+  tools       ['write_file', 'use_page', 'use_page', 'use_page']
+  seconds      43.39   run live-60
+  answer      Done. I created `counter.html` in your workspace, opened it, and clicked the **Count** button twice. After the second press the heading reads **2** — it went 0 
+  PASS  write_file then use_page
+  PASS  counter.html exists
+  PASS  no tool failed
+  PASS  the page was opened
+  PASS  the model read a structure with a ref
+  PASS  the button was clicked twice
+  PASS  the answer says 2
+
+W the web
+  model calls 2   tool calls 1   approvals 0   tokens 9734 in / 42 out
+  tools       ['use_page']
+  seconds      12.52   run live-65
+  answer      The page's heading (an `<h1>`) reads exactly: **Example Domain**.
+  FAIL  a web tool ran
+  PASS  no tool failed
+  FAIL  the page reached the model
+  PASS  the heading is in the answer
+
+H memory and history — turn 80
+  model calls 2   tool calls 1   approvals 0   tokens 9651 in / 39 out
+  tools       ['remember_fact']
+  seconds       9.38   run live-80
+  answer      Saved — I'll remember that your favourite apple variety is Antonovka.
+
+H memory and history — turn 81
+  model calls 1   tool calls 0   approvals 0   tokens 4821 in / 11 out
+  tools       -
+  seconds       4.75   run live-81
+  answer      Your favourite apple variety is Antonovka.
+
+H memory and history
+  model calls 2   tool calls 1   approvals 0   tokens 9915 in / 114 out
+  tools       ['search_history']
+  seconds      10.83   run live-82
+  answer      Дословно из результата того вызова write_file:
+
+```
+error: no such folder: board-7/assets — the parent 'board-7' is a file fs.blocked: no such folder: board-7/a
+  PASS  remember_fact ran
+  PASS  the fact was found in another conversation
+  PASS  history was searched or read
+  PASS  the exact text is in the answer
+  PASS  nothing was written or retried
+  PASS  no tool failed
+
+E a failing tool
+  model calls 2   tool calls 1   approvals 0   tokens 9760 in / 131 out
+  tools       ['edit_file']
+  failures    edit_file: fs.ambiguous_edit
+  seconds      12.61   run live-50
+  answer      The edit failed: `edit_file` refused the replacement because the word "apple" occurs **twice** in fruit.txt, and it only replaces a fragment that appears exactl
+  PASS  edit_file ran
+  PASS  the failure reached the loop as fs.ambiguous_edit
+  PASS  the model answered after the failure
+  PASS  the turn was not ended by the repeat guard
+  PASS  tool_failed carries code and message
+
+  (a message was sent while the turn was running)
+
+  (stop recorded while the turn was running)
+an error occurred during closing of asynchronous generator <async_generator object open_page at 0x0000021548386440>
+asyncgen: <async_generator object open_page at 0x0000021548386440>
+RuntimeError: aclose(): asynchronous generator is already running
+
+M control: a message mid-turn, then a stop — turn 180
+  model calls 7   tool calls 6   approvals 0   tokens 35115 in / 194 out
+  tools       ['write_file', 'read_file', 'write_file', 'read_file', 'write_file', 'read_file']
+  seconds      34.25   run live-180
+  answer      I'm done: note1.txt, note2.txt, and note3.txt were each written one at a time and read back successfully, each containing one sentence about apples.
+
+M control: a message mid-turn, then a stop
+  model calls 3   tool calls 2   approvals 0   tokens 14638 in / 81 out
+  tools       ['write_file', 'read_file', 'write_file']
+  failures    write_file: not_run
+  seconds      14.34   run live-190
+  answer      Stopped at your request.
+  PASS  the message was taken mid-turn
+  PASS  it is stored where the turn read it
+  PASS  it was answered
+  PASS  the task was still finished
+  PASS  no tool failed
+  PASS  the stopped turn ended with the stop message
+  PASS  fewer than five files were made
+
+2 check(s) failed
+
+Read any of them back with:
+  AGENT_TELEMETRY_DATABASE=C:\Users\user\AppData\Local\Temp\loop-live-rzv5_r8k\telemetry.sqlite3 AGENT_DATABASE_URL= python tools/show_run.py --last 10
