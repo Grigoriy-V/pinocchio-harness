@@ -5,12 +5,11 @@
 **Project status:** the assistant is deployed and used over Telegram on a
 hosted model. The stage that begins now is cleaning defects and polishing
 the base: the model is cheap, so the seconds to fight are the harness's
-own, and what a tool tells the model it does. The order of that work is
-not approved yet; the proposal is
-`reports/2026-09-06_hosted_model_cometapi.md` §13.
+own, and what a tool tells the model it does. The order below was approved
+by the human on 2026-09-07; each item still gets its own start signal, and
+research before code where the item says so.
 
-**Current approved step:** none. The human approves one item before
-implementation.
+**Current approved step:** none started; 14 is next.
 
 Observed defects are in `ISSUES.md`, which is not a plan and authorizes
 nothing. `docs/PRODUCT.md` is the product contract (it carries the rule that
@@ -51,53 +50,87 @@ model sets and the OpenRouter default (2026-09-06,
 
 ## Queue
 
-Open items, none approved to start. The order is the human's to set.
+The order approved 2026-09-07. One item at a time; research first where
+noted; the human's word starts each.
 
-7. **The local profile as a place to work.** Working on the person's own
-   files on their own machine with the local UI. Built: `run_command` over
-   a one-method `Runner`, the two modes and `/mode`, on Windows a
-   write-restricted token so a command writes only inside the workspace.
-   Open: the automatic workspace venv hides the machine's own packages;
-   no way to choose the project folder in the UI; Chainlit has no `/mode`
-   or `/plan`; no boundary outside Windows; the careful mode asks on every
-   change. `reports/2026-09-04_v2_isolated_execution_review.md` §10–§11.
+14. **The turn is bounded by health, not by a clock or a step count.** The
+    step and tool-call ceilings go: they end autonomous work that is going
+    well. The seconds ceiling becomes a watchdog: when a turn has run longer
+    than a set time, the harness asks the model between steps whether all is
+    well and it should go on; an answer means the model decides, no answer
+    within the timeout means the system hung and the turn is ended with a
+    message to the person. Context: the default budget is 256k
+    (`AGENT_OR_CONTEXT_TOKENS`; check the model's served ceiling first), and
+    a fold happens only when the request would not fit, never by message
+    count (`summarize_after` goes). Provider: one provider by default,
+    Novita; a fallback to Z.ai only after a retry shows the provider is
+    really down, never because it answered slowly, since a provider change
+    loses the cache and the speed gain is unproven. **Draft, for
+    discussion, not approved:** a deadline per tool (ISS-0033), because a
+    hung tool holds the worker and no model check can reach it.
+    ISS-0057, ISS-0032.
 
-8. **The plan and the goal together.** With `/plan on` the model is
-   offered both `todo_write` and `set_goal`; whether the plan replaces the
-   goal or both stand is decided by a measurement. Observed 2026-09-06 on
-   GLM: with the plan on, `todo_write` was never called, because the brief
-   phrases the choice as a figure of speech; the brief line is rewritten
-   as a literal condition first (item 11), the comparison after.
-
-10. **The scenario suite, reconsidered.** Checks that assert a route
-    against the suite's own rule; results that arrive only when the whole
-    batch ends, so a crash loses every summary; a batch that dies with its
-    container. Analysis and proposal:
+15. **A mini scenario set, and why local and Modal differ.** Before the
+    tools change, a small set that can be run in minutes on one paid model,
+    with a result per scenario as it finishes, and a look at what is wrong
+    with the current checks. The human's runs from his own account and the
+    suite's probe user differ; his workspace carries an `AGENTS.md` with a
+    rule and the probe's does not; find out whether that explains it and
+    let a scenario run with instructions. The wider suite is 19.
     `reports/2026-09-05_suite_and_tools_review.md`.
 
-11. **Tools as the references have them.** Every tool's description and
-    every brief line is a literal condition and action, stating what the
-    tool takes, returns and leaves where; an offline test refuses a tool
-    without all three. Same report.
+16. **Tools with contracts, a browser with hands, a literal brief.** Every
+    tool's description states what it takes, returns and leaves where, and
+    an offline test refuses a tool without all three. `inspect_page`, a
+    remnant of the old system, goes: one page tool on the renderer with the
+    actions the model built for itself when it was given none (click, type,
+    press a key, evaluate, console, screenshot, on the refs the snapshot
+    returns); `BrowserSession` already has them. Every brief line is a
+    literal condition and action (the plan line first). Research: how
+    DeepSeek Harness and Hermes describe tools and drive a page, tool by
+    tool, in a report before the rewrite. ISS-0008, ISS-0010, ISS-0016.
 
-12. **One way to look at a page, with hands.** `inspect_page` merges into
-    `view_web_page`; the renderer gains the actions the model reaches for
-    (click, type, press, evaluate on the returned refs), with tool hints
-    where a page needs them, instead of a browser inside the command
-    image. Same report, and the live sessions of 2026-09-06
-    (`reports/2026-09-06_hosted_model_cometapi.md` §12).
+17. **The command environment is a place to develop.** Deployed, the command
+    container is the assistant's own server: what a command needs works
+    there without the model fighting the sandbox. Today `HOME` and temp sit
+    on the Volume path, so Chrome cannot bind a socket, npm's cache carries
+    the wrong uid, and what is put in `/tmp` to escape it vanishes with the
+    container. Short temp and caches off the Volume, installs kept in the
+    workspace, the "new environment" line gone. ISS-0053, ISS-0058.
 
-13. **The model chosen from Telegram; Gemini's cache.** Remaining after
-    the default was chosen: (a) Gemini 3.1 Flash-Lite with thinking
-    against without, B and G; (b) OpenRouter `cache_control` breakpoints
-    so Gemini's cache lands; (c) the Telegram command that switches
-    between published sets.
+18. **The harness's own seconds.** Name in the timeline what runs between
+    steps and after persist (Telegram preview edits and status calls, the
+    checkpoint write, the telemetry flush, the two Volume commits around
+    every command), then remove what is needless. ISS-0056.
 
-Two settings get in the way on the hosted model and are proposed as the
-first change of the new stage: the turn budget counts tool time and queue
-time in seconds (ISS-0057), and the context folds by message count because
-the server reports no window (`summarize_after`), while the chosen
-131,072 budget stands.
+19. **The scenario suite, reconsidered.** After 16: checks on events rather
+    than routes, time split into model, tool and wait, a batch that survives
+    its container. Was item 10.
+
+20. **A message in the middle of a turn.** The person can write while the
+    assistant works, as in a coding agent's chat: a comment or a question
+    arrives at the loop's next step boundary as the person's words, through
+    the out-of-band lane `/stop` already uses, and the model decides what to
+    do with it. Order relative to 16–19 is the human's call.
+
+Waiting, not in the order above:
+
+7. **The local profile as a place to work.** Built: `run_command` over a
+   one-method `Runner`, the two modes and `/mode`, on Windows a
+   write-restricted token. Open: the automatic workspace venv hides the
+   machine's own packages; no way to choose the project folder in the UI;
+   Chainlit has no `/mode` or `/plan`; no boundary outside Windows.
+   `reports/2026-09-04_v2_isolated_execution_review.md` §10–§11.
+
+8. **The plan and the goal together.** With `/plan on` the model is offered
+   both `todo_write` and `set_goal`; whether the plan replaces the goal or
+   both stand is decided by a measurement, after 16 rewrites the brief line
+   that kept GLM from ever calling `todo_write`.
+
+13. **The model chosen from Telegram; Gemini's cache.** (a) Gemini 3.1
+    Flash-Lite with thinking against without, B and G; (b) OpenRouter
+    `cache_control` breakpoints so Gemini's cache lands; (c) the Telegram
+    command that switches between published sets.
 
 ## Not started
 
