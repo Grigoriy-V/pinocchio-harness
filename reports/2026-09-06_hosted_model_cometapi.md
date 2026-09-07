@@ -347,7 +347,68 @@ GMICloud caches unreliably. The earlier "DeepInfra" B (`c67da908`) was
 in fact served by GMICloud through the fallback: `allow_fallbacks: true`
 falls to any host, not the next in `order`.
 
-## 13. Open
+## 13. After the API model: what changed, and a proposal for the order of work
+
+Written 2026-09-07 on the human's word, from the day's live sessions
+(calculator, racing game and its two fixes, Blender) and the suite. The
+model is now hosted, cheap and reasonably quick; what was built and
+tuned for a GPU App billed by the second either no longer applies or
+now gets in the way. A proposal, not a plan, until approved.
+
+**What loses priority (built for the GPU App):**
+
+- The cold start and the idle window: ISS-0044, ISS-0054, item 6's
+  adaptive window and keep-warm. No restore exists on this route.
+- The model Apps' boots and snapshots: ISS-0047, ISS-0049, ISS-0050, MTP,
+  the wake probe, `dry_run`. The Apps stay deployed as sets; nothing
+  about them is scheduled.
+- The GPU-derived cost in `show_run` and the suite ("gpu derived …"):
+  now a number that means nothing; OpenRouter reports `usage.cost` per
+  call, which is the real figure.
+- Model latency work: the suite showed the harness's own seconds now
+  outweigh the model's on a short turn.
+
+**What now gets in the way (built for a GPU minute, wrong for a cheap
+call):**
+
+- `turn_max_seconds` 300 counts tool time and the provider's queue and
+  ends working turns (ISS-0057: Blender, the racing test). The budget's
+  currency must change (calls or tokens, or the model's own seconds).
+- Folding by message count: `summarize_after` 60 messages folds a thread
+  every ~15 tool-heavy turns while requests sit at 13–25k of a 131k
+  budget. On a server that reports no window the count rule is the one
+  that binds; with `AGENT_<SET>_CONTEXT_TOKENS` set, the size rule can be
+  the only one and the count raised or dropped.
+- The seconds-based stream retry and redirect handling for Modal's
+  edge: harmless here, but not the path that matters any more.
+
+**What rises (seen this day, every one the harness's):**
+
+1. The tools' contracts and the brief's wording (items 11–12): "fixed"
+   claimed from a screenshot (ISS-0008 again), "screenshot above"
+   without a send (ISS-0010 again), a plan skipped because the brief said
+   "when you can hold the whole of it in your head" (the human: no such
+   wording; a brief is a literal instruction).
+2. A browser the model can act in: click, type, press and evaluate on the
+   page it made, through the renderer that already exists (the human's
+   choice over a browser in the command image). The model found and
+   fixed the racing bug only once it had those verbs through puppeteer.
+3. The command environment: temp and caches on the Volume (ISS-0058),
+   what persists between commands (ISS-0053).
+4. The harness's own seconds inside a turn (ISS-0056): name every gap in
+   the timeline, then remove the Volume commits that change nothing.
+5. The suite's reporting (item 10), so all of the above is measured by
+   outcome and by the split of time.
+6. Item 13's remainder: the model chosen from Telegram, Gemini's
+   `cache_control`.
+
+**Proposed order:** the two configuration changes first (the budget's
+currency, the fold rule), one day, because they break live turns today;
+then 1 and 2 together (the contract, the browser verbs, the brief's
+literal wording); then 3 and 4; then 5; 6 as it comes. Items 8 (plan
+and goal) and the GPU Apps wait.
+
+## 14. Open
 
 - The plain `MODEL_ENDPOINT` and `MODEL_NAME` lines are no longer in
   `.env` (the sync reported them absent), so `MODEL=` empty would now point
