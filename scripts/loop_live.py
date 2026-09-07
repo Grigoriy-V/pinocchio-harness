@@ -879,7 +879,10 @@ def deployed(selected) -> tuple[int, list[Result]]:
 
     function = modal.Function.from_name("assistant-control", "scenarios")
     text, failed, rows = function.remote("".join(sorted(selected)))
-    print(text)
+    # The deployed telemetry also logs every event to stdout as one JSON line;
+    # the report is the rest.
+    print("
+".join(line for line in text.splitlines() if not line.startswith('{"run_id"')))
     print("Read any of them back with:  python tools/show_run.py --last 20   (the deployed database)")
     return failed, [Result(**row) for row in rows]
 
