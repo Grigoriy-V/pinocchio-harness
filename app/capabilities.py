@@ -242,11 +242,16 @@ def _planning_lines(tools: Toolbox) -> list[str]:
     if "todo_write" not in tools.names:
         return []
     return [
-        "- todo_write is your own list of steps. Open one when the request has "
-        "three or more parts, or the work will take more than five tool calls; "
-        "do not open one for less. Every update resends the whole list and it is "
-        "carried on every step after that, so a list that was not needed costs "
-        "on every step. What is still open is read when you try to finish."
+        # Codex's conditions (2026-09-07, the human's choice), minus "more than
+        # one thing asked", which is set_goal's; item 8 measures the overlap.
+        "- todo_write is your own list of steps. Open one when the work has "
+        "phases or dependencies where the order matters, when it is long and "
+        "takes many actions, when the person asked for a plan, or when steps "
+        "came up while you worked that you will do before answering. Do not "
+        "open one for a simple or single-step request, and never pad it with "
+        "steps that state the obvious. Every update resends the whole list and "
+        "it is carried on every step after that. What is still open is read "
+        "when you try to finish."
     ]
 
 

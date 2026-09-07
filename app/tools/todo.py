@@ -45,10 +45,12 @@ MAX_ITEMS = 20
 MAX_CONTENT_CHARS = 200
 
 DESCRIPTION = (
-    "Your own list of steps. Open one when the request has three or more parts "
-    "or the work will take more than five tool calls; do not open one for less: "
-    "a list that was not needed is resent in full on every update and carried "
-    "on every step afterwards. When you do open one: "
+    "Your own list of steps. Open one when the work has phases or dependencies "
+    "where the order matters, when it is long and takes many actions, when the "
+    "person asked for a plan, or when steps came up while you worked that you "
+    "will do before answering. Do not open one for a simple or single-step "
+    "request: a list that was not needed is resent in full on every update and "
+    "carried on every step afterwards. When you do open one: "
     "send the ENTIRE list every call, because it replaces the previous one and "
     "there are no partial updates or per-item edits. One item per meaningful "
     "milestone or outcome — do not mirror individual tool calls, files or small "

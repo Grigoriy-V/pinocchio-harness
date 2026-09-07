@@ -258,9 +258,10 @@ def test_planning_guidance_appears_only_with_the_tool(
 
     guided = capability_brief(planning)
 
-    # The condition is literal (ISS-0016: "when you can hold it in your head"
-    # made GLM never open a list), and the price is stated.
-    assert "three or more parts" in guided
+    # The conditions are Codex's, literal (ISS-0016: "when you can hold it in
+    # your head" made GLM never open a list), and the price is stated.
+    assert "phases or dependencies where the order matters" in guided
+    assert "simple or single-step request" in guided
     assert "resends the whole list" in guided
     assert "read when you try to finish" in guided
     assert "todo_write" not in capability_brief(everything(registry))
