@@ -156,3 +156,51 @@ new to configure). ISS: none observed yet.
   `setMessageReaction`, cheap, silent) or nothing until the model speaks.
   Proposed: nothing in version 1; the model's next text is the answer.
 - Version 1 takes text only; attachments wait for their own turn.
+
+## 7. How the references do it (read 2026-09-07, after the human asked)
+
+| | Claude Code | Codex CLI | Pi (pi-mono) | OpenHands SDK |
+|---|---|---|---|---|
+| Delivered when | "as soon as those tool calls finish, within the same turn" | before the next model request, after the current sampling and its tools finish (`can_drain_pending_input` is false during sampling) | "after the current assistant turn finishes executing its tool calls" | only after the turn (queueing proposed, issue #333) |
+| Form | a user message | a user message (`ResponseItem`, role user), no wrapper | `{ role: "user", content }`, "no text frame or prefix" | — |
+| Tool batch cut? | no; `Esc` is the separate interrupt, which then sends the queued text at once | no; "no preempt after reasoning" is tested; `Esc` interrupts and sends immediately | no; `Escape` aborts and puts the queued text back in the editor | — |
+| More than one queued | one at a time: at the turn's end "only the oldest as the next turn", the rest wait for that turn's next tool boundary | all pending input is drained together; what is left when the turn ends starts the next turn | `steeringMode` `"one-at-a-time"` (default) or `"all"` | FIFO after the turn |
+| Two lanes | messages mid-turn; slash and shell commands held to the turn's end | `turn/steer` RPC with `expectedTurnId` (fails unless it names the active turn); review and compact turns refuse steering | `Enter` steers, `Alt+Enter` is a follow-up delivered only when all work is done | — |
+| Told to the model? | nothing added to the prompt | nothing | nothing | — |
+
+Sources: Claude Code interactive-mode docs ("Queue messages while Claude
+works"); `openai/codex` `codex-rs/core/src/session/turn.rs`,
+`session/input_queue.rs`, `tests/suite/pending_input.rs`,
+`app-server-protocol/.../TurnSteerParams.ts`; `badlogic/pi-mono`
+`packages/agent/src/agent-loop.ts`, `packages/coding-agent/README.md`,
+`src/core/agent-session.ts`; `OpenHands/software-agent-sdk` issue 333;
+`tiann/hapi` issue 888 (a Telegram-style front end that delivers to both
+CLIs at the step boundary).
+
+What this changes in §2–§6:
+
+- **The boundary and the form are confirmed.** All three deliver after the
+  tool batch, before the next model request, as a plain user message, and
+  none cuts the batch; the interrupt is a separate key, which is our
+  `/stop`. Codex's `expectedTurnId` is our `sequence`: a message is taken
+  only by the turn that was running when it arrived.
+- **No prompt line (§3 revised).** None of the three tells the model how to
+  treat the message; the model reads a user message in the middle of its
+  work and decides. The line proposed in §3 is dropped from version 1. If
+  the live check shows GLM dropping the task on a comment, that is a model
+  behaviour measured with the suite (item 15), and the line is the smallest
+  answer then; a stronger frame would put a label into the stored thread.
+- **All at once, not one at a time (new).** Claude Code and Pi default to one
+  queued message per boundary; Codex drains all. In Telegram a person's
+  thought often arrives as two or three short messages seconds apart; one at
+  a time would answer them across three model steps. `take` returns every
+  pending message in order and they enter as consecutive user messages.
+  Recorded as the chosen default; Pi's `"all"` is the same choice.
+- **What is left when the turn ends starts the next turn** in all three; the
+  inbox already does that, nothing to add.
+- **A turn that is not a turn is not steerable** (Codex: review, compact).
+  Ours: `/compact` and the model-free commands are not turns, and a taken
+  message can only enter a running graph; nothing to add.
+- **Taking back a queued message** (Claude Code `Up`, Pi `Alt+Up`, Codex
+  `Esc`) has no equivalent in a chat front end: a sent Telegram message is
+  sent. Not built.
