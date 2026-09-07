@@ -101,3 +101,15 @@ def test_the_repository_file_parses_and_names_a_set() -> None:
     assert config["model"]["chosen"] in config["model"]["sets"]
     for name, chosen in config["model"]["sets"].items():
         assert "api_key" not in chosen, f"{name}: a key belongs in .env"
+
+
+def test_a_set_without_its_own_key_uses_the_shared_one(monkeypatch, tmp_path: Path) -> None:
+    """The Modal Apps share one proxy token: `MODEL_API_KEY` covers every set
+    that names no key of its own; a set with its own keeps it."""
+
+    path = write(tmp_path)
+    monkeypatch.setenv("MODEL_API_KEY", "wk-shared.ws-x")
+    assert ModelSettings(_env_file=None, _config_file=path).api_key == "wk-shared.ws-x"
+
+    monkeypatch.setenv("MODEL_OR_API_KEY", "sk-or")
+    assert ModelSettings(_env_file=None, _config_file=path).api_key == "sk-or"

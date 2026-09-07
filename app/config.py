@@ -155,6 +155,14 @@ def chosen_model(**init: Any) -> str | None:
     return ModelChoice(**_passthrough(init)).name
 
 
+class _SharedKey(BaseSettings):
+    """The plain `MODEL_API_KEY`, read for a named set that has none of its own."""
+
+    model_config = SettingsConfigDict(env_prefix="MODEL_", env_file=".env", extra="ignore")
+
+    api_key: str | None = None
+
+
 class ModelSettings(Configured):
     """How to reach the OpenAI-compatible endpoint that serves the model.
 
@@ -164,11 +172,17 @@ class ModelSettings(Configured):
     model_config = SettingsConfigDict(env_prefix="MODEL_", env_file=".env", extra="ignore")
 
     def __init__(self, **values: Any) -> None:
-        if "_env_prefix" not in values:
-            name = chosen_model(**values)
-            if name:
-                values["_env_prefix"] = f"MODEL_{name}_"
+        named = "_env_prefix" not in values and chosen_model(**values)
+        if named:
+            values["_env_prefix"] = f"MODEL_{named}_"
         super().__init__(**values)
+        if named and self.api_key is None:
+            # A set without a key of its own uses the plain `MODEL_API_KEY`:
+            # the Modal Apps share one proxy token, and one line should cover
+            # them (the human, 2026-09-07).
+            shared = _SharedKey(**_passthrough(values))
+            if shared.api_key is not None:
+                self.api_key = shared.api_key
 
     @classmethod
     def section(cls, config: dict[str, Any], values: dict[str, Any]) -> dict[str, Any]:

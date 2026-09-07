@@ -34,6 +34,15 @@ providers = ["google-ai-studio/flex", "google-ai-studio"]
 dump_dir = "/workspaces/.dumps"
 context_tokens = 262144
 
+[model.sets.comet]
+# GLM 5.3 Flash through CometAPI, kept as a set; slower than OpenRouter
+# (report 2026-09-06 §11).
+endpoint = "https://api.cometapi.com/v1"
+name = "glm-5.3-flash"
+auth_style = "bearer"
+extra_body = { tool_stream = true }
+context_tokens = 262144
+
 [model.sets.int4]
 # Qwen3.8-27B INT4 on the Modal App `assistant-llm-qwen-int4`; proxy token in
 # `MODEL_INT4_API_KEY`. The ceiling is read from the server.
