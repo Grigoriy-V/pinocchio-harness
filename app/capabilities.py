@@ -304,8 +304,8 @@ def capability_brief(
         *_workspace_lines(tools),
         *_shell_lines(tools, where_commands_run),
         *_mode_lines(tools),
-        f"- The person can send you text and these media types: {inputs}. Anything "
-        "else is refused before you see it.",
+        f"- The person can send you text and these media types: {inputs}, which "
+        "you are shown directly.",
         f"- {_delivery_sentence(tools, delivery)}",
     ]
     if "read_document" in tools.names:
@@ -315,8 +315,9 @@ def capability_brief(
         # earlier version did, and the assistant told a person it was a text
         # model that could not look at the PDF it had just read.
         lines.append(
-            f"- The person can also send documents ({documents()}); they arrive as "
-            "files in your workspace."
+            f"- The person can also send you any other file ({documents()}, or a "
+            "config, a script, an archive); it arrives in your workspace under "
+            "inbox/ and the turn names it."
         )
     web = [
         name

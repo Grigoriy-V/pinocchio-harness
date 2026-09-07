@@ -739,16 +739,16 @@ async def test_a_document_is_saved_and_named_rather_than_pasted_into_the_turn(
     )
 
 
-async def test_an_unsupported_upload_is_still_refused_before_the_model(
+async def test_any_other_file_lands_in_the_inbox_and_the_turn_runs(
     telegram: FakeTelegram, settings: TelegramSettings, tmp_path: Path
 ) -> None:
-    """Accepting documents is not accepting everything.
+    """A file that is neither media nor a document is still the person's work.
 
-    A format nothing here can read must fail at the door rather than land in the
-    workspace, or the workspace becomes a place unopened files accumulate.
+    Until 2026-09-07 it refused the whole message; now it is saved under the
+    workspace's `inbox/`, never its root, and the model is told where.
     """
 
-    telegram.files["doc1"] = b"MZ-executable"
+    telegram.files["doc1"] = b'{"body": "sedan"}'
     backend = ScriptedBackend()
     adapter = build(telegram, settings, tmp_path, backend)
 
@@ -759,16 +759,24 @@ async def test_an_unsupported_upload_is_still_refused_before_the_model(
                 "from": {"id": ALLOWED},
                 "document": {
                     "file_id": "doc1",
-                    "file_name": "tool.exe",
-                    "mime_type": "application/x-msdownload",
+                    "file_name": "sedan_solid.json",
+                    "mime_type": "application/json",
                 },
             }
         }
     )
 
-    assert backend.requests == []
-    assert any("Upload refused" in sent for sent in telegram.sent)
-    assert not list(tmp_path.rglob("tool.exe"))
+    assert not any("Upload refused" in sent for sent in telegram.sent)
+    [saved] = list(tmp_path.rglob("sedan_solid.json"))
+    assert saved.parent.name == "inbox"
+    assert saved.read_bytes() == b'{"body": "sedan"}'
+    sent_text = [
+        part.text or ""
+        for request in backend.requests
+        for message in request
+        for part in message.content
+    ]
+    assert any("inbox/sedan_solid.json" in text for text in sent_text)
 
 
 # --- the act branch ----------------------------------------------------------

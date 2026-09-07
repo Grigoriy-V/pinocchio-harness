@@ -177,7 +177,8 @@ with /plan on             todo_write
   asking; `careful` makes `write_file`, `edit_file` and `run_command` ask
   (`app/agent/mode.py`, `Toolbox.ask_for_changes`).
 - **Documents:** `app/attachments.py` admits uploads (image/audio become
-  model parts, documents are saved into the workspace); `app/documents.py`
+  model parts, any other file is saved under the workspace's `inbox/`);
+  `app/documents.py`
   parses and renders; `read_document` returns bounded sections, `view_pages`
   renders PDF pages to PNG under `.agent/documents/`.
 - **Browser:** `app/tools/chromium.py` owns the process, the CDP session and

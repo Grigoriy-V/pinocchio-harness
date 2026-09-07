@@ -229,8 +229,8 @@ def test_two_files_with_one_name_are_two_files(tmp_path: Path) -> None:
     admit_uploads(uploads, tmp_path)
     admit_uploads([AttachmentBytes("report.pdf", PDF, b"second")], tmp_path)
 
-    assert (tmp_path / "report.pdf").read_bytes() == b"first"
-    assert (tmp_path / "report-2.pdf").read_bytes() == b"second"
+    assert (tmp_path / "inbox" / "report.pdf").read_bytes() == b"first"
+    assert (tmp_path / "inbox" / "report-2.pdf").read_bytes() == b"second"
 
 
 def test_a_picture_still_goes_straight_to_the_model(tmp_path: Path) -> None:
@@ -250,15 +250,31 @@ def test_a_message_can_carry_both_a_picture_and_a_document(tmp_path: Path) -> No
     )
 
     assert [part.kind for part in parts] == ["image", "text"]
-    assert "notes.md" in (parts[1].text or "")
-    assert (tmp_path / "notes.md").is_file()
+    assert "inbox/notes.md" in (parts[1].text or "")
+    assert (tmp_path / "inbox" / "notes.md").is_file()
 
 
-def test_an_unreadable_format_never_reaches_the_workspace(tmp_path: Path) -> None:
-    with pytest.raises(AttachmentError):
-        admit_uploads([AttachmentBytes("tool.exe", "application/x-msdownload", b"MZ")], tmp_path)
+def test_any_other_file_is_saved_in_the_inbox_not_the_root(tmp_path: Path) -> None:
+    """A config, a script or an archive is work for the model's tools, not a
+    refusal; it lands in its own folder so it never overwrites the project."""
 
-    assert not list(tmp_path.iterdir())
+    (tmp_path / "sedan_solid.json").write_text("mine", encoding="utf-8")
+    parts = admit_uploads(
+        [
+            AttachmentBytes("sedan_solid.json", "application/json", b"{}"),
+            AttachmentBytes("project.zip", "application/zip", b"PK"),
+            AttachmentBytes("tool.exe", "application/x-msdownload", b"MZ"),
+        ],
+        tmp_path,
+    )
+
+    assert [part.kind for part in parts] == ["text"]
+    text = parts[0].text or ""
+    assert "inbox/sedan_solid.json" in text and "inbox/project.zip" in text
+    assert "archive" in text and "read_file" in text
+    assert (tmp_path / "inbox" / "sedan_solid.json").read_bytes() == b"{}"
+    assert (tmp_path / "sedan_solid.json").read_text(encoding="utf-8") == "mine"
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["inbox", "sedan_solid.json"]
 
 
 # --- looking at a page -------------------------------------------------------

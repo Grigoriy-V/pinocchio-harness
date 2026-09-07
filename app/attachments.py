@@ -11,7 +11,6 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from app.documents import media_type_for
 from app.models import ContentPart
 
 MAX_FILES = 5
@@ -29,6 +28,10 @@ MEDIA_KINDS = {
     "audio/ogg": "audio",
 }
 ACCEPTED_MEDIA_TYPES = tuple(MEDIA_KINDS)
+
+# Where a sent file lands, relative to the workspace. Never the root: the
+# root is the person's project.
+INBOX = "inbox"
 
 
 class AttachmentError(ValueError):
@@ -144,14 +147,19 @@ def _free_path(directory: Path, name: str) -> Path:
 def admit_uploads(
     uploads: Sequence[AttachmentBytes], workspace: Path
 ) -> tuple[ContentPart, ...]:
-    """Admit one message's uploads: media becomes input, a document becomes a file.
+    """Admit one message's uploads: media becomes input, anything else a file.
 
     A picture is shown to the model directly because that is what a model does
-    with a picture. A document is not: a long one would spend the whole context
-    before the model had decided which part of it mattered. So it is saved into
-    the person's workspace and named in the turn, and the model reads it with
-    `read_document` — the same route it would use for a file that was already
-    there.
+    with a picture. Everything else is saved under `inbox/` in the person's
+    workspace and named in the turn: a document, a config, a script, an
+    archive. A long document would spend the whole context before the model
+    had decided which part mattered, and the rest are things the model works
+    on with its file and shell tools rather than reads. The folder is its own
+    so a sent file never lands on top of the person's project; moving it into
+    place is the model's decision.
+
+    Until 2026-09-07 a file that was neither media nor one of five document
+    formats refused the whole message, `sedan_solid.json` among them.
     """
 
     _check_count(len(uploads))
@@ -161,17 +169,17 @@ def admit_uploads(
     parts: list[ContentPart] = []
     saved: list[str] = []
     for upload in uploads:
-        document_type = media_type_for(upload.name, upload.media_type)
-        if document_type is None:
-            kind = _check_kind(upload.name, upload.media_type)
+        kind = MEDIA_KINDS.get(upload.media_type or "")
+        if kind is not None:
             parts.append(
                 ContentPart(kind=kind, data=upload.data, media_type=upload.media_type)
             )
             continue
-        workspace.mkdir(parents=True, exist_ok=True)
-        target = _free_path(workspace, safe_filename(upload.name))
+        inbox = workspace / INBOX
+        inbox.mkdir(parents=True, exist_ok=True)
+        target = _free_path(inbox, safe_filename(upload.name))
         target.write_bytes(upload.data)
-        saved.append(target.name)
+        saved.append(f"{INBOX}/{target.name}")
     if saved:
         listed = ", ".join(saved)
         parts.append(
@@ -179,8 +187,11 @@ def admit_uploads(
                 kind="text",
                 text=(
                     f"[The person attached {listed}. Saved in your workspace under "
-                    "exactly that name. Read it with read_document before answering "
-                    "anything about it.]"
+                    "exactly those paths. Before answering anything about a file, "
+                    "read it: read_document for a document, read_file or a "
+                    "command for anything else. Unpack an archive with a "
+                    "command. Move a file out of that folder when the work "
+                    "needs it elsewhere.]"
                 ),
             )
         )

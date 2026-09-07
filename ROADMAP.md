@@ -73,6 +73,11 @@ Items of the 2026-09-07 order, closed:
   both sides. `reports/2026-09-07_item16_research.md`,
   `reports/2026-09-07_item16_build.md`, `reports/2026-09-07_mini_set.md` §3–4.
   ISS-0008, ISS-0010, ISS-0016 stay open until the wider set measures them.
+- **Any sent file reaches the workspace** (2026-09-07, out of order, on the
+  human's word after `sedan_solid.json` was refused): over Telegram a file
+  that is not a picture or a sound is saved under the workspace's `inbox/`,
+  never its root, and the turn names it; archives are the model's to unpack
+  with a command, moving a file into place is its decision. Offline tests.
 
 ## Queue
 
@@ -160,6 +165,12 @@ Recorded, not approved, not begun. One line each.
   through the same interrupt seam consent uses.
 - **Throttle the edits that write a streamed answer.** How often to edit
   is a measurement, not a constant to pick.
+- **Sound routed by the configuration, and transcribed.** The model does not
+  declare what it hears; audio is admitted and sent regardless, and GLM
+  fails the request. The configuration should say whether the model takes
+  audio directly: if it does, send it; if not, save it under `inbox/` like
+  any file and, later, a transcription tool (Whisper on the local card, a
+  Function like the renderer on Modal) turns it into text.
 - **Keep a picture someone sends.** When the model is shown the image and
   when a filename is the design.
 - **Answer a Telegram album as one turn.**

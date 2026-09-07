@@ -135,8 +135,9 @@ The default should be the safe answer:
 - page JavaScript should not run next to control-plane secrets in the deployed profile.
 
 Multimodal input preserves the supplied order of text, image and audio parts.
-Unsupported or oversized input is refused before a model request rather than
-silently dropped, reordered or truncated.
+A file that is neither is saved under the workspace's `inbox/` and named in
+the turn rather than refused. Oversized input is refused before a model
+request rather than silently dropped, reordered or truncated.
 
 ### Simplicity serves the outcome
 
