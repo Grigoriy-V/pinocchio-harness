@@ -99,7 +99,8 @@ noted; the human's word starts each.
     returns); `BrowserSession` already has them. Every brief line is a
     literal condition and action (the plan line first). Research: how
     DeepSeek Harness and Hermes describe tools and drive a page, tool by
-    tool, in a report before the rewrite. With it, a review of everything the
+    tool, in a report before the rewrite (`reports/2026-09-07_item16_research.md`,
+    2026-09-07). With it, a review of everything the
     system prompt is assembled from (`DEFAULT_SYSTEM_PROMPT`, `WORKING_METHOD`,
     the capability list, the tool descriptions, the standing instructions,
     the brief lines): what each line is for, what it costs, what stays (the
