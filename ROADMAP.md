@@ -9,7 +9,7 @@ own, and what a tool tells the model it does. The order below was approved
 by the human on 2026-09-07; each item still gets its own start signal, and
 research before code where the item says so.
 
-**Current approved step:** 20, started 2026-09-07 (the human's word) after 14 was built, deployed and seen live the same day (report `reports/2026-09-07_turn_bounds_context_provider.md` §7, watch at 360 s). 20 is built in the tree with offline tests (`reports/2026-09-07_mid_turn_message.md`); the deploy and one live turn with a message sent during it are the next gates. Then 15.
+**Current approved step:** 20, started 2026-09-07 (the human's word) after 14 was built, deployed and seen live the same day (report `reports/2026-09-07_turn_bounds_context_provider.md` §7, watch at 360 s). 20 is built, deployed and seen live the same day (`reports/2026-09-07_mid_turn_message.md` §9: a screenshot sent during a turn was taken at step 2 and answered; the model then dropped the task, ISS-0059, a model behaviour for the suite). Next: 15.
 
 Observed defects are in `ISSUES.md`, which is not a plan and authorizes
 nothing. `docs/PRODUCT.md` is the product contract (it carries the rule that

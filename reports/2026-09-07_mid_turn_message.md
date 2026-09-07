@@ -240,3 +240,35 @@ batches, one text message and one screenshot sent while it runs; expected in
 the trace `turn_interjected`, in the store the two user messages between the
 batches, in the chat no echo and no second answer; the inbox rows `done` with
 the marker.
+
+## 9. Deployed and seen live (2026-09-07)
+
+Deployed to `assistant-control` (33 s). Two live turns from the human's
+Telegram, on GLM at Novita:
+
+- **First try** (`a96ecde4…`, then `bb617468…`): the task ran one tool
+  batch (`list_files` at 12.2 s) and answered; the screenshot arrived 1.2 s
+  after that batch's read of the lane, so no boundary followed and it was
+  answered as its own turn after the lease (queue wait 19.6 s). Inbox rows
+  `done` without the marker. The designed behaviour for a message during
+  the final answer; the mechanism untouched.
+- **Second try** (`017285ac…`, 29.6 s, 3 model calls, 2 tools): the task was
+  to read three files one by one, write a summary and send it as a file.
+  After the second `read_file` the screenshot with the caption "что тут?"
+  (update `…236`, 116 KB stored) was taken: `turn_interjected step=2
+  count=1`, the inbox row `done` with `last_error = "taken by the running
+  turn"`, the store holds it at position 11 between the second result and
+  the answer, the chat got no echo and no second answer. The next model
+  request carried 3,939 turn tokens (the image), 0 cached (the prefix before
+  it was cached at 6,272 on the call before; Novita's cache again, item 18).
+  The model described the screenshot correctly in one message and
+  finished. **The task it interrupted was dropped**: no third file, no
+  summary, no file sent, no word about it. Recorded as ISS-0059, sorted as
+  the model's behaviour (or one literal prompt line), to be measured under
+  item 15 rather than patched from this one case; the references add no
+  instruction either (§7).
+
+What the run confirms of §2–§4: the boundary, the atomic take on the inbox,
+the store order, the interface's silence, attachments taken with their
+caption. What it leaves open: ISS-0059; a reaction on the taken message
+(§6), still nothing.

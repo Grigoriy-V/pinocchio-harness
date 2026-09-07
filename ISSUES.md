@@ -22,6 +22,7 @@ authorizes nothing; `ROADMAP.md` alone orders work. Evidence lives in
 
 | Id | Status | Defect | Related |
 |---|---|---|---|
+| ISS-0059 | open | a question sent mid-turn is answered and the task it interrupted is dropped | roadmap 15, 20 |
 | ISS-0058 | open | command temp files and caches on the Volume path: too long for a socket, wrong uid | 0053, 0057 |
 | ISS-0057 | fixed 2026-09-07 | the turn's seconds budget counts tool run time and provider queue | 0056, 0054 |
 | ISS-0056 | open | seconds between a turn's steps that no model, tool or store accounts for | roadmap 10 |
@@ -87,6 +88,30 @@ in use since 2026-09-06; it is not seen on the hosted model.
 ---
 
 ## Open
+
+### ISS-0059 — a question sent mid-turn is answered and the task it interrupted is dropped
+
+- **Status:** open
+- **Seen:** 2026-09-07, live, run `017285ac3d60453788f5aec1a6212c5d`
+  (Telegram, GLM at Novita), the first turn with item 20 deployed: the task
+  was to read three files one by one, write a summary and send it as a
+  file; after the second read the person's screenshot with "что тут?" was
+  taken at the step boundary (as designed); the model described the
+  screenshot correctly and stopped. The third file, the summary and the
+  file were never done, and nothing said they were dropped.
+- **Costs:** a comment during a long task can end the task; the person has
+  to ask again.
+- **Reproduce:** a multi-step task in Telegram, a question sent while it
+  runs, with the deployed prompt (which says nothing about mid-turn
+  messages, as the references do not, report §7).
+- **Cause:** the model's choice; the harness delivered the message where a
+  coding agent's chat does. Sorting per the rule: model, or one literal
+  line of instruction ("a user message after tool results is a comment on
+  the work in progress; answer it, then continue the task unless it says to
+  stop or change it"). To be measured with the mini suite (roadmap 15)
+  before either is chosen; not a harness mechanism.
+- **Evidence:** `reports/2026-09-07_mid_turn_message.md` §9.
+- **Related:** roadmap 15, 20.
 
 ### ISS-0058 — a command's temporary files and caches live on the Volume path, which is too long for a Unix socket and owned by the wrong user
 
