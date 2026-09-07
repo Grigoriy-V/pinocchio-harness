@@ -42,27 +42,23 @@ def test_the_renderer_address_is_carried_under_a_name_the_local_profile_ignores(
     assert "WEB_RENDERER_URL" not in [named(entry)[0] for entry in ALLOWED]
 
 
-def test_every_model_set_is_published_and_nothing_else_under_its_name() -> None:
-    """`MODEL_COMET_*` and `AGENT_COMET_CONTEXT_TOKENS` go; a stray `MODEL_COMET_NOTE` stays."""
+def test_every_model_set_key_is_published_and_its_settings_are_not() -> None:
+    """Keys go; endpoints, names and budgets live in `config.toml` and stay."""
 
     values = {
-        "MODEL": "comet",
-        "MODEL_COMET_ENDPOINT": "https://api.cometapi.com/v1",
-        "MODEL_COMET_API_KEY": "sk",
-        "AGENT_COMET_CONTEXT_TOKENS": "131072",
+        "MODEL": "or",
+        "MODEL_OR_ENDPOINT": "https://openrouter.ai/api/v1",
+        "MODEL_OR_API_KEY": "sk",
+        "AGENT_OR_CONTEXT_TOKENS": "131072",
         "MODEL_INT4_API_KEY": "wk.ws",
-        "MODEL_COMET_NOTE": "not a setting",
-        "AGENT_COMET_WORKSPACE": "not a setting",
+        "MODEL_OR_NOTE": "not a setting",
     }
 
     present, _missing = plan(values)
 
     assert [target for _source, target in present] == [
-        "MODEL",
-        "AGENT_COMET_CONTEXT_TOKENS",
-        "MODEL_COMET_API_KEY",
-        "MODEL_COMET_ENDPOINT",
         "MODEL_INT4_API_KEY",
+        "MODEL_OR_API_KEY",
     ]
 
 

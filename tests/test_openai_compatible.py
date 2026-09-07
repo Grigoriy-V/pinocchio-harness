@@ -717,6 +717,21 @@ async def test_extra_body_is_merged_last() -> None:
     assert seen["temperature"] == 0.3
 
 
+async def test_providers_ask_one_host_and_forbid_a_move() -> None:
+    """The first provider alone, no fallbacks: a move by the router loses the cache."""
+
+    seen: dict[str, Any] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.update(json.loads(request.content))
+        return httpx.Response(200, json=completion_payload(content="pong"))
+
+    async with backend(handler, providers=["novita/fp8", "z-ai/fp8"]) as client:
+        await client.invoke([Message(role="user", content=[text_part()])])
+
+    assert seen["provider"] == {"order": ["novita/fp8"], "allow_fallbacks": False}
+
+
 async def test_no_extra_body_by_default() -> None:
     seen: dict[str, Any] = {}
 

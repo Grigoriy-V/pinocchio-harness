@@ -650,6 +650,11 @@ class OpenAICompatibleBackend(ModelBackend):
             # Without this the streamed response carries no usage at all, and a
             # turn whose size is unknown cannot be folded or reported.
             body["stream_options"] = {"include_usage": True}
+        if self.settings.providers:
+            # One host, and the router may not move the call: a move loses the
+            # prefix cache. The next host is asked by `stream` only after this
+            # one has failed the retries (`providers[1:]`).
+            body["provider"] = {"order": [self.settings.providers[0]], "allow_fallbacks": False}
         if self.settings.extra_body:
             body.update(self.settings.extra_body)
         return body

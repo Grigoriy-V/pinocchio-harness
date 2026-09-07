@@ -1,18 +1,131 @@
-"""Settings read from the environment.
+"""Settings: `config.toml` for what may be edited, the environment for secrets.
 
 Swapping the model or the endpoint is a configuration change, never a code
-change; this is the only place that reads the environment.
+change; this is the only place that reads the environment or the file.
+
+Two sources, one order. `config.toml` at the repository root (copied into the
+deployed image beside the source) holds every setting that is not a secret:
+model sets, the agent's policy, web limits. `.env` and the platform secret hold
+credentials. A value found in the environment (or `.env`) wins over the file,
+so an old `.env` keeps working and a deployment can still override one line;
+the file wins over the defaults below. `CONFIG_FILE` names another file, and
+an empty `CONFIG_FILE` reads none (the test suite's setting).
 """
 
 from __future__ import annotations
 
+import os
+import tomllib
+from contextvars import ContextVar
+from pathlib import Path
 from typing import Any, Literal
 
 from pydantic import field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
+
+CONFIG_FILE_VAR = "CONFIG_FILE"
+DEFAULT_CONFIG_FILE = Path(__file__).resolve().parents[1] / "config.toml"
+
+# A sentinel for "the caller said nothing", as distinct from `None`, which
+# means "read no file" the way `_env_file=None` means "read no .env".
+_UNSET: Any = object()
 
 
-class ModelChoice(BaseSettings):
+def config_path(chosen: Any = _UNSET) -> Path | None:
+    """Which file to read: the caller's, else `CONFIG_FILE`, else the root's."""
+
+    if chosen is not _UNSET:
+        return Path(chosen) if chosen else None
+    named = os.environ.get(CONFIG_FILE_VAR)
+    if named is None:
+        return DEFAULT_CONFIG_FILE
+    return Path(named) if named.strip() else None
+
+
+def load_config(chosen: Any = _UNSET) -> dict[str, Any]:
+    """The whole file as a dict; an absent or unnamed file is an empty one."""
+
+    path = config_path(chosen)
+    if path is None or not path.is_file():
+        return {}
+    with path.open("rb") as handle:
+        return tomllib.load(handle)
+
+
+# The section a settings class is being built from, handed to the source
+# below without threading it through pydantic's own constructor.
+_SECTION: ContextVar[dict[str, Any] | None] = ContextVar("config_section", default=None)
+
+
+class _FileSection(PydanticBaseSettingsSource):
+    """One `config.toml` section as a settings source, below the environment."""
+
+    def __init__(self, settings_cls: type[BaseSettings], values: dict[str, Any]) -> None:
+        super().__init__(settings_cls)
+        self.values = values
+
+    def get_field_value(self, field: Any, field_name: str) -> tuple[Any, str, bool]:
+        return self.values.get(field_name), field_name, False
+
+    def __call__(self) -> dict[str, Any]:
+        return {k: v for k, v in self.values.items() if k in self.settings_cls.model_fields}
+
+
+def _passthrough(values: dict[str, Any]) -> dict[str, Any]:
+    """The source arguments a nested settings object must be built with too."""
+
+    return {k: v for k, v in values.items() if k in ("_env_file", "_config_file")}
+
+
+class Configured(BaseSettings):
+    """A settings class that also reads its section of `config.toml`.
+
+    Order: an explicit argument, the environment, `.env`, the file section,
+    the defaults. `section` says which part of the file is this class's.
+    """
+
+    @classmethod
+    def section(cls, config: dict[str, Any], values: dict[str, Any]) -> dict[str, Any]:
+        return {}
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        return (
+            init_settings,
+            env_settings,
+            dotenv_settings,
+            _FileSection(settings_cls, _SECTION.get() or {}),
+            file_secret_settings,
+        )
+
+    def __init__(self, **values: Any) -> None:
+        config = load_config(values.get("_config_file", _UNSET))
+        token = _SECTION.set(self.section(config, values))
+        try:
+            super().__init__(**{k: v for k, v in values.items() if k != "_config_file"})
+        finally:
+            _SECTION.reset(token)
+
+
+def _sets(config: dict[str, Any]) -> dict[str, Any]:
+    return dict((config.get("model") or {}).get("sets") or {})
+
+
+def _unnamed_set(config: dict[str, Any]) -> dict[str, Any]:
+    model = dict(config.get("model") or {})
+    model.pop("chosen", None)
+    model.pop("sets", None)
+    return model
+
+
+class ModelChoice(Configured):
     """`MODEL=comet` names which set of model lines the assistant reads.
 
     A set is every `MODEL_<NAME>_*` line, and `AGENT_<NAME>_CONTEXT_TOKENS`
@@ -25,6 +138,11 @@ class ModelChoice(BaseSettings):
 
     model: str | None = None
 
+    @classmethod
+    def section(cls, config: dict[str, Any], values: dict[str, Any]) -> dict[str, Any]:
+        chosen = (config.get("model") or {}).get("chosen")
+        return {"model": chosen} if chosen else {}
+
     @property
     def name(self) -> str | None:
         chosen = (self.model or "").strip().upper()
@@ -34,10 +152,10 @@ class ModelChoice(BaseSettings):
 def chosen_model(**init: Any) -> str | None:
     """The chosen set's name in upper case, or None for the unnamed set."""
 
-    return ModelChoice(**{k: v for k, v in init.items() if k == "_env_file"}).name
+    return ModelChoice(**_passthrough(init)).name
 
 
-class ModelSettings(BaseSettings):
+class ModelSettings(Configured):
     """How to reach the OpenAI-compatible endpoint that serves the model.
 
     Read from `MODEL_<NAME>_*` when `MODEL=<name>` is set, else from `MODEL_*`.
@@ -51,6 +169,13 @@ class ModelSettings(BaseSettings):
             if name:
                 values["_env_prefix"] = f"MODEL_{name}_"
         super().__init__(**values)
+
+    @classmethod
+    def section(cls, config: dict[str, Any], values: dict[str, Any]) -> dict[str, Any]:
+        name = chosen_model(**values)
+        if name:
+            return dict(_sets(config).get(name.lower()) or {})
+        return _unnamed_set(config)
 
     endpoint: str = "http://127.0.0.1:8000/v1"
     name: str = "gemma-4-12b-it"
@@ -94,6 +219,21 @@ class ModelSettings(BaseSettings):
     # (2026-09-06: 8,192 tokens, no text, no call); it holds conversation
     # content, so it is a workspace or a scratch path, never the repository.
     dump_dir: str | None = None
+    # Which hosts may serve the model at a router such as OpenRouter, as the
+    # router's own slugs (`novita/fp8`). The first is the one asked; the rest
+    # are asked only after the first has failed the client's own retries,
+    # never because it was slow: a change of host loses the prefix cache, and
+    # 11 of 89 deployed calls of 2026-09-06 paid that for no visible reason.
+    # Empty leaves routing to the service.
+    providers: list[str] | None = None
+
+    @field_validator("providers", mode="before")
+    @classmethod
+    def _providers_list(cls, value: object) -> object:
+        if isinstance(value, str):
+            parts = [part.strip() for part in value.replace(";", ",").split(",")]
+            return [part for part in parts if part] or None
+        return value or None
 
     @field_validator("chat_template_kwargs", "extra_body", mode="before")
     @classmethod
@@ -104,12 +244,16 @@ class ModelSettings(BaseSettings):
         return value
 
 
-class TelegramSettings(BaseSettings):
+class TelegramSettings(Configured):
     """How to reach Telegram, and who is allowed to reach the assistant."""
 
     model_config = SettingsConfigDict(
         env_prefix="TELEGRAM_", env_file=".env", extra="ignore"
     )
+
+    @classmethod
+    def section(cls, config: dict[str, Any], values: dict[str, Any]) -> dict[str, Any]:
+        return dict(config.get("telegram") or {})
 
     token: str = ""
     # Telegram includes this exact value in every webhook request. It is not
@@ -138,7 +282,7 @@ class TelegramSettings(BaseSettings):
         return frozenset(found)
 
 
-class WebSettings(BaseSettings):
+class WebSettings(Configured):
     """How the assistant reaches the public web, and how far it may go.
 
     Three capabilities, configured separately because they cost differently.
@@ -151,6 +295,10 @@ class WebSettings(BaseSettings):
     """
 
     model_config = SettingsConfigDict(env_prefix="WEB_", env_file=".env", extra="ignore")
+
+    @classmethod
+    def section(cls, config: dict[str, Any], values: dict[str, Any]) -> dict[str, Any]:
+        return dict(config.get("web") or {})
 
     # Search. Empty means the assistant has no search tool at all rather than a
     # tool that fails when it is used.
@@ -205,18 +353,34 @@ class WebSettings(BaseSettings):
     max_render_height: int = 4000
 
 
-class ModelBudget(BaseSettings):
-    """`AGENT_<NAME>_CONTEXT_TOKENS`: the budget that goes with a named model set."""
+class ModelBudget(Configured):
+    """The budget that goes with a named model set.
+
+    `AGENT_<NAME>_CONTEXT_TOKENS` in the environment, or `context_tokens` in
+    the set's own section of `config.toml`.
+    """
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     context_tokens: int | None = None
 
+    @classmethod
+    def section(cls, config: dict[str, Any], values: dict[str, Any]) -> dict[str, Any]:
+        name = chosen_model(**values)
+        if not name:
+            return {}
+        chosen = _sets(config).get(name.lower()) or {}
+        return {"context_tokens": chosen["context_tokens"]} if "context_tokens" in chosen else {}
 
-class AgentSettings(BaseSettings):
+
+class AgentSettings(Configured):
     """Where the agent stores memory, what it may read, and how much it keeps."""
 
     model_config = SettingsConfigDict(env_prefix="AGENT_", env_file=".env", extra="ignore")
+
+    @classmethod
+    def section(cls, config: dict[str, Any], values: dict[str, Any]) -> dict[str, Any]:
+        return dict(config.get("agent") or {})
 
     def __init__(self, **values: Any) -> None:
         super().__init__(**values)
@@ -225,10 +389,7 @@ class AgentSettings(BaseSettings):
         # reports no length). A named set's budget wins over the plain one.
         name = chosen_model(**values)
         if name and "context_tokens" not in values:
-            budget = ModelBudget(
-                _env_prefix=f"AGENT_{name}_",
-                **{k: v for k, v in values.items() if k == "_env_file"},
-            )
+            budget = ModelBudget(_env_prefix=f"AGENT_{name}_", **_passthrough(values))
             if budget.context_tokens is not None:
                 self.context_tokens = budget.context_tokens
 

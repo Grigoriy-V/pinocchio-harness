@@ -37,50 +37,50 @@ Deploying `assistant-control` never touches a model App.
 
 ## Configuration
 
-**Owner:** `app/config.py`; `env.example` documents every name with its
-default. Families: `MODEL_*` (`ModelSettings`), `AGENT_*` (`AgentSettings`),
-`TELEGRAM_*`, `WEB_*`. `.env` is the local source and is never committed.
+**Owner:** `app/config.py`. Two files, one order:
+
+- **`config.toml`** at the repository root, committed, shipped in the image
+  beside the source: every setting that is not a secret, in sections
+  `[model]`, `[model.sets.<name>]`, `[agent]`, `[telegram]`, `[web]`. The
+  agent may edit it; a change deployed is a commit and a control-plane
+  deploy.
+- **`.env`**, never committed: tokens, keys, database URLs (`env.example`
+  lists them). The environment, `.env` included, wins over the file, and the
+  file wins over the defaults in code, so a line in `.env` still overrides one
+  setting on one machine. `CONFIG_FILE` names another file; empty reads none
+  (what the test suite sets).
 
 ### Model sets
 
-`MODEL=<name>` makes the assistant read `MODEL_<NAME>_ENDPOINT`, `_NAME`,
-`_API_KEY`, `_AUTH_STYLE`, `_CHAT_TEMPLATE_KWARGS`, `_EXTRA_BODY`,
-`_DUMP_DIR` and `AGENT_<NAME>_CONTEXT_TOKENS` instead of the plain lines,
-which remain the unnamed set. Every set in `.env` is published with the
-secret, so switching the deployment is the `MODEL` line, a publish and a
-control-plane redeploy (a warm worker keeps the old values until it sleeps).
+`[model].chosen = "or"` names the set; `[model.sets.or]` holds its
+`endpoint`, `name`, `auth_style`, `providers`, `extra_body`,
+`chat_template_kwargs`, `dump_dir` and `context_tokens`; its key is
+`MODEL_OR_API_KEY` in `.env`. The plain `[model]` keys are the unnamed set.
+Switching the deployment is the `chosen` line and a control-plane deploy (a
+warm worker keeps the old values until it sleeps). The environment names are
+`MODEL` and `MODEL_<SET>_<FIELD>`, `AGENT_<SET>_CONTEXT_TOKENS`.
 
-The deployed default:
+The deployed default, `[model.sets.or]`: GLM 5.3 Flash through OpenRouter,
+`providers = ["novita/fp8", "z-ai/fp8"]`, thinking off, 262,144 tokens.
 
-```text
-MODEL=or
-MODEL_OR_ENDPOINT=https://openrouter.ai/api/v1
-MODEL_OR_NAME=z-ai/glm-5.3-flash
-MODEL_OR_API_KEY=<key>
-MODEL_OR_AUTH_STYLE=bearer
-MODEL_OR_EXTRA_BODY={"provider": {"order": ["novita/fp8", "z-ai/fp8"], "allow_fallbacks": false}, "thinking": {"type": "disabled"}, "reasoning_effort": "low"}
-MODEL_OR_DUMP_DIR=/workspaces/.dumps
-AGENT_OR_CONTEXT_TOKENS=131072
-```
-
-- `EXTRA_BODY` is merged into every request body last: provider routing,
-  thinking flags, anything the OpenAI shape has no word for. OpenRouter
-  provider slugs come from `/api/v1/models/<id>/endpoints`; `allow_fallbacks:
-  true` falls to any host. `thinking: {"type": "disabled"}` with
-  `reasoning_effort: low` leaves GLM with no reasoning tokens on tool calls;
-  Qwen uses `enable_thinking: false` in `CHAT_TEMPLATE_KWARGS` (vLLM's field).
+- `providers`: the router's own slugs (`/api/v1/models/<id>/endpoints`).
+  The first is the only one asked (`provider.order` of one,
+  `allow_fallbacks: false`); the rest are asked by the client only after
+  the first failed its retries, never for being slow, because a move loses
+  the prefix cache (`reports/2026-09-07_turn_bounds_context_provider.md`).
+- `extra_body` is merged into every request last: thinking flags, anything
+  the OpenAI shape has no word for. `thinking = {type = "disabled"}` with
+  `reasoning_effort = "low"` leaves GLM with no reasoning tokens on tool
+  calls; Qwen uses `enable_thinking = false` in `chat_template_kwargs`
+  (vLLM's field).
 - A hosted service usually reports no context length on `/v1/models`; the
-  set's `CONTEXT_TOKENS` is then the budget, and the count fallback
-  `AGENT_SUMMARIZE_AFTER` (60) is what triggers folds (ISS-0032 note).
-- `DUMP_DIR` keeps every streamed response as one `.sse` file, request body
+  set's `context_tokens` is then the budget.
+- `dump_dir` keeps every streamed response as one `.sse` file, request body
   first; it holds conversation content, so it lives on the Volume deployed.
-- Gemini 3.1 Flash-Lite is a second set on the same endpoint
-  (`google/gemini-3.1-flash-lite`, provider `google-ai-studio/flex`), paused
-  until its cache lands (roadmap item 13). Price and speed measurements:
-  `reports/2026-09-06_hosted_model_cometapi.md`.
-- The GPU Apps are sets too: endpoint the App's `.modal.run` URL plus `/v1`,
-  `AUTH_STYLE=modal_proxy`, a `wk-…` proxy token; the ceiling is read from
-  the server.
+- `gemini` is a second set on the same endpoint, paused until its cache
+  lands (roadmap item 13). `int4`, `qwen`, `v2` are the GPU Apps:
+  `auth_style = "modal_proxy"`, the `wk-…` proxy token as the key; the
+  ceiling is read from the server.
 
 ### Turn and context settings
 
@@ -99,8 +99,8 @@ on; telemetry holds timings and counts only and can never fail a turn.
 .venv\Scripts\python.exe tools/sync_control_secret.py
 ```
 
-Reads `.env`, publishes the allow-list only (Telegram, database, every model
-set, web keys, `AGENT_CONTEXT_TOKENS`), prints names never values, replaces
+Reads `.env`, publishes the allow-list only (Telegram, database, every
+`MODEL_<SET>_API_KEY`, web keys), prints names never values, replaces
 the Modal secret `assistant-control` with `--force`. `DEPLOY_WEB_RENDERER_URL`
 is published as `WEB_RENDERER_URL` so the local profile never sends its page
 views to the deployed renderer. No second sync path, no values typed into the

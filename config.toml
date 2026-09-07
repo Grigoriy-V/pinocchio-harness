@@ -1,0 +1,76 @@
+# Settings that are not secrets. Read below the environment: a line in `.env`
+# or the platform secret still wins, so this file never has to hold a key.
+# Secrets (tokens, API keys, database URLs) live in `.env`, see `env.example`.
+# The deployed image carries this file beside the source, so a change here is
+# a commit and a control-plane deploy. `docs/OPERATIONS_MAP.md`, Configuration.
+
+[model]
+# The set the assistant talks to. Each set below is one endpoint; its key is
+# `MODEL_<SET>_API_KEY` in `.env`, everything else is here.
+chosen = "or"
+
+# Unnamed set: the plain `MODEL_*` lines, a local vLLM server by default.
+endpoint = "http://127.0.0.1:8000/v1"
+name = "gemma-4-12b-it"
+
+[model.sets.or]
+# GLM 5.3 Flash through OpenRouter, the default since 2026-09-06. One host;
+# the second is asked only after the first has failed the client's retries.
+endpoint = "https://openrouter.ai/api/v1"
+name = "z-ai/glm-5.3-flash"
+auth_style = "bearer"
+providers = ["novita/fp8", "z-ai/fp8"]
+extra_body = { thinking = { type = "disabled" }, reasoning_effort = "low" }
+dump_dir = "/workspaces/.dumps"
+context_tokens = 262144
+
+[model.sets.gemini]
+# Gemini 3.1 Flash-Lite through OpenRouter; paused until its cache lands
+# (roadmap item 13).
+endpoint = "https://openrouter.ai/api/v1"
+name = "google/gemini-3.1-flash-lite"
+auth_style = "bearer"
+providers = ["google-ai-studio/flex", "google-ai-studio"]
+dump_dir = "/workspaces/.dumps"
+context_tokens = 262144
+
+[model.sets.int4]
+# Qwen3.8-27B INT4 on the Modal App `assistant-llm-qwen-int4`; proxy token in
+# `MODEL_INT4_API_KEY`. The ceiling is read from the server.
+endpoint = "https://grigoriy-v--assistant-llm-qwen-int4-server-serve.modal.run/v1"
+name = "qwen3.8-27b-int4"
+auth_style = "modal_proxy"
+
+[model.sets.qwen]
+endpoint = "https://grigoriy-v--assistant-llm-qwen-server-serve.modal.run/v1"
+name = "qwen3.8-27b"
+auth_style = "modal_proxy"
+
+[model.sets.v2]
+# Gemma 4 12B on `assistant-llm-v2`.
+endpoint = "https://grigoriy-v--assistant-llm-v2-server-serve.modal.run/v1"
+name = "gemma-4-12b-it"
+auth_style = "modal_proxy"
+
+[agent]
+# The share of a reported context ceiling one request may occupy; a set's
+# `context_tokens` names the budget where the server reports none.
+context_fraction = 0.8
+keep_turns = 2
+keep_results = 2
+retrieved_facts = 5
+stream_answers = true
+telemetry = true
+
+[telegram]
+api_base = "https://api.telegram.org"
+poll_timeout = 25
+open_access = false
+
+[web]
+search_results = 5
+fetch_timeout = 20
+max_redirects = 3
+max_bytes = 1000000
+viewport_width = 1200
+viewport_height = 900

@@ -39,16 +39,12 @@ SECRET_NAME = "assistant-control"
 # what decides where a page is opened, so a copy sitting in `.env` under its own
 # name would silently send every local `view_web_page` to the deployed renderer,
 # starting a container to do what the browser on this machine does for free.
-# A named model set: `MODEL=comet` chooses `MODEL_COMET_*` and
-# `AGENT_COMET_CONTEXT_TOKENS`. Every set in `.env` is published, so the
-# deployment can switch between them without a new secret.
-MODEL_SET = re.compile(
-    r"^(?:MODEL_[A-Z0-9]+_(?:ENDPOINT|NAME|API_KEY|AUTH_STYLE|CHAT_TEMPLATE_KWARGS|EXTRA_BODY|DUMP_DIR)"
-    r"|AGENT_[A-Z0-9]+_CONTEXT_TOKENS)$"
-)
+# Since 2026-09-07 settings live in `config.toml`, which ships in the image;
+# the secret carries credentials only. A named model set's key is
+# `MODEL_<SET>_API_KEY`; the set's other lines are in the file.
+MODEL_SET = re.compile(r"^MODEL_[A-Z0-9]+_API_KEY$")
 
 ALLOWED: tuple[str | tuple[str, str], ...] = (
-    "MODEL",
     "TELEGRAM_TOKEN",
     "TELEGRAM_WEBHOOK_SECRET",
     "TELEGRAM_ALLOWED_USERS",
@@ -56,15 +52,7 @@ ALLOWED: tuple[str | tuple[str, str], ...] = (
     "AGENT_DATABASE_SCHEMA",
     # Only for measuring one database against another; see the latency report.
     "AGENT_ALT_DATABASE_URL",
-    "MODEL_ENDPOINT",
-    "MODEL_NAME",
     "MODEL_API_KEY",
-    "MODEL_AUTH_STYLE",
-    "MODEL_CHAT_TEMPLATE_KWARGS",
-    "MODEL_EXTRA_BODY",
-    "MODEL_DUMP_DIR",
-    # The context budget in tokens, for a model whose server reports no length.
-    "AGENT_CONTEXT_TOKENS",
     # The web capability. The search key and the renderer's proxy token are
     # credentials; the identity is a courtesy to sites that ask for one.
     "WEB_FIRECRAWL_API_KEY",

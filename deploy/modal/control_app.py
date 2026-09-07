@@ -68,6 +68,9 @@ def _with_source(image: modal.Image) -> modal.Image:
         .add_local_file(
             "deploy/modal/control_app.py", "/root/project/control_app.py", copy=True
         )
+        # Settings that are not secrets; `app/config.py` reads it from the
+        # project root, which is `/root/project` here.
+        .add_local_file("config.toml", "/root/project/config.toml", copy=True)
         .env({"PYTHONPATH": "/root/project"})
     )
 

@@ -20,8 +20,9 @@ are not reachable by following imports from `app/`.
 
 | Intent | Primary owner | Search terms |
 |---|---|---|
-| Change environment/config | `app/config.py` | `ModelSettings`, `AgentSettings`, `TelegramSettings`, `WebSettings`, `env.example` |
-| Choose or add a model set | `app/config.py`, `tools/sync_control_secret.py` | `ModelChoice`, `chosen_model`, `_env_prefix`, `ModelBudget`, `MODEL_SET`, `tests/test_model_settings_chat_template.py` |
+| Change a setting (not a secret) | `config.toml`, `app/config.py` | `Configured`, `section`, `load_config`, `CONFIG_FILE`, `tests/test_config_file.py` |
+| Change a secret's name or what is published | `env.example`, `tools/sync_control_secret.py` | `ALLOWED`, `MODEL_SET` |
+| Choose or add a model set | `config.toml` `[model.sets.<name>]`, `app/config.py` | `ModelChoice`, `chosen_model`, `_env_prefix`, `ModelBudget`, `providers`, `tests/test_model_settings_chat_template.py` |
 | Change the agent loop | `app/agent/graph.py` | `build_agent`, `AgentState`, `interrupt`, `tests/test_agent_graph.py` |
 | Change what one turn may spend | `app/agent/graph.py` | `TurnBudget`, `exceeded`, `BUDGET_EXHAUSTED`, `tests/test_turn_bounds.py` |
 | Change the repeat guards | `app/agent/graph.py` | `failed_before`, `succeeded_before`, `MAX_IDENTICAL_FAILURES`, `MAX_IDENTICAL_SUCCESSES`, `tests/test_repeated_failure.py` |
@@ -105,8 +106,10 @@ reports/       evidence and the two journals
 
 ## Ownership rules worth knowing
 
-- **`app/config.py` owns the environment.** No `os.environ` reads elsewhere.
-  Families: `MODEL_*` (and `MODEL_<SET>_*`), `AGENT_*`, `TELEGRAM_*`,
+- **`app/config.py` owns configuration.** No `os.environ` or file reads
+  elsewhere. Settings come from `config.toml` (committed, in the image);
+  secrets from `.env` and the platform secret; the environment wins over the
+  file. Families: `MODEL_*` (and `MODEL_<SET>_*`), `AGENT_*`, `TELEGRAM_*`,
   `WEB_*`. A deployed name may differ from the local one on purpose
   (`DEPLOY_WEB_RENDERER_URL` is published as `WEB_RENDERER_URL`).
 - **`app/tools/capabilities.py` versus `app/capabilities.py`:** the first is

@@ -65,3 +65,6 @@ def isolated_settings_environment(monkeypatch: pytest.MonkeyPatch) -> None:
             monkeypatch.delenv(name, raising=False)
     for name in NEUTRALIZED:
         monkeypatch.setenv(name, "")
+    # The repository's `config.toml` is the deployment's, not the suite's: a
+    # test that wants a file writes one and names it.
+    monkeypatch.setenv("CONFIG_FILE", "")
