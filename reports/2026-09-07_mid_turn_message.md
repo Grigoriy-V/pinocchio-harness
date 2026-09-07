@@ -261,9 +261,13 @@ Telegram, on GLM at Novita:
   the answer, the chat got no echo and no second answer. The next model
   request carried 3,939 turn tokens (the image), 0 cached (the prefix before
   it was cached at 6,272 on the call before; Novita's cache again, item 18).
-  The model described the screenshot correctly in one message and
-  finished. **The task it interrupted was dropped**: no third file, no
-  summary, no file sent, no word about it. Recorded as ISS-0059, sorted as
+  The model described the screenshot correctly and ended the turn asking
+  "Продолжаю? Осталось прочитать CODEMAP.md и сделать сводку файлом."
+  **The task it interrupted paused for a yes** rather than going on. The
+  request dump shows the harness told it the truth (both results whole,
+  the screenshot after them, the stub is last turn's `list_files`), and
+  that the thread held the same pattern before: a photo with "что тут?"
+  as its own turn, answered and done. Recorded as ISS-0059, sorted as
   the model's behaviour (or one literal prompt line), to be measured under
   item 15 rather than patched from this one case; the references add no
   instruction either (§7).
