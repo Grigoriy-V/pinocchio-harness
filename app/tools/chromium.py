@@ -255,7 +255,7 @@ class CdpSession:
 # How long a freshly launched browser may take to open its DevTools port. A
 # budget in seconds rather than a count of polls, because what it has to cover
 # is the browser's own first launch in a fresh container: on 2026-09-05 the
-# renderer's first `inspect_page` in a cold deployed container failed at 3.4 s
+# renderer's first page open in a cold deployed container failed at 3.4 s
 # — the old budget was sixty polls of 50 ms — and the retry a second later
 # found the browser ready (ISS-0051). Fifteen seconds is generous for a warm
 # machine and still bounded for a broken one.

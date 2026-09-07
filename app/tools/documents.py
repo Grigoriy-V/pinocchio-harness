@@ -153,12 +153,16 @@ def document_tools(root: Path) -> list[Tool]:
             name="read_document",
             replay_safe=True,
             description=(
-                f"Read a document saved in the workspace ({readable}). Returns numbered "
-                "sections with their own labels — page numbers for a PDF, headings for "
-                "Markdown and .docx — and says where it stopped so the rest can be asked "
-                "for. A document a person sends is saved here rather than shown to you "
-                "directly, so this is how you read one."
+                f"Read a document in your workspace ({readable}) as text. A document the "
+                "person sends is saved in your workspace under the name the turn gives "
+                "you, not shown to you directly: this is how you read it."
             ),
+            returns=(
+                "numbered sections with their own labels, page numbers for a PDF, "
+                "headings for Markdown and .docx, and where it stopped, so the rest can "
+                "be asked for with `from_section`."
+            ),
+            leaves="nothing.",
             parameters={
                 "type": "object",
                 "properties": {
@@ -184,11 +188,13 @@ def document_tools(root: Path) -> list[Tool]:
             name="view_pages",
             replay_safe=True,
             description=(
-                "Render PDF pages as images for your own visual inspection and return "
-                "workspace paths for the rendered pages. This never sends anything to "
-                "the person. Use it when visual evidence matters, including scans, layout, "
-                f"tables, diagrams and forms. At most {MAX_PAGES_PER_VIEW} page(s) per "
-                "call; ask again for the ones that follow."
+                "Look at PDF pages as pictures: scans, layout, tables, diagrams, forms. "
+                f"At most {MAX_PAGES_PER_VIEW} page(s) per call; ask again for the next."
+            ),
+            returns="the rendered pages, shown to you, and their workspace paths.",
+            leaves=(
+                "one .png per page under .agent/documents/ in your workspace; nothing "
+                "reaches the person unless you send_file it."
             ),
             parameters={
                 "type": "object",

@@ -803,7 +803,7 @@ async def test_can_is_answered_from_the_wiring_and_never_by_the_model(
 
     assert backend.requests == []
     answer = telegram.sent[0]
-    assert "inspect_page" in answer
+    assert "use_page" in answer
     assert "image/png" in answer
     assert "Ask first: nothing" in answer
 
@@ -1453,7 +1453,7 @@ async def test_onboarding_is_one_short_formatted_message(
         assert f"/{entry.command}" in payload["text"]
     # `/can` is the truthful capability source; onboarding must not become a
     # second, staler answer to the same question.
-    assert "inspect_page" not in payload["text"]
+    assert "use_page" not in payload["text"]
 
 
 def test_the_onboarding_card_names_every_command_the_menu_does() -> None:

@@ -240,10 +240,11 @@ def test_the_brief_says_where_commands_run_and_what_survives(workspace: Path) ->
     brief = capability_brief(tools, where_commands_run=registry.runner.where)
 
     assert "run_command runs a shell command on this machine" in brief
-    # The tool's own line about reading its result (2026-09-04).
-    assert "read the whole output" in brief and "traceback names" in brief
-    # G deployed, 2026-09-04: `cd "Task Board" && inspect_page index.html`, exit 127.
-    assert "not shell commands" in brief
+    # The line about reading a result is the tool's own since roadmap 16
+    # (2026-09-07); the brief keeps only what differs per profile.
+    described = tools.get("run_command").schema()["function"]["description"]
+    assert "read the whole output" in described and "traceback names" in described
+    assert "read the whole output" not in brief
     assert "virtual" in brief and "workspace" in brief
     without = registry.toolbox(registry.grant(capabilities=[name for name in DEFAULT_CAPABILITIES if name != SHELL_RUN]))
     assert "run_command" not in capability_brief(without)

@@ -148,7 +148,7 @@ async def test_a_capability_that_is_not_granted_is_not_probed(workspace: Path) -
     with_browser = registry.toolbox(registry.grant(capabilities=(BROWSER_INSPECT,)))
 
     assert [probe.name for probe in tool_probes(with_browser, workspace)] == [
-        "browser.inspect"
+        "browser.page"
     ]
 
 
@@ -169,7 +169,7 @@ async def test_the_probe_list_matches_what_the_agent_claims(
     finally:
         await agent.aclose()
 
-    assert "inspect_page" in claimed and "browser.inspect" in probed
+    assert "use_page" in claimed and "browser.page" in probed
     assert "write_file" in claimed and "filesystem" in probed
     assert "remember_fact" in claimed and "store.memory" in probed
     assert "fetch_page" in claimed and "web.fetch" in probed

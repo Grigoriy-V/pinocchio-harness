@@ -129,6 +129,7 @@ class Turn:
         self.sequence = sequence
         self.text: list[str] = []
         self.tools: list[str] = []
+        self.calls: list[tuple[str, dict]] = []
         self.failures: list[tuple[str, ToolFailure]] = []
         self.tool_results: list[Message] = []
         self.approvals = 0
@@ -190,6 +191,7 @@ class Turn:
         for call in message.tool_calls:
             self.tools.append(call.name)
             self._names[call.id] = call.name
+            self.calls.append((call.name, dict(call.arguments)))
         if message.role == "tool":
             self.tool_results.append(message)
             if message.failure is not None:
@@ -199,6 +201,11 @@ class Turn:
         said = " ".join(part.text or "" for part in message.content).strip()
         if said and message.role == "assistant":
             self.text.append(said)
+
+    def arguments_of(self, tool: str) -> list[dict]:
+        """The arguments of every call of this tool, in order."""
+
+        return [arguments for name, arguments in self.calls if name == tool]
 
     def read_from(self, tool: str) -> str:
         """The text the model was given back by every call of this tool."""
@@ -407,17 +414,22 @@ async def run_scenarios(
                 "chat-f",
                 "In my workspace, write a small self-contained page counter.html with a "
                 "heading, a button labelled Count and a script that increments a number "
-                "in the heading when the button is pressed. Then open it with inspect_page "
-                "and tell me what the page contains.",
+                "in the heading when the button is pressed. Then open it with use_page, "
+                "press the button twice, and tell me what the heading says after that.",
             )
+            # The whole point of the page tool (roadmap 16): the model acts on
+            # the page and reads the effect, rather than looking at it once.
+            actions = f.arguments_of("use_page")
             done(
                 "F", "F the browser", f,
                 checks={
-                    "write_file then inspect_page": "write_file" in f.tools and "inspect_page" in f.tools,
+                    "write_file then use_page": "write_file" in f.tools and "use_page" in f.tools,
                     "counter.html exists": (root / "counter.html").is_file(),
                     "no tool failed": not f.failures,
-                    "the model read a structure with a ref": "[ref=e" in f.read_from("inspect_page"),
-                    "an answer was given": bool(f.answer),
+                    "the page was opened": any(a.get("action") == "open" for a in actions),
+                    "the model read a structure with a ref": "[ref=e" in f.read_from("use_page"),
+                    "the button was clicked twice": sum(a.get("action") == "click" for a in actions) >= 2,
+                    "the answer says 2": "2" in f.answer,
                 },
             )
 
@@ -598,7 +610,7 @@ async def run_scenarios(
                 checks={
                     "no plan tool was offered or called": "todo_write" not in g.tools
                     and "todo_write" not in agent.toolbox("chat-g").names,
-                    "write_file then inspect_page": "write_file" in g.tools and "inspect_page" in g.tools,
+                    "write_file then use_page": "write_file" in g.tools and "use_page" in g.tools,
                     "the files were sent": any(name.endswith(".html") for name in sent),
                     "the screenshot was sent": any(name.endswith(".png") for name in sent),
                     "no path was offered as delivery": "![" not in g.answer,
@@ -881,8 +893,7 @@ def deployed(selected) -> tuple[int, list[Result]]:
     text, failed, rows = function.remote("".join(sorted(selected)))
     # The deployed telemetry also logs every event to stdout as one JSON line;
     # the report is the rest.
-    print("
-".join(line for line in text.splitlines() if not line.startswith('{"run_id"')))
+    print("\n".join(line for line in text.splitlines() if not line.startswith('{"run_id"')))
     print("Read any of them back with:  python tools/show_run.py --last 20   (the deployed database)")
     return failed, [Result(**row) for row in rows]
 

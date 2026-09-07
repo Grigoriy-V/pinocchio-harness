@@ -156,7 +156,7 @@ Capabilities (`app/tools/capabilities.py`) and their tools:
 filesystem.read / write   list_files, read_file, write_file, edit_file   (app/tools/filesystem.py)
 shell.run                 run_command                                    (app/tools/shell.py)
 documents.read            read_document, view_pages                      (app/tools/documents.py)
-browser.inspect           inspect_page                                   (app/tools/browser.py)
+browser.page              use_page                                       (app/tools/browser.py)
 web.search / fetch / view search_web, fetch_page, view_web_page          (app/tools/web.py)
 presentation.files        send_file                                      (app/tools/presentation.py)
 always                    remember_fact, search_memory, search_history, read_history, set_goal
@@ -183,11 +183,18 @@ with /plan on             todo_write
 - **Browser:** `app/tools/chromium.py` owns the process, the CDP session and
   `BrowserSession` with the full operation set (`open`, `snapshot` with refs,
   `screenshot`, `evaluate`, `console`, `navigate`, `click`, `type`, `press`,
-  `select`; a stale ref is refused). `inspect_page` exposes observation only:
-  it serves the workspace at `http://artifact.local/`, lets the page reach
-  public addresses under the public policy, and returns structure with refs,
-  text, console errors, refused requests and a screenshot. No action is
-  exposed to the model yet (roadmap item 12).
+  `select`; a stale ref is refused). `use_page` (`app/tools/browser.py`) is
+  the one tool on it: `action` open / snapshot / click / type / press /
+  select / evaluate / screenshot / console, one call per action. `open` takes
+  a workspace HTML file (served at `http://artifact.local/` with its sibling
+  files) or a public URL, both under the public request policy; every action
+  returns the title, console errors since the last call, the structure with
+  refs and the visible text. The page lives in `Pages`, held by the
+  `CapabilityRegistry` so a turn's calls find it whichever toolbox they come
+  through, and is closed by the next open or after `IDLE_SECONDS`. Every
+  tool's description is rendered from three fields, `description`, `returns`
+  and `leaves` (`Tool.contract`; `tests/test_tool_contracts.py` refuses a
+  wired tool missing one).
 - **Public web:** `search_web` (Firecrawl leads), `fetch_page` (bounded HTTP,
   no JavaScript), `view_web_page` (a real browser: locally in-process, deployed
   in the isolated `render_web_page` Function). `app/web.py` owns destination

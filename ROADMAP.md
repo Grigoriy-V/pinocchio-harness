@@ -9,7 +9,7 @@ own, and what a tool tells the model it does. The order below was approved
 by the human on 2026-09-07; each item still gets its own start signal, and
 research before code where the item says so.
 
-**Current approved step:** 14, 15 and 20 are in Done (2026-09-07). 16 researched (`reports/2026-09-07_item16_research.md`), the page tool's shape approved; 17 absorbs the folder-per-task rule. Next: build 16, on the human's word.
+**Current approved step:** 14, 15 and 20 are in Done (2026-09-07). 16 researched (`reports/2026-09-07_item16_research.md`), the page tool's shape approved; 17 absorbs the folder-per-task rule. 16 built (`reports/2026-09-07_item16_build.md`); next: the mini set on it locally, then deploy and the set deployed, each on the human's word.
 
 Observed defects are in `ISSUES.md`, which is not a plan and authorizes
 nothing. `docs/PRODUCT.md` is the product contract (it carries the rule that
@@ -90,7 +90,10 @@ noted; the human's word starts each.
     the capability list, the tool descriptions, the standing instructions,
     the brief lines): what each line is for, what it costs, what stays (the
     human, 2026-09-07). The review's findings and the rewrite's draft:
-    `reports/2026-09-07_item16_research.md`. ISS-0008, ISS-0010, ISS-0016.
+    `reports/2026-09-07_item16_research.md`. Built 2026-09-07, offline
+    suite green, prefix measured (`reports/2026-09-07_item16_build.md`);
+    open until the mini set has run on it, local and deployed. ISS-0008,
+    ISS-0010, ISS-0016.
 
 17. **The command environment is a place to develop, and a folder per
     task.** Where a command runs and where what it installs lands, both

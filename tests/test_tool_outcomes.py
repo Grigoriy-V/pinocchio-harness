@@ -41,7 +41,7 @@ from app.tools import (
     todo_tools,
     web_fetch_tools,
 )
-from app.tools.browser import inspect_local_page
+from app.tools.browser import Pages, use_page
 from app.tools.execution import MAX_IMAGES, MAX_RESULT_CHARS, TAIL_CHARS
 from app.tools.web import _search
 from tests.fakes import Completion, ScriptedBackend, body, calls, says
@@ -514,9 +514,9 @@ async def test_browser_failures_carry_the_family_code(workspace: Path) -> None:
     """Both refusals happen before a browser would be looked for."""
 
     with pytest.raises(ToolError) as missing:
-        await inspect_local_page(workspace, "absent.html")
+        await use_page(workspace, Pages(), "open", path="absent.html")
     with pytest.raises(ToolError) as not_html:
-        await inspect_local_page(workspace, "notes.txt")
+        await use_page(workspace, Pages(), "open", path="notes.txt")
 
     assert missing.value.code == "fs.not_found"
     assert not_html.value.code == "doc.unsupported"

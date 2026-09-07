@@ -290,9 +290,11 @@ def filesystem_tools(root: Path) -> list[Tool]:
             name="list_files",
             replay_safe=True,
             description=(
-                "List files and directories inside the allowed workspace root. Accepts "
-                "either an absolute path inside that root or a path relative to it."
+                "List what a directory in your workspace holds. Use this instead of ls "
+                "or dir in run_command."
             ),
+            returns="one line per entry, a directory with a / after its name; a long listing says how many more there are.",
+            leaves="nothing.",
             parameters={
                 "type": "object",
                 "properties": {
@@ -313,11 +315,15 @@ def filesystem_tools(root: Path) -> list[Tool]:
             name="read_file",
             replay_safe=True,
             description=(
-                "Read a file inside the allowed workspace root: a text file as text, an "
-                "image (png, jpg, webp) as a picture you can look at. Accepts either an "
-                "absolute path inside that root or a path relative to it. A long text "
-                "file comes in pages: the end of a page says which offset to ask for next."
+                "Read a file in your workspace: a text file as text, an image (png, jpg, "
+                "webp) as a picture you look at. Use this instead of cat, head, tail or "
+                "type in run_command."
             ),
+            returns=(
+                "the text, in pages: the end of a page says which offset to ask for next; "
+                "for an image, the picture itself."
+            ),
+            leaves="nothing.",
             parameters={
                 "type": "object",
                 "properties": {
@@ -341,12 +347,14 @@ def filesystem_tools(root: Path) -> list[Tool]:
         Tool(
             name="write_file",
             description=(
-                "Write a UTF-8 text file inside the workspace, replacing it if it already "
-                "exists. Missing directories are created for you, so there is nothing to "
-                "make first. Give `path` first and `content` last. `content` is the exact "
-                "bytes of the file and nothing else: never wrap it in a markdown code "
-                "fence and never add ``` before or after it."
+                "Write a UTF-8 text file in your workspace, replacing it if it exists. "
+                "Missing directories are created. Use this instead of echo, cat or a "
+                "heredoc in run_command. Give `path` first and `content` last. `content` "
+                "is the exact bytes of the file and nothing else: never wrap it in a "
+                "markdown code fence and never add ``` before or after it."
             ),
+            returns="the path written and its size; a refusal names why.",
+            leaves="the file, at that path in your workspace.",
             parameters={
                 "type": "object",
                 "properties": {
@@ -373,9 +381,15 @@ def filesystem_tools(root: Path) -> list[Tool]:
         Tool(
             name="edit_file",
             description=(
-                "Replace one exact, unique text fragment in an existing UTF-8 file inside "
-                "the workspace."
+                "Replace one exact, unique text fragment in an existing UTF-8 file in your "
+                "workspace. Use this instead of sed or awk in run_command. `old_text` must "
+                "occur exactly once: include enough surrounding lines to make it unique."
             ),
+            returns=(
+                "that the replacement was made; when `old_text` occurs zero or several "
+                "times, a refusal with the count, and the file is untouched."
+            ),
+            leaves="the changed file.",
             parameters={
                 "type": "object",
                 "properties": {

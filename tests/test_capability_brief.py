@@ -78,7 +78,7 @@ def test_a_narrower_grant_produces_a_narrower_brief(registry: CapabilityRegistry
     brief = capability_brief(reading_only)
 
     assert "read_file" in brief
-    assert "inspect_page" not in brief
+    assert "use_page" not in brief
     assert "write_file" not in brief
 
 
@@ -129,9 +129,9 @@ def test_an_interface_that_shows_media_says_media_arrives(
     brief = capability_brief(everything(registry), CHAT_DELIVERY)
 
     assert "image" in brief
-    assert "explicitly call send_file" in brief
-    assert "perform the send_file call, one per item, instead of only saying" in brief
-    assert "nothing else is sent automatically" in brief
+    assert "send_file is the one way" in brief
+    assert "one call per item" in brief
+    assert "nothing is sent by itself" in brief
 
 
 def test_the_brief_says_where_the_person_is_and_that_a_path_delivers_nothing(
@@ -146,7 +146,7 @@ def test_the_brief_says_where_the_person_is_and_that_a_path_delivers_nothing(
     assert "talking to you through Telegram" in brief
     assert "cannot open, browse or see your workspace" in brief
     assert "markdown image of a workspace file reaches them as plain text" in brief
-    assert "one per item" in brief
+    assert "one call per item" in brief
 
 
 def test_an_interface_that_cannot_show_media_says_that_instead(
@@ -157,7 +157,7 @@ def test_an_interface_that_cannot_show_media_says_that_instead(
     brief = capability_brief(everything(registry), TEXT_ONLY)
 
     assert "no explicit file-delivery action" in brief
-    assert "explicitly call send_file" not in brief
+    assert "send_file is the one way" not in brief
 
 
 def test_a_text_only_agent_does_not_receive_a_send_tool(
@@ -180,7 +180,7 @@ def test_a_declared_kind_reaches_the_model(registry: CapabilityRegistry) -> None
 
     assert "can deliver image" in brief
     assert "audio" in brief  # still accepted as input
-    assert "nothing else is sent automatically" in brief
+    assert "nothing is sent by itself" in brief
 
 
 # --- what the wiring says, that no fixed prompt could ------------------------
@@ -235,7 +235,7 @@ def test_observation_guidance_appears_only_with_the_tool(
 
     assert "look at it before you describe it" in guided
     assert "never ask them to open it for you" in guided
-    assert "inspect_page" not in capability_brief(reading_only)
+    assert "use_page" not in capability_brief(reading_only)
 
 
 def test_planning_guidance_appears_only_with_the_tool(
@@ -258,14 +258,16 @@ def test_planning_guidance_appears_only_with_the_tool(
 
     guided = capability_brief(planning)
 
-    assert "several parts you could lose track of" in guided
+    # The condition is literal (ISS-0016: "when you can hold it in your head"
+    # made GLM never open a list), and the price is stated.
+    assert "three or more parts" in guided
     assert "resends the whole list" in guided
     assert "read when you try to finish" in guided
     assert "todo_write" not in capability_brief(everything(registry))
 
 
 def test_standing_instructions_are_never_memory(registry: CapabilityRegistry) -> None:
-    """The boundary is stated where `remember_fact` is, because that is the
+    """The boundary is stated on `remember_fact` itself, because that is the
     tool a model would otherwise reach for to keep a preference."""
 
     store = SqliteStore(":memory:")
@@ -277,9 +279,9 @@ def test_standing_instructions_are_never_memory(registry: CapabilityRegistry) ->
     finally:
         store.close()
 
-    brief = capability_brief(with_memory)
+    described = {s["function"]["name"]: s["function"]["description"] for s in with_memory.schemas()}
 
-    assert "standing instructions are their own file" in brief
+    assert "standing instructions" in described["remember_fact"]
 
 
 def test_an_agent_without_tools_is_not_told_to_reach_for_them() -> None:
@@ -391,7 +393,7 @@ def test_the_agents_own_report_includes_its_memory_tools_and_root(
         agent.store.close()
 
     assert "remember_fact" in report
-    assert "inspect_page" in report
+    assert "use_page" in report
     assert str(workspace.resolve()) in report
 
 
@@ -410,7 +412,7 @@ async def test_the_model_is_sent_the_derived_brief_every_turn(
 
     sent = prompt_text(backend.requests[0])
     assert "Your tools are exactly" in sent
-    assert "inspect_page" in sent
+    assert "use_page" in sent
     assert "remember_fact" in sent
 
 
@@ -461,8 +463,10 @@ def test_the_brief_separates_observation_from_explicit_presentation(
 
     from app.capabilities import capability_brief
 
-    brief = capability_brief(registry.toolbox(registry.grant()))
+    tools = registry.toolbox(registry.grant())
+    brief = capability_brief(tools)
+    described = {s["function"]["name"]: s["function"]["description"] for s in tools.schemas()}
 
     assert "view_pages" in brief
-    assert "sends nothing by itself" in brief
-    assert "explicitly call send_file" in brief
+    assert "nothing reaches the person unless you send_file it" in described["view_pages"]
+    assert "send_file is the one way" in brief

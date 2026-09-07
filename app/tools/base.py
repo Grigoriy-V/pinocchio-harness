@@ -107,6 +107,15 @@ class Tool:
     description: str
     parameters: dict[str, Any]
     run: Callable[..., ToolReturn | Awaitable[ToolReturn]]
+    # The contract's other two parts (roadmap 16, 2026-09-07): what a call
+    # returns to the model, and what it leaves behind and where — a file in
+    # the workspace, a message in the person's chat, a fact in memory, or
+    # nothing. `description` says what the tool does and takes. The three are
+    # rendered together into the schema the model reads, so a tool cannot
+    # state one and leave the others to be guessed; `tests/test_tool_contracts.py`
+    # refuses a wired tool that leaves either empty.
+    returns: str = ""
+    leaves: str = ""
     requires_approval: bool = False
     timeout_seconds: float | None = None
     replay_safe: bool = False
@@ -116,12 +125,23 @@ class Tool:
     # spent its budget still runs it: the ceiling bounds work, not delivery.
     delivers: bool = False
 
+    @property
+    def contract(self) -> str:
+        """The description the model reads: does, returns, leaves, in that order."""
+
+        parts = [self.description.strip()]
+        if self.returns:
+            parts.append(f"Returns: {self.returns.strip()}")
+        if self.leaves:
+            parts.append(f"Leaves: {self.leaves.strip()}")
+        return chr(10).join(parts)
+
     def schema(self) -> dict[str, Any]:
         return {
             "type": "function",
             "function": {
                 "name": self.name,
-                "description": self.description,
+                "description": self.contract,
                 "parameters": self.parameters,
             },
         }

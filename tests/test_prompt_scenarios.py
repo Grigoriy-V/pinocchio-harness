@@ -26,7 +26,7 @@ def test_the_regression_is_a_scenario() -> None:
 
     castle = next(scenario for scenario in SCENARIOS if scenario.name == "castle")
     assert "write_file" in castle.expected_tools
-    assert "inspect_page" in castle.expected_tools
+    assert "use_page" in castle.expected_tools
 
 
 def test_a_conversational_scenario_expects_no_tools() -> None:

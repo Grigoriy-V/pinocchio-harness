@@ -30,8 +30,9 @@ From a conversation in Telegram, with nothing but the request:
   process that holds no secret: on Modal, a separate Function beside the
   renderer; locally, a process on the machine. What it installs lives in the
   workspace and survives the container.
-- **Looking**: a page it made, opened offline in a real browser with a
-  screenshot and console errors; a document's pages; a web page.
+- **Looking, and using**: a page it made, opened in a real browser it drives
+  one action at a time (click, type, press, evaluate, screenshot, console);
+  a document's pages; a web page.
 - **The web**: search (Firecrawl), a bounded direct fetch, a browser view.
 - **Handing over**: a file reaches the person only through `send_file`;
   looking is never sending.

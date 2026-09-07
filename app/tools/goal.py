@@ -88,4 +88,13 @@ def _write(parts: Any) -> str:
 def goal_tools() -> list[Tool]:
     """The one goal tool, which needs neither a workspace nor a store."""
 
-    return [Tool(name=TOOL_NAME, description=DESCRIPTION, parameters=PARAMETERS, run=_write)]
+    return [
+        Tool(
+            name=TOOL_NAME,
+            description=DESCRIPTION,
+            returns="that the goal was noted, and how many parts it has.",
+            leaves="the list in this turn's messages, where you read it back as you work.",
+            parameters=PARAMETERS,
+            run=_write,
+        )
+    ]

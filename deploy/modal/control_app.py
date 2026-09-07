@@ -84,7 +84,7 @@ control_image = _with_source(_dependencies)
 # `WEB_LOCAL_BROWSER=0` is part of the image rather than of the secret because it
 # is a fact about this container, not a credential: the agent worker holds the
 # bot token, the model key and the database URL, so it does not open a web page
-# in a browser of its own. It carries Chromium for `inspect_page`, which renders
+# in a browser of its own. It carries Chromium for `use_page`, which renders
 # a local artifact with the network blocked; a page from the internet goes to
 # `render_web_page` below. If that renderer is not configured, viewing fails and
 # says so instead of silently running someone's JavaScript next to the secrets.

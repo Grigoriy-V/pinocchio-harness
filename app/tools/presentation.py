@@ -82,14 +82,14 @@ def presentation_tools(root: Path) -> list[Tool]:
         Tool(
             name="send_file",
             description=(
-                "Explicitly send one or more files from the workspace to the person "
-                "after you decide they should be presented. Reading, view_pages and "
-                "inspect_page only give evidence to you and never send it automatically. "
-                "Use the exact workspace path returned by those tools, or another file "
-                "you deliberately choose. Several files of one piece of work go in one "
-                "call, as paths. This is a presentation action, not a way to inspect "
-                "the file."
+                "Send one or more files from your workspace to the person. This is the "
+                "only way anything but your text reaches them: a file you wrote, a "
+                "screenshot you took, a page you rendered stays in the workspace until "
+                "you send it. Several files of one piece of work go in one call, as "
+                "`paths`. Not a way to look at a file: it shows you nothing."
             ),
+            returns="which files were delivered; a refusal names the file and why.",
+            leaves="the files in the person's chat, as pictures, sound or attachments.",
             parameters={
                 "type": "object",
                 "properties": {

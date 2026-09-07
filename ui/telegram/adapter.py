@@ -150,7 +150,7 @@ TOOL_ACTIVITY = {
     "search_web": "Searching the web…",
     "fetch_page": "Reading page…",
     "view_web_page": "Opening page…",
-    "inspect_page": "Inspecting page…",
+    "use_page": "Using the page…",
     "read_document": "Reading document…",
     "view_pages": "Inspecting document…",
     "list_files": "Listing files…",

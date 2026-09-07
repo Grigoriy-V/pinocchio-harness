@@ -82,7 +82,7 @@ Failures and uncertainty should remain visible to the agent so it can recover or
 
 Evidence used by the agent is not automatically something the user should receive.
 
-`read_document`, `view_pages`, `inspect_page`, `fetch_page`, `view_web_page`, and `read_file` on an image are observation paths. The agent may use them privately while solving a request.
+`read_document`, `view_pages`, `use_page`, `fetch_page`, `view_web_page`, and `read_file` on an image are observation paths. The agent may use them privately while solving a request.
 
 `send_file` is the explicit current presentation capability. A UI transports explicitly outbound content; it does not decide which internal screenshots, page renders, or intermediate files should become chat messages.
 
@@ -156,7 +156,7 @@ The current accepted deployed baseline includes:
 - autonomous filesystem read/write/edit inside scoped per-user workspace paths;
 - commands run in the person's workspace, in a container that holds no secret
   when deployed;
-- local HTML/browser inspection;
+- a real browser page the agent opens and drives (open, click, type, press, evaluate, screenshot);
 - public web search, bounded text fetch and isolated visual browser view;
 - explicit agent-controlled file/media delivery;
 - resumable approvals, and one turn bounded by its own budget that a person can stop while it runs;

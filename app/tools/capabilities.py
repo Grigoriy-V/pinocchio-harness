@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from app.tools.base import Tool, Toolbox
-from app.tools.browser import browser_tools
+from app.tools.browser import Pages, browser_tools
 from app.tools.documents import document_tools
 from app.tools.filesystem import filesystem_tools
 from app.tools.presentation import presentation_tools
@@ -16,7 +16,7 @@ from app.tools.web import web_fetch_tools, web_search_tools, web_view_tools
 
 FILESYSTEM_READ = "filesystem.read"
 FILESYSTEM_WRITE = "filesystem.write"
-BROWSER_INSPECT = "browser.inspect"
+BROWSER_INSPECT = "browser.page"
 DOCUMENTS_READ = "documents.read"
 PRESENT_FILES = "presentation.files"
 # Three, not one. They differ in what they cost and in what they let run: search
@@ -82,13 +82,16 @@ class CapabilityRegistry:
         if not self.workspace.is_dir():
             raise ValueError(f"the workspace {workspace} is not a directory")
         self.runner: Runner = runner if runner is not None else LocalRunner()
+        # The open page, kept between the calls of one turn whichever toolbox
+        # they come through (a toolbox is built per thread, and more than once).
+        self.pages = Pages()
         configured = (
             capabilities
             if capabilities is not None
             else (
                 Capability(FILESYSTEM_READ, _filesystem_read),
                 Capability(FILESYSTEM_WRITE, _filesystem_write),
-                Capability(BROWSER_INSPECT, browser_tools),
+                Capability(BROWSER_INSPECT, lambda root: browser_tools(root, pages=self.pages)),
                 Capability(DOCUMENTS_READ, document_tools),
                 Capability(PRESENT_FILES, presentation_tools),
                 Capability(WEB_SEARCH, web_search_tools),

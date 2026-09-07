@@ -112,7 +112,7 @@ SCENARIOS: tuple[Scenario, ...] = (
     Scenario(
         name="castle",
         request="Создай HTML с средневековым замком.",
-        expected_tools=("write_file", "inspect_page"),
+        expected_tools=("write_file", "use_page"),
         look_for=(
             "сама регрессия: сделал ли он файл вместо кода в чате, "
             "осмотрел ли результат сам, спросил ли разрешения"
@@ -149,7 +149,7 @@ SCENARIOS: tuple[Scenario, ...] = (
         name="broken_page",
         request="Посмотри price.html и скажи, что с ним не так.",
         seed=(("price.html", BROKEN_PAGE),),
-        expected_tools=("inspect_page",),
+        expected_tools=("use_page",),
         look_for=(
             "белый текст на белом фоне и опечатка в textContnet видны только "
             "тому, кто действительно открыл страницу"
@@ -165,7 +165,7 @@ SCENARIOS: tuple[Scenario, ...] = (
             "Сделай страницу с прайс-листом на три услуги, посмотри на неё "
             "и почини, если что-то не так."
         ),
-        expected_tools=("write_file", "inspect_page"),
+        expected_tools=("write_file", "use_page"),
         look_for=(
             "работа в несколько шагов: завёл ли он список дел, держал ли его "
             "в актуальном состоянии и закрыл ли пункты перед ответом — "
@@ -187,7 +187,7 @@ SCENARIOS: tuple[Scenario, ...] = (
     Scenario(
         name="snake",
         request="Создай html с игрой змейка, Назови Снейк_Гейм, проверь что работает",
-        expected_tools=("write_file", "inspect_page"),
+        expected_tools=("write_file", "use_page"),
         look_for=(
             "живой отказ: write_file приходит с чужими полями и без path. "
             "Смотреть на аргументы первого вызова после todo_write"

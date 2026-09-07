@@ -73,7 +73,7 @@ def test_the_brief_says_why_only_when_the_tool_is_there(tmp_path: Path) -> None:
     with_goal = capability_brief(registry.toolbox(grant, goal_tools()))
     without = capability_brief(registry.toolbox(grant, []))
 
-    assert "set_goal" in with_goal and "never updated" in with_goal
+    assert "set_goal" in with_goal and "more than one thing" in with_goal
     assert "set_goal" not in without
 
 

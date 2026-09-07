@@ -52,9 +52,12 @@ def memory_tools(
         Tool(
             name="remember_fact",
             description=(
-                "Save one durable fact about the user or the project for future conversations. "
-                "Use it only when the user states something worth remembering later."
+                "Save one durable fact the person stated about themselves or their "
+                "project, for later conversations. Only when they state it; never how "
+                "they want you to work, which is their standing instructions file."
             ),
+            returns="that the fact was saved.",
+            leaves="the fact in this person's memory, retrieved in every later conversation.",
             parameters={
                 "type": "object",
                 "properties": {
@@ -71,7 +74,9 @@ def memory_tools(
         Tool(
             name="search_memory",
             replay_safe=True,
-            description="Search previously saved facts by keyword.",
+            description="Search the facts saved in earlier conversations, by keyword.",
+            returns="the matching facts, one per line.",
+            leaves="nothing.",
             parameters={
                 "type": "object",
                 "properties": {

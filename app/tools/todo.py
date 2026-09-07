@@ -45,10 +45,10 @@ MAX_ITEMS = 20
 MAX_CONTENT_CHARS = 200
 
 DESCRIPTION = (
-    "Your own list of steps, for work that has several parts you could "
-    "otherwise lose track of. Skip it when you can hold the whole of the work "
-    "in your head: a list that was not needed is resent in full on every "
-    "update and carried on every step afterwards. When you do open one: "
+    "Your own list of steps. Open one when the request has three or more parts "
+    "or the work will take more than five tool calls; do not open one for less: "
+    "a list that was not needed is resent in full on every update and carried "
+    "on every step afterwards. When you do open one: "
     "send the ENTIRE list every call, because it replaces the previous one and "
     "there are no partial updates or per-item edits. One item per meaningful "
     "milestone or outcome — do not mirror individual tool calls, files or small "
@@ -195,6 +195,8 @@ def todo_tools() -> list[Tool]:
         Tool(
             name=TOOL_NAME,
             description=DESCRIPTION,
+            returns="the list as it now stands.",
+            leaves="the list in this turn's messages; what is still open is read when you try to finish.",
             parameters=PARAMETERS,
             run=_write,
         )

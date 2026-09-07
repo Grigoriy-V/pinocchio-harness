@@ -61,7 +61,8 @@ are not reachable by following imports from `app/`.
 | Change file delivery | `app/tools/presentation.py` | `send_file`, `outbound=True` |
 | Run a command or change where commands run | `app/tools/shell.py`, `app/tools/shell_windows.py`, `deploy/modal/control_app.py` | `run_command`, `Runner`, `LocalRunner`, `ContainerRunner`, `ModalRunner`, `command_environment`, `ensure_venv`, `RestrictedProcess`, `BASE_TOOLS`, `tests/test_run_command.py` |
 | Change the two modes | `app/agent/mode.py`, `app/tools/base.py` | `CAREFUL_SWITCH`, `set_mode`, `Tool.mutates`, `Toolbox.ask_for_changes` |
-| Change local page inspection | `app/tools/browser.py` | `inspect_page`, `page_report`, `observe`, `inspect_local_page` |
+| Change the page tool (`use_page`) | `app/tools/browser.py` | `use_page`, `Pages`, `page_report`, `DESCRIPTION`, `ACTIONS`, `tests/test_browser_tools.py` |
+| Change what a tool description must state | `app/tools/base.py` | `Tool.returns`, `Tool.leaves`, `Tool.contract`, `tests/test_tool_contracts.py` |
 | Change the browser session, snapshot, actions | `app/tools/chromium.py` | `BrowserSession`, `open_browser`, `serve_directory`, `format_snapshot`, `DEVTOOLS_READY_SECONDS`, `tests/test_browser_session.py` |
 | Change public web networking/security | `app/web.py` | `check_destination`, `fetch_page`, `search_web`, `render_locally`, `render_remotely`, `public_request_policy` |
 | Change model-facing web tools | `app/tools/web.py` | `search_web`, `fetch_page`, `view_web_page` |

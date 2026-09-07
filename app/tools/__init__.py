@@ -13,7 +13,7 @@ from app.tools.base import (
     ToolOutcome,
     tool_failed,
 )
-from app.tools.browser import browser_tools, find_chromium_browser, inspect_local_page
+from app.tools.browser import Pages, browser_tools, find_chromium_browser
 from app.tools.capabilities import (
     BROWSER_INSPECT,
     DEFAULT_CAPABILITIES,
@@ -76,7 +76,7 @@ __all__ = [
     "document_tools",
     "filesystem_tools",
     "find_chromium_browser",
-    "inspect_local_page",
+    "Pages",
     "history_tools",
     "memory_tools",
     "presentation_tools",

@@ -9,7 +9,7 @@ Every failure this exists to catch has already happened, in production, today:
 
 - a store read left the connection in a transaction, so the next call failed —
   and no single-operation test saw it, because only the *order* was wrong;
-- `inspect_page` worked while the agent ran on a machine with a browser and
+- the page tool worked while the agent ran on a machine with a browser and
   stopped when execution moved into a container that has none;
 - the deployment module was missing from its own image;
 - checkpoint tables were created in one schema and looked for in another.
@@ -183,14 +183,19 @@ def tool_probes(tools: Toolbox, root: Path) -> list[Probe]:
             "<html><body><p>preflight</p></body></html>", encoding="utf-8"
         )
         try:
+            opened = await tools.run_async(
+                ToolCall("preflight-browser", "use_page", {"action": "open", "path": name})
+            )
+            if "preflight" not in _text(opened):
+                raise RuntimeError("the page opened but its text did not come back")
             result = await tools.run_async(
-                ToolCall("preflight-browser", "inspect_page", {"path": name})
+                ToolCall("preflight-browser-shot", "use_page", {"action": "screenshot"})
             )
             _text(result)
             images = [part for part in result.content if part.kind == "image"]
             if not images:
                 raise RuntimeError("the page rendered but returned no screenshot")
-            return f"a page was rendered and returned {len(images)} screenshot(s)"
+            return f"a page was opened, read and returned {len(images)} screenshot(s)"
         finally:
             page.unlink(missing_ok=True)
             # The browser tool also writes the screenshot into the workspace.
@@ -332,8 +337,8 @@ def tool_probes(tools: Toolbox, root: Path) -> list[Probe]:
     probes: list[Probe] = []
     if {"write_file", "read_file", "list_files"} <= available:
         probes.append(Probe("filesystem", "free", files))
-    if "inspect_page" in available:
-        probes.append(Probe("browser.inspect", "free", browser))
+    if "use_page" in available:
+        probes.append(Probe("browser.page", "free", browser))
     if "read_document" in available:
         probes.append(Probe("documents.read", "free", documents))
     if "view_pages" in available:

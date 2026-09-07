@@ -285,10 +285,11 @@ def test_reading_tools_are_replay_safe_and_changing_ones_are_not(tmp_path: Path)
         "view_web_page",
         "read_document",
         "view_pages",
-        "inspect_page",
         "search_history",
         "read_history",
         "search_memory",
     }
     unsafe = {tool.name for tool in everything if not tool.replay_safe}
-    assert {"write_file", "edit_file", "send_file", "remember_fact"} <= unsafe
+    # A page action is not run again after a worker died: the page went with
+    # the worker, and a click may already have counted.
+    assert {"write_file", "edit_file", "send_file", "remember_fact", "use_page"} <= unsafe

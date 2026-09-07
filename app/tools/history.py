@@ -179,10 +179,14 @@ def history_tools(
             description=(
                 "Find what was actually said earlier in this conversation, including "
                 "before the summary: the exact wording, a filename, a number, an error "
-                "message, a tool's result. Returns the best-matching messages with their "
-                "position and a snippet; read_history returns one whole. Set "
-                "all_conversations to search this person's other conversations too."
+                "message, a tool's result. Set `all_conversations` to search this "
+                "person's other conversations too."
             ),
+            returns=(
+                "the best-matching messages, each with its position and a snippet; "
+                "read_history returns one whole."
+            ),
+            leaves="nothing.",
             parameters={
                 "type": "object",
                 "properties": {
@@ -204,10 +208,14 @@ def history_tools(
             replay_safe=True,
             description=(
                 "Read stored messages of this conversation as they were said, by position "
-                "(from search_history, or from a shortened result's note). A long message "
-                "comes in pages: the end of a page says which offset to ask for next. "
-                "Pass conversation to read one of this person's other conversations."
+                "(from search_history, or from a shortened result's note). Pass "
+                "`conversation` to read one of this person's other conversations."
             ),
+            returns=(
+                "the messages whole, in pages: the end of a page says which offset to "
+                "ask for next."
+            ),
+            leaves="nothing.",
             parameters={
                 "type": "object",
                 "properties": {

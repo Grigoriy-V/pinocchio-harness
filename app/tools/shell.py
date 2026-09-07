@@ -427,12 +427,26 @@ def shell_tools(root: Path, runner: Runner) -> list[Tool]:
         Tool(
             name="run_command",
             description=(
-                "Run one shell command in your workspace and read its exit code and "
-                "output. Python, pip, node, npm, git and the like are commands here. A "
-                "non-zero exit code is a result to read, not an error of the tool. "
+                "Run one shell command in your workspace: python, pip, node, npm, git, a "
+                "build, a test, an install. Use it to run, test and check what you make "
+                "and to install what that needs; use read_file, write_file, edit_file and "
+                "list_files for files, not cat, echo, sed or ls. A non-zero exit code "
+                "means the command did not do what you meant: read the whole output "
+                "before your next step; a traceback names the file, the line and the "
+                "cause, and what it tells you to do is the fix. Before you say something "
+                "is missing here, check with a command. The command cannot read from the "
+                "terminal: pass answers on the command line or with flags. "
                 f"`timeout_seconds` (default {DEFAULT_TIMEOUT}, at most {MAX_TIMEOUT}) "
-                "kills the command if it runs longer. The command cannot read from the "
-                "terminal, so pass answers on the command line or with flags."
+                "kills it if it runs longer."
+            ),
+            returns=(
+                "the exit code and the output (stdout and stderr), cut with a note when "
+                "it is very long; `new environment` when the container is fresh."
+            ),
+            leaves=(
+                "whatever the command wrote in your workspace, which stays; what it "
+                "installed outside it may not survive to the next command; the brief "
+                "says what does."
             ),
             parameters={
                 "type": "object",

@@ -342,7 +342,10 @@ in use since 2026-09-06; it is not seen on the hosted model.
 
 ### ISS-0016 — the plan is a list of phases, ticked in bulk
 
-- **Status:** open
+- **Status:** open (2026-09-07: the brief's planning line and the tool's
+  description state the condition — three or more parts, or more than five
+  tool calls — instead of "when you can hold it in your head"; roadmap 16;
+  measured by item 8)
 - **Seen:** 2026-09-03, live, three turns (Task Board tests 4 and 5,
   `live-70`).
 - **Costs:** the list is generic phases ("create structure", "implement
@@ -368,7 +371,9 @@ in use since 2026-09-06; it is not seen on the hosted model.
 
 ### ISS-0010 — "here is the screenshot", and nothing was sent
 
-- **Status:** open
+- **Status:** open (2026-09-07: every tool's description now states what it
+  leaves and where, and the page tool's screenshot result says "the person
+  has not" seen it; roadmap 16; effect unmeasured until the set runs)
 - **Seen:** 2026-09-03, deployed, thread `afb9d76a`, twice: asked "пришли
   скрин", the assistant calls `inspect_page`, sees the screenshot and
   answers "Вот скриншот вашего приложения"; told nothing arrived, it says
@@ -389,7 +394,9 @@ in use since 2026-09-06; it is not seen on the hosted model.
 
 ### ISS-0008 — a generated app is delivered as working without ever being used
 
-- **Status:** open
+- **Status:** open (2026-09-07: `use_page` built, roadmap 16 — the model can
+  click, type, press, evaluate and read the console on the page it made;
+  whether it does is the mini set's F and the wider G, not yet run on it)
 - **Seen:** 2026-08-31, Telegram, "Personal Task Board 2": the board saved
   tasks and never drew them (a wrong selector); described as ready. Again
   2026-08-31 (run `cc98b3e0`, "проверь что всё работает", nothing opened)

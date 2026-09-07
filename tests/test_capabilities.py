@@ -47,7 +47,7 @@ def test_full_grant_exposes_general_browser_and_filesystem_tools(workspace: Path
         "read_file",
         "write_file",
         "edit_file",
-        "inspect_page",
+        "use_page",
         "read_document",
         "view_pages",
         "send_file",
@@ -88,5 +88,5 @@ def test_capabilities_can_be_combined_without_exposing_others(workspace: Path) -
     registry = CapabilityRegistry(workspace)
     grant = registry.grant(capabilities=(FILESYSTEM_READ, BROWSER_INSPECT))
 
-    assert registry.toolbox(grant).names == ("list_files", "read_file", "inspect_page")
+    assert registry.toolbox(grant).names == ("list_files", "read_file", "use_page")
     assert not grant.allows(FILESYSTEM_WRITE)

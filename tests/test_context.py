@@ -95,7 +95,9 @@ def test_the_core_prompt_points_at_the_layers_below_it() -> None:
     """
 
     assert "generated from what is wired up" in DEFAULT_SYSTEM_PROMPT
-    assert "standing instructions" in DEFAULT_SYSTEM_PROMPT
+    # The sentence about standing instructions left on 2026-09-07: the
+    # overlay's own frame says it (`tests/test_instructions.py`).
+    assert "standing instructions" not in DEFAULT_SYSTEM_PROMPT
 
 
 def test_the_summary_and_the_facts_become_readable_layers() -> None:

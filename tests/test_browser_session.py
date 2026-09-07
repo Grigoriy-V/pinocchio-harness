@@ -182,7 +182,9 @@ async def test_no_browser_is_a_typed_failure_the_model_reads(tmp_path: Path) -> 
     page.write_text("<p>hi</p>", encoding="utf-8")
     box = Toolbox(browser_tools(tmp_path, browser=tmp_path / "no-such-browser"))
 
-    result = await box.run_async(ToolCall("b", "inspect_page", {"path": "page.html"}))
+    result = await box.run_async(
+        ToolCall("b", "use_page", {"action": "open", "path": "page.html"})
+    )
 
     assert result.failure is not None and result.failure.code == UNAVAILABLE
 
