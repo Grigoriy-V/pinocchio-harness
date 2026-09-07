@@ -117,9 +117,9 @@ class QueuedInbox:
     the same rules against PostgreSQL itself. So this holds exactly the three
     that the worker depends on — one conversation runs one update at a time, the
     oldest unfinished one goes first, and a control update is claimed on its own
-    whatever the conversation is doing — plus the rule that a conversation
-    already being worked on does not ask for another container. It models a
-    lease that never expires, because nothing offline moves a clock forward.
+    whatever the conversation is doing. It models a lease that never expires
+    unless `expire` is called, because nothing offline moves a clock forward;
+    heartbeats are recorded in `extended`.
     """
 
     def __init__(self, queued_ms: int = 0) -> None:
@@ -132,6 +132,7 @@ class QueuedInbox:
         self.retried: list[tuple[int, str]] = []
         self.abandoned: list[tuple[int, str]] = []
         self.attempts: dict[int, int] = {}
+        self.extended: list[int] = []
         self.queued_ms = queued_ms
 
     async def enqueue(
@@ -152,18 +153,6 @@ class QueuedInbox:
             self.keys[update_id] = conversation_key
             self.state[update_id] = "pending"
         spawn = self.state[update_id] == "pending"
-        key = self.keys[update_id]
-        if spawn and key and update_id not in self.control:
-            # A worker started while another holds the conversation would claim
-            # nothing and exit, so the spawn is suppressed rather than wasted.
-            # The lease here never expires, which is the offline simplification
-            # this class already makes elsewhere.
-            spawn = not any(
-                self.state.get(other) == "running"
-                and self.keys.get(other) == key
-                and other not in self.control
-                for other in self.payloads
-            )
         return EnqueueResult(update_id, spawn, self.runs[update_id])
 
     async def claim(self, update_id: int, lease_seconds: int = 900) -> "InboxJob | None":
@@ -206,6 +195,17 @@ class QueuedInbox:
             control=update_id in self.control,
             attempts=self.attempts[update_id],
         )
+
+    async def extend(self, job: "InboxJob", lease_seconds: int) -> None:
+        self.extended.append(job.update_id)
+
+    async def finished(self, update_id: int) -> bool:
+        return self.state.get(update_id) == "done"
+
+    def expire(self, update_id: int) -> None:
+        """The worker holding this update died: its lease ran out."""
+
+        self.state[update_id] = "pending"
 
     async def complete(self, job: "InboxJob") -> None:
         self.state[job.update_id] = "done"

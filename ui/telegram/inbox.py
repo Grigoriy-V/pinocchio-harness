@@ -101,6 +101,10 @@ class UpdateInbox(Protocol):
         self, conversation_key: str, lease_seconds: int = 900
     ) -> InboxJob | None: ...
 
+    async def extend(self, job: InboxJob, lease_seconds: int) -> None: ...
+
+    async def finished(self, update_id: int) -> bool: ...
+
     async def complete(self, job: InboxJob) -> None: ...
 
     async def retry(self, job: InboxJob, error: str) -> None: ...
@@ -231,39 +235,15 @@ class PostgresUpdateInbox:
                     # second delivery of one update is the same turn seen twice,
                     # not two turns.
                     stored_run_id = (row or {}).get("run_id") or ""
-                if should_spawn and conversation_key and not control:
-                    should_spawn = not await self._busy(cursor, conversation_key)
+        # Every unfinished update asks for a worker, held conversation or not.
+        # From 2026-08-30 to 2026-09-07 the spawn was suppressed while a live
+        # lease held the conversation, to spare a burst a container per
+        # message; the price was that a conversation whose worker died was
+        # freed by its lease and then waited for the next message to start
+        # anyone (ISS-0063). Now the worker started for a held conversation
+        # waits out one lease (`TelegramUpdateWorker._claim`), and a burst
+        # costs a few containers idling a minute.
         return EnqueueResult(update_id, should_spawn, stored_run_id)
-
-    async def _busy(self, cursor: Any, conversation_key: str) -> bool:
-        """Is a live worker already holding this conversation?
-
-        Asked so that a burst does not ask for a container per message. A worker
-        started while another holds the conversation claims nothing and exits —
-        `_claim_conversation` refuses while `busy.lease_until` is in the future —
-        so the spawn was always going to be wasted. Suppressing it changes what
-        is started, never what is answered: the row is queued either way, and
-        the worker that holds the lease drains it.
-
-        Found live on 2026-08-30: two Telegram albums of four documents arrived
-        as eight updates 1.2 s apart, each asking for its own container. Seven of
-        them had nothing to do.
-
-        A live lease, not merely `running`: the only thing that leaves a running
-        row behind with no worker is a container that died, and a conversation
-        whose lease has expired needs the spawn this would otherwise skip.
-
-        Control updates never reach here. They are the out-of-band lane, and one
-        waiting for the turn it is about to finish is the flaw that lane exists
-        to avoid.
-        """
-
-        await cursor.execute(
-            f"SELECT 1 FROM {self.table} WHERE conversation_key = %s AND NOT control"
-            " AND state = 'running' AND lease_until >= CURRENT_TIMESTAMP LIMIT 1",
-            (conversation_key,),
-        )
-        return await cursor.fetchone() is not None
 
     # What a claim may take: never a finished update, and never one another
     # container is still working on. An expired lease is fair game, because the
@@ -389,6 +369,30 @@ class PostgresUpdateInbox:
             control=bool(row["control"]),
             attempts=int(row["attempts"] or 1),
         )
+
+    async def extend(self, job: InboxJob, lease_seconds: int) -> None:
+        """A heartbeat: the worker holding this claim is still alive."""
+
+        connection = await self._connection()
+        async with connection:
+            async with connection.cursor() as cursor:
+                await cursor.execute(
+                    f"UPDATE {self.table} SET lease_until ="
+                    " CURRENT_TIMESTAMP + (%s * INTERVAL '1 second'),"
+                    " updated_at = CURRENT_TIMESTAMP"
+                    " WHERE update_id = %s AND lease_token = %s AND state = 'running'",
+                    (lease_seconds, job.update_id, job.lease_token),
+                )
+
+    async def finished(self, update_id: int) -> bool:
+        connection = await self._connection()
+        async with connection:
+            async with connection.cursor() as cursor:
+                await cursor.execute(
+                    f"SELECT state FROM {self.table} WHERE update_id = %s", (update_id,)
+                )
+                row = await cursor.fetchone()
+        return row is not None and row["state"] == "done"
 
     async def complete(self, job: InboxJob) -> None:
         await self._finish(job, "done", None)

@@ -218,10 +218,17 @@ rate-limit handling; `markdown.py` renders Markdown to Telegram HTML with a
 plain fallback. Locally `run.py` long-polls with per-chat locks; deployed
 `webhook.py` validates, writes the update to the Postgres inbox
 (`inbox.py`, leased per conversation, deduplicated by `update_id`), spawns a
-CPU worker and returns 200. The worker drains its conversation for
-`DRAIN_SECONDS` (240) and hands the rest to a fresh one; the lease (590 s)
-is shorter than the container (600 s); an update claimed three times is
-given up on with a message.
+CPU worker and returns 200. The worker container lives up to
+`WORKER_TIMEOUT_SECONDS` (four hours, a guard; the turn is bounded by its
+health check) and drains its conversation for `DRAIN_SECONDS` (that less an
+hour) before handing the rest to a fresh one; the conversation lease is
+`LEASE_SECONDS` (60) and the worker extends it every `HEARTBEAT_SECONDS`
+(20) while answering, so a dead worker frees its conversation within a
+minute; every queued update starts a worker, and one that finds the
+conversation held waits out a lease before taking it up; an update claimed
+three times is given up on with a message. What the checkpoint holds for
+the same update id was delivered before a death and is not sent again
+(`Agent.delivered_before`).
 
 **Chainlit** (`ui/chainlit_app.py`, `ui/chainlit_history.py`): the same
 `Agent`, the same outbound rule, a stop button that records a `StopRequests`

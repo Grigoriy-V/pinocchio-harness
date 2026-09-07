@@ -294,15 +294,15 @@ async def test_an_update_queued_before_the_control_lane_existed_is_ordinary(
     assert claimed.control is False
 
 
-async def test_a_conversation_already_running_does_not_ask_for_another_worker(
+async def test_a_conversation_already_running_still_asks_for_a_worker(
     inbox: PostgresUpdateInbox,
 ) -> None:
-    """A burst must not ask for a container per message.
+    """Every unfinished update asks for a worker; the one it gets waits.
 
-    Live on 2026-08-30: two Telegram albums of four documents arrived as eight
-    updates 1.2 s apart and every one of them asked for a worker. Seven found
-    the conversation held and exited without claiming anything, so the spawns
-    were work that could not have happened.
+    From 2026-08-30 the spawn was suppressed while a live lease held the
+    conversation, to spare a burst a container per message; ISS-0063 showed
+    the price: a conversation freed by a dead worker's lease waited for the
+    next message to start anyone. The row is still claimed only by the holder.
     """
 
     await queue(inbox, 5)
@@ -311,12 +311,42 @@ async def test_a_conversation_already_running_does_not_ask_for_another_worker(
 
     following = await inbox.enqueue(7, payload(7), conversation_key=ALICE)
 
-    assert following.should_spawn is False
-    # Queued all the same: what is suppressed is the container, never the row.
+    assert following.should_spawn is True
     assert await inbox.claim_next(ALICE) is None
     await inbox.complete(running)
     drained = await inbox.claim_next(ALICE)
     assert drained is not None and drained.update_id == 7
+
+
+async def test_a_heartbeat_keeps_a_conversation_held(inbox: PostgresUpdateInbox) -> None:
+    await queue(inbox, 5)
+    held = await inbox.claim(5, lease_seconds=1)
+    assert held is not None
+    await asyncio.sleep(0.6)
+    await inbox.extend(held, 2)
+    await asyncio.sleep(0.6)
+
+    assert await inbox.claim(5) is None, "extended: not free at the old expiry"
+    await inbox.complete(held)
+    assert await inbox.finished(5) is True
+
+
+async def test_a_heartbeat_from_a_stale_claim_changes_nothing(
+    inbox: PostgresUpdateInbox,
+) -> None:
+    """A worker that lost its claim to a later one cannot extend it."""
+
+    await queue(inbox, 5)
+    lost = await inbox.claim(5, lease_seconds=1)
+    assert lost is not None
+    await asyncio.sleep(1.2)
+    taken = await inbox.claim(5, lease_seconds=1)
+    assert taken is not None and taken.lease_token != lost.lease_token
+
+    await inbox.extend(lost, 600)
+    await asyncio.sleep(1.2)
+
+    assert await inbox.claim(5) is not None, "the stale heartbeat did not hold it"
 
 
 async def test_a_conversation_whose_worker_died_still_asks_for_one(

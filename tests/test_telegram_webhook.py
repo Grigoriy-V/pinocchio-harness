@@ -178,6 +178,149 @@ async def test_worker_releases_failed_update_for_a_later_retry() -> None:
     assert inbox.retried == [(7, "RuntimeError: failed turn")]
 
 
+# --- a live worker is known by its heartbeat ----------------------------------
+#
+# ISS-0061..0063, 2026-09-07: a ten-minute turn was killed at the container's
+# 600 s timeout; its fixed 590 s lease then held the conversation with nobody
+# alive, and the two messages behind it were queued without a worker because
+# the conversation looked busy.
+
+
+class SlowHandler(Handler):
+    """A turn that takes several heartbeats."""
+
+    def __init__(self, beats: int) -> None:
+        super().__init__()
+        self.beats = beats
+
+    async def handle_update(self, payload: dict[str, Any], trace: Any = None) -> None:
+        await super().handle_update(payload, trace)
+        for _ in range(self.beats):
+            await asyncio.sleep(0)
+
+
+async def test_a_worker_extends_its_lease_while_the_turn_runs() -> None:
+    """The lease says "alive", so a turn that outlives it must keep saying so."""
+
+    inbox = FakeInbox()
+    await queued(inbox, 7)
+    slept: list[float] = []
+
+    async def sleep(seconds: float) -> None:
+        slept.append(seconds)
+        await asyncio.sleep(0)
+
+    await TelegramUpdateWorker(
+        inbox, SlowHandler(beats=6), heartbeat_seconds=20, lease_seconds=60, sleep=sleep
+    ).run(7)
+
+    assert inbox.extended and all(update_id == 7 for update_id in inbox.extended)
+    assert all(seconds == 20 for seconds in slept)
+    assert inbox.completed == [7]
+
+
+async def test_the_heartbeat_ends_with_the_turn() -> None:
+    inbox = FakeInbox()
+    await queued(inbox, 7)
+
+    await TelegramUpdateWorker(inbox, Handler(), heartbeat_seconds=20, sleep=asyncio.sleep).run(7)
+    beats = len(inbox.extended)
+    for _ in range(5):
+        await asyncio.sleep(0)
+
+    assert len(inbox.extended) == beats
+
+
+async def test_a_worker_started_for_a_held_conversation_waits_for_the_holder() -> None:
+    """The holder is alive and drains the queue, this update included; the
+    waiting worker sees it finished and leaves without claiming anything."""
+
+    inbox = FakeInbox()
+    await queued(inbox, 7, 8)
+    holder = await inbox.claim(7)
+    assert holder is not None
+    handler = Handler()
+    ticks = {"count": 0}
+
+    async def sleep(seconds: float) -> None:
+        ticks["count"] += 1
+        if ticks["count"] == 2:
+            # The live holder finishes its turn and takes the next update.
+            await inbox.complete(holder)
+            following = await inbox.claim_next("person-42")
+            assert following is not None and following.update_id == 8
+            await inbox.complete(following)
+
+    ran = await TelegramUpdateWorker(
+        inbox, handler, lease_seconds=60, claim_retry_seconds=5, sleep=sleep
+    ).run(8)
+
+    assert ran is False
+    assert handler.seen == []
+    assert ticks["count"] == 2
+
+
+async def test_a_worker_started_for_a_held_conversation_takes_it_up_when_the_holder_dies() -> None:
+    """The holder's heartbeat stops, its lease runs out, and the worker that
+    waited claims the conversation's oldest unfinished update: the dead one."""
+
+    inbox = FakeInbox()
+    await queued(inbox, 7, 8)
+    holder = await inbox.claim(7)
+    assert holder is not None
+    handler = Handler()
+
+    async def sleep(seconds: float) -> None:
+        inbox.expire(7)
+
+    ran = await TelegramUpdateWorker(
+        inbox, handler, lease_seconds=60, claim_retry_seconds=5, sleep=sleep
+    ).run(8)
+
+    assert ran is True
+    assert update_ids(handler) == [7, 8]
+
+
+async def test_a_waiting_worker_gives_up_after_one_lease() -> None:
+    inbox = FakeInbox()
+    await queued(inbox, 7, 8)
+    assert await inbox.claim(7) is not None
+    slept: list[float] = []
+
+    async def sleep(seconds: float) -> None:
+        slept.append(seconds)
+
+    ran = await TelegramUpdateWorker(
+        inbox, Handler(), lease_seconds=60, claim_retry_seconds=5, sleep=sleep
+    ).run(8)
+
+    assert ran is False
+    assert sum(slept) == 60
+
+
+def test_the_deployed_worker_timeout_is_the_one_the_drain_window_is_derived_from() -> None:
+    """`control_app.py` is not imported by tests (it builds Modal images), so
+    the number it hands the platform is read from its source."""
+
+    from ui.telegram.webhook import WORKER_TIMEOUT_SECONDS
+
+    source = (
+        Path(__file__).resolve().parents[1] / "deploy" / "modal" / "control_app.py"
+    ).read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    declared = [
+        eval(compile(ast.Expression(node.value), "control_app.py", "eval"))  # noqa: S307
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Assign)
+        and any(
+            isinstance(target, ast.Name) and target.id == "WORKER_TIMEOUT_SECONDS"
+            for target in node.targets
+        )
+    ]
+
+    assert declared == [WORKER_TIMEOUT_SECONDS]
+
+
 # --- one conversation at a time, in order ------------------------------------
 #
 # The live defect these are about: a screenshot and the question after it were

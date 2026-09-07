@@ -642,6 +642,31 @@ class Agent:
             tool_calls=int(state.values.get("tool_calls") or 0),
         )
 
+    async def delivered_before(self, thread_id: str, sequence: int) -> list[str]:
+        """The answers this very request already received, as the checkpoint has it.
+
+        A worker delivers a produced message before the graph moves on, so an
+        assistant message the checkpoint holds for this request — the same
+        `sequence`, which is the update's own id — was with the person before
+        the death, however the turn is taken up afterwards (ISS-0062: the
+        retry of a turn killed while persisting sent its answer again). An
+        earlier turn's answers are a different sequence and are not this.
+        """
+
+        graph = await self._graph(thread_id)
+        state = await graph.aget_state({"configurable": {"thread_id": thread_id}})
+        if int(state.values.get("sequence") or 0) != sequence:
+            return []
+        answered: list[str] = []
+        for message in state.values.get("messages") or ():
+            if message.role == "user":
+                answered = []
+            elif message.role == "assistant":
+                text = "".join(part.text or "" for part in message.content)
+                if text:
+                    answered.append(text)
+        return answered
+
     async def resume_interrupted_events(
         self, thread_id: str, trace: TurnTrace = NO_TRACE
     ) -> AsyncIterator[AgentEvent]:

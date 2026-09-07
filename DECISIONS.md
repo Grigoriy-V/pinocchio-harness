@@ -510,6 +510,32 @@ Consequences: `Agent.unfinished`, `Agent.resume_interrupted_events`,
 `Tool.replay_safe`, `LEASE_SECONDS` derived from the Modal timeout.
 `reports/2026-09-04_v2_restart_resume_review.md`.
 
+## 2026-09-07 — The worker outlives the turn; a live worker is known by its heartbeat
+
+Decision: the deployed worker's platform timeout is a guard against a
+container that never ends (four hours), never the bound of a turn; the turn
+is bounded by its health check, as decided on 2026-09-07 for item 14. The
+conversation lease means "a worker is alive": 60 s, extended by the worker
+every 20 s while it answers, so a dead worker frees its conversation within
+a minute. Every queued update starts a worker; one that finds its
+conversation held waits out one lease rather than exiting, because a dead
+holder's lease is the only thing that would ever free the conversation and
+someone has to be there when it does. What the checkpoint holds for the same
+update id was delivered before a death and is not sent again.
+
+Why: on 2026-09-07 a ten-minute turn was killed at 600 s while persisting;
+the platform's retry sent the answer again; the fixed 590 s lease held the
+conversation with nobody alive and the two messages behind it waited for a
+worker nobody would start (ISS-0061..0063). A hand-off to a fresh container
+before the timeout was considered and rejected by the human: the timeout is
+not the turn's clock, so the conflict is removed rather than worked around.
+Replaces "`LEASE_SECONDS` derived from the Modal timeout" (2026-09-04).
+
+Consequences: `ui/telegram/webhook.py` `WORKER_TIMEOUT_SECONDS`,
+`LEASE_SECONDS`, `HEARTBEAT_SECONDS`, `TelegramUpdateWorker._claim` and
+`_heartbeat`; `PostgresUpdateInbox.extend`, `finished`, no spawn
+suppression in `enqueue`; `Agent.delivered_before`. Roadmap 22.
+
 ## 2026-09-04 — What stays verbatim is the last two exchanges, and a fold takes only what has to go
 
 Decision: what always stays verbatim is the last two exchanges (a person's

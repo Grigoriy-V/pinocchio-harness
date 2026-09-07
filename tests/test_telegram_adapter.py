@@ -405,6 +405,22 @@ async def test_an_ordinary_message_is_answered_into_the_chat(
     assert "Hello back." in telegram.sent
 
 
+async def test_an_update_answered_before_a_death_is_not_answered_again(
+    telegram: FakeTelegram, settings: TelegramSettings, tmp_path: Path
+) -> None:
+    """The same update handled twice — the platform's retry of a worker
+    killed after the answer went out (ISS-0062) — says nothing the person
+    already has, whatever the model would say this time."""
+
+    backend = ScriptedBackend(says("Hello back."), says("Hello back."), default=says("summary"))
+    adapter = build(telegram, settings, tmp_path, backend)
+
+    await adapter.handle_update(text_update("hello"))
+    await adapter.handle_update(text_update("hello"))
+
+    assert telegram.sent.count("Hello back.") == 1
+
+
 async def test_media_the_agent_produced_reaches_the_chat(
     telegram: FakeTelegram, settings: TelegramSettings, tmp_path: Path
 ) -> None:

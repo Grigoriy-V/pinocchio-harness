@@ -247,6 +247,41 @@ async def test_a_turn_killed_after_it_was_stored_is_not_stored_twice(
     assert [body(m) for m in stored] == ["hi", "Hello."]
 
 
+async def test_what_a_request_received_before_the_death_is_known_by_its_sequence(
+    room: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """ISS-0062: the retry of a turn killed while persisting sent the answer
+    again. The answer was delivered before the graph moved on, so what the
+    checkpoint holds for this update is what the person already has."""
+
+    import app.agent.graph as graph_module
+
+    real_fold = graph_module.fold_older_messages
+    deaths = {"left": 1}
+
+    async def dying_fold(*args: Any, **kwargs: Any) -> Any:
+        if deaths["left"]:
+            deaths["left"] -= 1
+            raise Killed()
+        return await real_fold(*args, **kwargs)
+
+    monkeypatch.setattr(graph_module, "fold_older_messages", dying_fold)
+
+    first = open_agent(room, ScriptedBackend(says("Hello.")))
+    with pytest.raises(Killed):
+        async for _ in first.events(THREAD, user("hi"), sequence=814913244):
+            pass
+    await first.aclose()
+
+    second = open_agent(room, ScriptedBackend())
+    same = await second.delivered_before(THREAD, 814913244)
+    later = await second.delivered_before(THREAD, 814913247)
+    await second.aclose()
+
+    assert same == ["Hello."]
+    assert later == []
+
+
 # --- nothing to take up -----------------------------------------------------------------
 
 

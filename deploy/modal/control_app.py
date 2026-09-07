@@ -18,9 +18,12 @@ from fastapi import Request
 APP_NAME = "assistant-control"
 SECRET_NAME = "assistant-control"
 WORKSPACE_ROOT = "/workspaces"
-# The worker container's life. `ui.telegram.webhook.LEASE_SECONDS` is derived
-# from this number and must stay below it.
-WORKER_TIMEOUT_SECONDS = 600
+# The worker container's life, the platform's own clock. A turn is bounded by
+# its health check, not by this; this is a guard against a container that
+# never ends. The same number is `ui.telegram.webhook.WORKER_TIMEOUT_SECONDS`
+# (a test keeps them equal), which derives the drain window from it; the
+# conversation lease is a heartbeat and no longer depends on this.
+WORKER_TIMEOUT_SECONDS = 4 * 3600
 
 app = modal.App(APP_NAME)
 control_secret = modal.Secret.from_name(SECRET_NAME)
@@ -367,9 +370,8 @@ def _settings() -> tuple[object, object]:
     timeout=WORKER_TIMEOUT_SECONDS,
     # One re-invocation of the same update after the container dies. A crash
     # is rescheduled by the platform on its own; this covers the kill at
-    # `timeout`. The claim's lease (`LEASE_SECONDS`, below the timeout) has
-    # expired by then, so the retry claims the row and takes the turn up from
-    # its checkpoint instead of finding it running.
+    # `timeout`. The dead worker's heartbeat has stopped, so within a lease
+    # the retry claims the row and takes the turn up from its checkpoint.
     retries=1,
     include_source=False,
 )

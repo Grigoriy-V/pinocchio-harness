@@ -33,12 +33,19 @@ from ui.telegram.wire import (
 MAX_UPDATE_BYTES = 1024 * 1024
 SECRET_HEADER = "x-telegram-bot-api-secret-token"
 
+# The deployed worker container's life, the platform's own clock: it counts
+# from the input's start and nothing inside the turn resets it. A turn is
+# bounded by its health check, not by this, so this is set far above any turn
+# the check would let run — a guard against a container that never ends, not a
+# ceiling (ISS-0061: at 600 s a ten-minute turn was killed while persisting).
+# `deploy/modal/control_app.py` carries the same number, and a test keeps them
+# equal.
+WORKER_TIMEOUT_SECONDS = 4 * 3600
+
 # How long a worker keeps taking the next update of its conversation before
-# handing the rest to a fresh one. Chosen against the two limits it sits
-# between: the deployed worker is killed at 600 s, and a single turn may spend
-# up to 300 s, so the check has to happen before starting a turn and with a
-# whole turn's worth of room left. Four minutes leaves that room.
-DRAIN_SECONDS = 240.0
+# handing the rest to a fresh one: the container's life less an hour, so the
+# check happens with a whole long turn's room left before the platform's kill.
+DRAIN_SECONDS = float(WORKER_TIMEOUT_SECONDS - 3600)
 
 # How many times one update may be claimed before the queue gives up on it. A
 # failed turn returns to the queue because most failures are transient, and a
@@ -48,12 +55,21 @@ DRAIN_SECONDS = 240.0
 # callback query failed the turn, and would have blocked every message after it.
 MAX_ATTEMPTS = 3
 
-# How long a claim holds a conversation. Equal to the worker container's own
-# life less a margin, never longer: a container killed at its timeout leaves
-# a lease that expires with it, so the platform's re-invocation of the same
-# update — or the next message — can claim it and take the turn up
-# (ISS-0034: the old 900 s outlived a 600 s kill by five minutes).
-LEASE_SECONDS = 590
+# How long a claim holds a conversation between two heartbeats. A live worker
+# extends it every `HEARTBEAT_SECONDS` for as long as it is answering, so the
+# lease says "a worker is alive", not "a turn may take this long"; a worker
+# that dies stops extending and the conversation is free within a minute
+# (ISS-0063: a fixed 590 s lease silenced a conversation for ten minutes after
+# a kill). Three heartbeats fit in one lease, so one slow store write does not
+# free a conversation a live worker still holds.
+LEASE_SECONDS = 60
+HEARTBEAT_SECONDS = 20
+
+# How often a worker that found its conversation held asks again. It waits
+# out at most one lease: either the holder is alive and drains the queue,
+# including the update this worker was started for, or it is dead and the
+# lease runs out.
+CLAIM_RETRY_SECONDS = 5.0
 
 
 @dataclass(frozen=True)
@@ -201,7 +217,10 @@ class TelegramUpdateWorker:
         spawn: Callable[[int], Awaitable[None]] | None = None,
         drain_seconds: float = DRAIN_SECONDS,
         lease_seconds: int = LEASE_SECONDS,
+        heartbeat_seconds: float = HEARTBEAT_SECONDS,
+        claim_retry_seconds: float = CLAIM_RETRY_SECONDS,
         clock: Callable[[], float] = time.monotonic,
+        sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
     ) -> None:
         self.inbox = inbox
         self.handler = handler
@@ -209,7 +228,10 @@ class TelegramUpdateWorker:
         self.spawn = spawn
         self.drain_seconds = drain_seconds
         self.lease_seconds = lease_seconds
+        self.heartbeat_seconds = heartbeat_seconds
+        self.claim_retry_seconds = claim_retry_seconds
         self.clock = clock
+        self.sleep = sleep
 
     def _open_trace(self, job: InboxJob) -> TurnTrace:
         """Start measuring, unless this update is answered without a model.
@@ -230,7 +252,7 @@ class TelegramUpdateWorker:
         return self.telemetry.start(run, offset_ms=job.queued_ms)
 
     async def run(self, update_id: int) -> bool:
-        job = await self.inbox.claim(update_id, self.lease_seconds)
+        job = await self._claim(update_id)
         if job is None:
             return False
         deadline = self.clock() + self.drain_seconds
@@ -262,6 +284,40 @@ class TelegramUpdateWorker:
                 return True
             job = following
 
+    async def _claim(self, update_id: int) -> InboxJob | None:
+        """Claim the update, waiting out one lease if its conversation is held.
+
+        Every queued update asks for a worker (`enqueue` no longer suppresses
+        the spawn while a conversation is held), so a worker that finds the
+        conversation taken is the ordinary case in a burst. It does not exit:
+        the holder may be dead, and a dead holder's lease is the only thing
+        that would ever free this conversation, so somebody has to be there
+        when it does. It asks again every `claim_retry_seconds` until the
+        update is finished — the live holder drained it — or a lease has
+        passed, which is when a dead holder's claim expires and this one takes
+        the conversation up.
+        """
+
+        waited = 0.0
+        while True:
+            job = await self.inbox.claim(update_id, self.lease_seconds)
+            if job is not None:
+                return job
+            if waited >= self.lease_seconds or await self.inbox.finished(update_id):
+                return None
+            await self.sleep(self.claim_retry_seconds)
+            waited += self.claim_retry_seconds
+
+    async def _heartbeat(self, job: InboxJob) -> None:
+        """Extend the lease while the turn runs. Ends with the turn."""
+
+        while True:
+            await self.sleep(self.heartbeat_seconds)
+            try:
+                await self.inbox.extend(job, self.lease_seconds)
+            except Exception:  # noqa: BLE001 - one missed beat is not a dead worker
+                pass
+
     async def _give_up(self, job: InboxJob) -> None:
         log_event(
             TraceEvent(
@@ -281,6 +337,7 @@ class TelegramUpdateWorker:
 
     async def _answer(self, job: InboxJob) -> None:
         trace = self._open_trace(job)
+        heartbeat = asyncio.create_task(self._heartbeat(job))
         try:
             await self.handler.handle_update(job.payload, trace)
         except Exception as error:
@@ -304,6 +361,7 @@ class TelegramUpdateWorker:
             await self.inbox.retry(job, detail)
             raise
         finally:
+            heartbeat.cancel()
             # A turn the adapter did not close is one that ended some other way.
             trace.finish("failed", error_type="incomplete")
             self.telemetry.release(job.run_id)

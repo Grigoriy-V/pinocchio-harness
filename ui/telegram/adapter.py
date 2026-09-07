@@ -1170,7 +1170,10 @@ class TelegramAdapter:
     ) -> None:
         activity = ToolActivity(self.client, chat_id)
         preview = AnswerPreview(self.client, chat_id)
-        delivered: set[str] = set()
+        # What this request already received before a death, so that a turn
+        # taken up again does not say it twice. Empty for a request seen the
+        # first time.
+        delivered: set[str] = set(await agent.delivered_before(thread_id, sequence))
         _, covered = agent.store.summary(thread_id)
         events = (
             agent.resume_interrupted_events(thread_id, trace)

@@ -9,7 +9,7 @@ own, and what a tool tells the model it does. The order below was approved
 by the human on 2026-09-07; each item still gets its own start signal, and
 research before code where the item says so.
 
-**Current approved step:** 14, 15 and 20 are in Done (2026-09-07). 16 researched (`reports/2026-09-07_item16_research.md`), the page tool's shape approved; 17 absorbs the folder-per-task rule. 16 deployed and run on both sides, in Done. 21 added (one browser tool on the renderer; ISS-0060 is the breach it closes). Next: 17, then 21, on the human's word.
+**Current approved step:** 14, 15 and 20 are in Done (2026-09-07). 16 researched (`reports/2026-09-07_item16_research.md`), the page tool's shape approved; 17 absorbs the folder-per-task rule. 16 deployed and run on both sides, in Done. 21 added (one browser tool on the renderer; ISS-0060 is the breach it closes). 22 built (the worker outlives the turn, a heartbeat lease), deploy pending. Next: 17, then 21, on the human's word.
 
 Observed defects are in `ISSUES.md`, which is not a plan and authorizes
 nothing. `docs/PRODUCT.md` is the product contract (it carries the rule that
@@ -129,6 +129,20 @@ noted; the human's word starts each.
     fetch_page, everything else with use_page". Accepted by F and W on both
     sides, and a deployed W that opens the page with `use_page` and is
     served from the renderer, not the worker.
+
+22. **The worker outlives the turn, and a live worker is known by its
+    heartbeat.** Approved 2026-09-07 (the human), out of order, after a
+    ten-minute Blender turn was killed at the worker's 600 s timeout while
+    persisting, its answer sent twice by the platform's retry, and the two
+    messages behind it left queued with no worker for ten minutes
+    (ISS-0061, ISS-0062, ISS-0063). Built the same day: the worker's
+    timeout is four hours, a guard and not a bound (the health check bounds
+    the turn, as item 14 decided); the conversation lease is 60 s and the
+    worker extends it every 20 s while it answers; every queued update
+    starts a worker, and one that finds its conversation held waits out one
+    lease and takes the conversation up if the holder died; what the
+    checkpoint holds for the same update id was delivered before a death
+    and is not sent again. Offline tests. Deployed and seen live: pending.
 
 Waiting, not in the order above:
 

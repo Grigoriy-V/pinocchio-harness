@@ -22,9 +22,9 @@ authorizes nothing; `ROADMAP.md` alone orders work. Evidence lives in
 
 | Id | Status | Defect | Related |
 |---|---|---|---|
-| ISS-0063 | open | a dead worker's lease holds the conversation; nothing wakes the queue when it expires | 0061, 0062 |
-| ISS-0062 | open | the retry of a killed turn sends the final answer a second time | 0061 |
-| ISS-0061 | open | a turn runs up to the worker's own timeout and is killed while persisting | 0057, 0056, roadmap 14 |
+| ISS-0063 | open, fix built | a dead worker's lease holds the conversation; nothing wakes the queue when it expires | 0061, 0062, roadmap 22 |
+| ISS-0062 | open, fix built | the retry of a killed turn sends the final answer a second time | 0061, roadmap 22 |
+| ISS-0061 | open, fix built | a turn runs up to the worker's own timeout and is killed while persisting | 0057, 0056, roadmap 14, 22 |
 | ISS-0060 | open | deployed `use_page open url` renders a public page in the worker, beside the secrets | 0051, roadmap 21 |
 | ISS-0059 | open | a question sent mid-turn is answered and the task it interrupted stops to ask "continue?" | roadmap 15, 20 |
 | ISS-0058 | open | command temp files and caches on the Volume path: too long for a socket, wrong uid | 0053, 0057 |
@@ -95,7 +95,10 @@ in use since 2026-09-06; it is not seen on the hosted model.
 
 ### ISS-0063 — a dead worker's lease holds the conversation; nothing wakes the queue when it expires
 
-- **Status:** open
+- **Status:** open; fix built 2026-09-07 (roadmap 22: a 60 s lease the
+  worker extends every 20 s, every queued update starts a worker, one that
+  finds the conversation held waits out a lease), offline tests, not yet
+  seen live.
 - **Seen:** 2026-09-07 14:43 UTC, deployed. After the worker of ISS-0061 was
   killed, its row stayed `running` with a lease to 14:53:02 (attempts 2).
   Two later messages (814913247, 814913248) were queued `pending` with
@@ -116,7 +119,12 @@ in use since 2026-09-06; it is not seen on the hosted model.
 
 ### ISS-0062 — the retry of a killed turn sends the final answer a second time
 
-- **Status:** open
+- **Status:** open; fix built 2026-09-07 (roadmap 22: `Agent.delivered_before`
+  reads what the checkpoint holds for the same update id and the adapter
+  does not send it again), offline tests, not yet seen live. The exact path
+  by which the retry re-emitted the answer was not reproduced offline (a
+  SQLite resume from `persist` re-emits nothing); the guard does not depend
+  on it.
 - **Seen:** 2026-09-07 14:43 UTC, deployed. The turn of ISS-0061 sent its
   final at 14:42:58; the platform's retry (`retries=1`) reclaimed the row at
   14:43:12, resumed from the checkpoint and sent the same final again at
@@ -133,7 +141,9 @@ in use since 2026-09-06; it is not seen on the hosted model.
 
 ### ISS-0061 — a turn runs up to the worker's own timeout and is killed while persisting
 
-- **Status:** open
+- **Status:** open; fix built 2026-09-07 (roadmap 22: the worker's timeout
+  is four hours, a guard, the turn stays bounded by its health check),
+  deploy pending.
 - **Seen:** 2026-09-07 14:33–14:43 UTC, deployed. A Blender scene turn
   (23 steps, 28 tool calls) reached `persist_started` at 598 s of elapsed
   time; at 600 s the platform cancelled the input
