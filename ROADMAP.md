@@ -9,7 +9,7 @@ own, and what a tool tells the model it does. The order below was approved
 by the human on 2026-09-07; each item still gets its own start signal, and
 research before code where the item says so.
 
-**Current approved step:** 15 and 20 are done (2026-09-07): 20 built, deployed and seen live (`reports/2026-09-07_mid_turn_message.md`); 15 built, its first `--both` run passed 16/16 (`reports/2026-09-07_mini_set.md`) and it is the after-deploy check now. Next: 16, research first, on the human's word.
+**Current approved step:** 15 and 20 are done (2026-09-07): 20 built, deployed and seen live (`reports/2026-09-07_mid_turn_message.md`); 15 built, its first `--both` run passed 16/16 (`reports/2026-09-07_mini_set.md`) and it is the after-deploy check now. 16 researched (`reports/2026-09-07_item16_research.md`), the page tool's shape approved, 21 added after it. Next: build 16, on the human's word.
 
 Observed defects are in `ISSUES.md`, which is not a plan and authorizes
 nothing. `docs/PRODUCT.md` is the product contract (it carries the rule that
@@ -96,7 +96,14 @@ noted; the human's word starts each.
     remnant of the old system, goes: one page tool on the renderer with the
     actions the model built for itself when it was given none (click, type,
     press a key, evaluate, console, screenshot, on the refs the snapshot
-    returns); `BrowserSession` already has them. Every brief line is a
+    returns); `BrowserSession` already has them. Approved 2026-09-07: one
+    tool, `use_page(action, ...)`, on the condition that its description
+    teaches its use through what the model already knows — "the same thing
+    as Playwright or Puppeteer, packed into one tool: one call per action"
+    — and states, per action, what it takes and what comes back, that
+    `open` comes first, that a ref lives until the next `open`, and that a
+    screenshot returns to the model and is a file the person has not seen.
+    Every brief line is a
     literal condition and action (the plan line first). Research: how
     DeepSeek Harness and Hermes describe tools and drive a page, tool by
     tool, in a report before the rewrite (`reports/2026-09-07_item16_research.md`,
@@ -104,7 +111,8 @@ noted; the human's word starts each.
     system prompt is assembled from (`DEFAULT_SYSTEM_PROMPT`, `WORKING_METHOD`,
     the capability list, the tool descriptions, the standing instructions,
     the brief lines): what each line is for, what it costs, what stays (the
-    human, 2026-09-07). ISS-0008, ISS-0010, ISS-0016.
+    human, 2026-09-07). The review's findings and the rewrite's draft:
+    `reports/2026-09-07_item16_research.md`. ISS-0008, ISS-0010, ISS-0016.
 
 17. **The command environment is a place to develop.** Deployed, the command
     container is the assistant's own server: what a command needs works
@@ -130,12 +138,28 @@ noted; the human's word starts each.
     do with it. Right after 14, the same step boundary (the human,
     2026-09-07).
 
+21. **A folder per task; the workspace kept.** Approved 2026-09-07, after
+    16. Two halves. The runner: the local profile stops making a `.venv`
+    at the workspace root before every command and putting it first on
+    `PATH` (`LocalRunner.prepare`, `command_environment`), which is what
+    fills the root today whatever the model intended, and which hides the
+    machine's own packages (item 7's open note); a venv is made where a
+    command makes one, and the deployed profile stays as it is (item 17
+    owns its temp and caches). The prompt: one literal line — each piece
+    of work gets its own folder in the workspace, named for the task; its
+    files, its virtual environment and its packages go in that folder and
+    nowhere else; a folder is reused when the person continues the same
+    work. Accepted by scenario C extended with an install: the package
+    landed under the task's folder and the root holds no venv. Whether
+    the model follows the line is the suite's measurement, not a rule
+    (the human, 2026-09-07).
+
 Waiting, not in the order above:
 
 7. **The local profile as a place to work.** Built: `run_command` over a
    one-method `Runner`, the two modes and `/mode`, on Windows a
    write-restricted token. Open: the automatic workspace venv hides the
-   machine's own packages; no way to choose the project folder in the UI;
+   machine's own packages (goes with 21); no way to choose the project folder in the UI;
    Chainlit has no `/mode` or `/plan`; no boundary outside Windows.
    `reports/2026-09-04_v2_isolated_execution_review.md` §10–§11.
 
