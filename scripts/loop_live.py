@@ -1,81 +1,56 @@
-"""A live check of the one loop. Needs the model endpoint, so it wakes a GPU.
+"""A live check of the one loop against a real model. Every run is paid.
 
-    .venv\\Scripts\\python.exe -m scripts.loop_live                 all of A-S, here
-    .venv\\Scripts\\python.exe -m scripts.loop_live --after-deploy  A, B and G
-    .venv\\Scripts\\python.exe -m scripts.loop_live G               one by letter
-    .venv\\Scripts\\python.exe -m scripts.loop_live --deployed R S  the same, in the
+    .venv\\Scripts\\python.exe -m scripts.loop_live                 the mini set, here
+    .venv\\Scripts\\python.exe -m scripts.loop_live --deployed      the mini set, in the
                                                                 deployed worker
+    .venv\\Scripts\\python.exe -m scripts.loop_live --both          both, and a table of
+                                                                the two side by side
+    .venv\\Scripts\\python.exe -m scripts.loop_live B M             letters, here
+    .venv\\Scripts\\python.exe -m scripts.loop_live --deployed R S  letters, deployed
 
-`--deployed` (2026-09-04, the human: the agent we work with is the deployed
-one, so that is the one to test) runs the chosen scenarios inside the
-deployed worker's own environment — its image, its secrets, its Volume, its
-command runner — through the `scenarios` Function of
-`deploy/modal/control_app.py`, in the workspace of a probe user of their
-own, and prints the same report. It is a product-runtime worker and every
-turn wakes the GPU: permission at the time, as here.
+Both profiles run bare (the human, 2026-09-07): no `AGENTS.md`, an empty
+workspace and an empty conversation for every scenario, in a temporary
+directory here and in the probe user's own directory on the Volume there,
+cleared first. A scenario seeds the files it needs and nothing else. What
+differs between the two runs is the environment — image, runner, database —
+and the table `--both` prints is what that difference costs.
 
-Five things the offline suite can only fake, because each of them is about what
-a real model does with the loop rather than about what the loop does with a
-scripted answer:
+**The mini set** (item 15): one scenario per capability, checked on harness
+events and the store, never on the model's wording; the request text is
+literal. A scenario passes when every line under it passes; the set is
+accepted when all eight pass deployed in one run.
 
-    A  an ordinary question           one model call, no tools, no mode
-    B  a request that needs one tool  the tool runs and the answer uses it
-    C  a multi-step workspace task    several steps, still no mode
-    D  a stop while the work is live  the turn ends without another request
-    E  a tool that fails              the typed result reaches the model, the
-                                      model recovers, telemetry says why
-    F  a page the model made          it looks at it with inspect_page, and the
-                                      structure with refs is what it read
-    G  the person's own request       an app, a look, and the files and the
-                                      screenshot handed over unprompted, with
-                                      no plan tool in the toolbox
-    H  a detail behind the summary    the exact error text is found in stored
-                                      history, not guessed from the summary
-    I  a result already shortened     read back by position rather than the
-                                      tool run again
-    J  a worker killed mid-turn       a fresh agent takes the turn up from the
-                                      checkpoint; nothing is redone unasked
-    K  a fold in the middle of a turn the conversation is folded between two
-                                      steps and the turn still finishes
-    O  a script written and run       write_file, run_command, the output in
-                                      the answer
-    P  a PDF made and handed over     an install into the workspace, a run, a
-                                      look at the document, send_file
-    Q  a command past its timeout     shell.timeout reaches the model and the
-                                      turn goes on
-    R  data turned into a picture     a CSV summed with a command, a chart
-                                      made from it, handed over
-    S  a failing script repaired      the check run, the traceback read, one
-                                      file fixed, the check run again green
+    A  a plain question               one model call, no tool, an answer
+    B  one tool                       the tool ran with valid arguments, its
+                                      result was in the next request, the
+                                      answer uses it
+    C  files and a command            write_file, run_command exit 0, the
+                                      command's output in the answer
+    F  the browser                    a page the model wrote, opened on the
+                                      renderer, the structure with refs read
+    W  the web                        a fixed page fetched, its title in the
+                                      answer
+    H  memory and history             a fact saved in one turn is found in a
+                                      later one; the exact words behind a
+                                      summary are read from history
+    E  a failing tool                 the typed failure reached the model,
+                                      the turn went on, telemetry says why
+    M  control                        a message sent mid-turn is taken at the
+                                      next step and the task still finishes;
+                                      a stop ends a turn at its next step
 
-Each scenario is checked, not only printed: a line starting with PASS or FAIL
-says whether what happened is what the scenario expects, and the exit code is
-the number of failures. The expectations are about the loop and the tool
-boundary, never about the model's wording.
+**The wider set** (item 19), by letter only: G the person's own request, I a
+shortened result read back, J a worker killed mid-turn, K a fold inside a
+turn, O a script run, P a PDF, Q a command past its timeout, R data into a
+picture, S a failing script repaired. Their checks are unchanged from when
+they were evidence (`reports/2026-09-05_suite_and_tools_review.md`).
 
-It writes into a temporary directory and its own telemetry file: nothing here
-touches the deployed database, the real workspace, or the local profile's own
-conversations. The run ids it prints can be read back with
+It writes into a temporary directory and its own telemetry file locally;
+deployed, into the probe user's threads and the deployed telemetry. The run
+ids it prints can be read back with
 
     AGENT_TELEMETRY_DATABASE=<the file it names> python tools/show_run.py <id>
-
-A to D are the acceptance evidence for roadmap sub-step 4.1; E is the live
-half of 4.5 (`docs/v2_tool_system.md`, "Acceptance for 4.5"); F is the live
-half of 4.5.5 and needs a browser where this runs; G is the request the
-person tested live all day on 2026-09-03, in the plan-off shape that is the
-default, with the numbers a plan-on run can be compared against. H and I are
-the live half of 4.6b: the way back to what a summary or a stub stands for.
-J and K are the live half of 4.7: restart, resume, and a turn across a
-compaction, asserted on harness events. O, P and Q are the live half of 5b:
-a command run on this machine, in the workspace, through the one tool. R and
-S (2026-09-04, the human's ask: one PDF scenario is not enough to judge code
-execution) are the two other shapes work with commands takes — data into a
-picture, and a repair driven by a traceback — asserted on the files and the
-last exit code, never on how the model got there. Every scenario line also carries the
-derived GPU-active seconds and cost of its run, the item 3 estimate
-(`app/telemetry/cost.py`), so a run can be read beside the 2026-08-29
-baseline printed at the end. Every run of it costs GPU time and needs
-permission at the time.
+    python tools/show_run.py --last 20                    (the deployed database)
 """
 
 from __future__ import annotations
@@ -85,17 +60,21 @@ import shutil
 import sys
 import tempfile
 import time
+from dataclasses import dataclass
 from pathlib import Path
 
+from app.agent.interjections import MemoryInterjections
 from app.agent.runtime import create_agent, text_message
 from app.agent.stop import MemoryStopRequests
 from app.config import AgentSettings
 from app.models import ContentPart, Message, ToolCall, ToolFailure
 from app.telemetry import TurnRun
-from app.telemetry.cost import gpu_cost
 from app.telemetry.open import open_telemetry
 
 USER = "loop-live-check"
+
+MINI = "ABCFWHEM"
+WIDER = "GIJKOPQRS"
 
 
 def settings_in(room: Path) -> AgentSettings:
@@ -115,6 +94,24 @@ def settings_in(room: Path) -> AgentSettings:
         telemetry_database=str(room / "telemetry.sqlite3"),
         workspace=str(room / "workspace"),
     )
+
+
+@dataclass
+class Result:
+    """One scenario's line, in a shape `--both` can lay beside another's."""
+
+    letter: str
+    name: str
+    failed: int
+    seconds: float
+    model_calls: int
+    tool_calls: int
+    input_tokens: int
+    output_tokens: int
+
+    @property
+    def passed(self) -> bool:
+        return self.failed == 0
 
 
 class Turn:
@@ -137,6 +134,7 @@ class Turn:
         self.approvals = 0
         self.run_id = f"{RUN_PREFIX}{sequence}"
         self._names: dict[str, str] = {}
+        self.seconds = 0.0
 
     async def ask(self, thread_id: str, prompt: str) -> "Turn":
         run = TurnRun(run_id=self.run_id, source="loop-live", user_id=USER)
@@ -213,17 +211,28 @@ class Turn:
             for part in message.content
         )
 
+    def outbound(self) -> list[str]:
+        """What a presentation tool marked as sent, by name or kind."""
+
+        return [
+            part.name or part.kind
+            for message in self.tool_results
+            for part in message.content
+            if getattr(part, "outbound", False)
+        ]
+
     @property
     def answer(self) -> str:
         return self.text[-1] if self.text else ""
 
+    @property
+    def said(self) -> str:
+        return " ".join(self.text)
+
     def health_checked(self) -> bool:
         """Whether the turn ran long enough to be asked how it was doing."""
 
-        store = self.telemetry.store
-        if store is None:
-            return False
-        return any(event.type == "turn_health_check" for event in store.events(self.run_id))
+        return bool(self.events("turn_health_check"))
 
     def events(self, kind: str) -> list[dict]:
         """The events of one type the store kept for this turn, by their data."""
@@ -239,62 +248,43 @@ class Turn:
             return []
         return [event.type for event in store.events(self.run_id)]
 
-    def gpu(self) -> str:
-        """Derived GPU-active seconds and cost, the item 3 estimate."""
-
-        store = self.telemetry.store
-        if store is None:
-            return "-"
-        cost = gpu_cost(store.events(self.run_id))
-        if cost is None:
-            return "no model call"
-        return f"~{cost.estimated_active_ms / 1000:5.1f} s   ${cost.derived_usd:.4f}"
-
     def failed_events(self) -> list[dict]:
-        """The `tool_failed` events the store kept for this turn, by their data."""
-
-        store = self.telemetry.store
-        if store is None:
-            return []
-        return [event.data for event in store.events(self.run_id) if event.type == "tool_failed"]
+        return self.events("tool_failed")
 
     def report(self, name: str, checks: dict[str, bool]) -> int:
         print(f"\n{name}")
         print(
             f"  model calls {self.run.model_calls}   tool calls {self.run.tool_calls}"
-            f"   approvals {self.approvals}"
+            f"   approvals {self.approvals}   tokens {self.run.input_tokens} in / "
+            f"{self.run.output_tokens} out"
         )
         print(f"  tools       {self.tools or '-'}")
         if self.failures:
             print("  failures    " + "; ".join(f"{tool}: {why.code}" for tool, why in self.failures))
         print(f"  seconds     {self.seconds:6.2f}   run {self.run_id}")
-        print(f"  gpu derived {self.gpu()}")
         print(f"  answer      {(self.answer or '(nothing said)')[:160]}")
         for expectation, held in checks.items():
             print(f"  {'PASS' if held else 'FAIL'}  {expectation}")
         return sum(1 for held in checks.values() if not held)
 
 
-# What runs after every deploy of the agent: two quick answers, so a change
-# to the loop has not broken the simple case, then the person's own request,
-# which is where every defect of 2026-09-03 showed. Asked for by the human
-# that day. Everything else stays available by letter.
-AFTER_DEPLOY = ("A", "B", "G")
-
-
 def chosen(argv: list[str]) -> frozenset[str]:
-    """Which scenarios to run: `--after-deploy`, letters, or all of them."""
+    """Which scenarios to run: letters, or the mini set."""
 
-    if "--after-deploy" in argv:
-        return frozenset(AFTER_DEPLOY)
-    letters = {arg.upper() for arg in argv if len(arg) == 1 and arg.upper() in "ABCDEFGHIJKOPQRS"}
-    return frozenset(letters) if letters else frozenset("ABCDEFGHIJKOPQRS")
+    letters = {arg.upper() for arg in argv if len(arg) == 1 and arg.upper() in MINI + WIDER}
+    return frozenset(letters) if letters else frozenset(MINI)
 
 
 # The run ids one invocation writes: `live-<sequence>` on this machine, in a
 # telemetry file of the run's own; deployed, a prefix of the invocation's own
 # so two runs into one database never share an id.
 RUN_PREFIX = "live-"
+
+
+def threads_of(letter: str) -> list[str]:
+    """The conversations a scenario uses; a second one where a scenario has two."""
+
+    return [f"chat-{letter.lower()}", f"chat-{letter.lower()}2"]
 
 
 async def start_clean(agent, selected, root: Path) -> None:
@@ -305,13 +295,15 @@ async def start_clean(agent, selected, root: Path) -> None:
     and outlive the run: on 2026-09-05 the third G sample answered from the
     history of the two before it, in one model call and no tool, and measured
     nothing (run `deployed-808b8717-70`). What a scenario measures is one
-    request from nothing, in both profiles.
+    request from nothing, in both profiles — and with the workspace goes any
+    `AGENTS.md`, so neither profile runs with standing instructions.
     """
 
     from app.conversations import delete_conversation
 
     for letter in sorted(selected):
-        await delete_conversation(agent.store, f"chat-{letter.lower()}", agent.checkpoints)
+        for thread in threads_of(letter):
+            await delete_conversation(agent.store, thread, agent.checkpoints)
     for entry in sorted(Path(root).iterdir(), key=lambda path: path.is_dir()):
         if entry.is_dir():
             shutil.rmtree(entry, ignore_errors=True)
@@ -319,12 +311,14 @@ async def start_clean(agent, selected, root: Path) -> None:
             entry.unlink(missing_ok=True)
 
 
-async def run_scenarios(selected, agent, telemetry, agent_factory, prefix: str = "live-") -> int:
+async def run_scenarios(
+    selected, agent, telemetry, agent_factory, prefix: str = "live-"
+) -> tuple[int, list[Result]]:
     """Run the chosen scenarios against one agent and print the report.
 
     `agent_factory` makes a fresh agent the way this one was made — J needs
     one after it kills the first. Closes the agent and the telemetry at the
-    end. Returns the number of failed checks.
+    end. Returns the number of failed checks and one `Result` per scenario.
     """
 
     global RUN_PREFIX
@@ -337,110 +331,78 @@ async def run_scenarios(selected, agent, telemetry, agent_factory, prefix: str =
     print(f"workspace {root}")
     await start_clean(agent, selected, root)
     failed = 0
+    rows: list[Result] = []
+
+    def done(letter: str, name: str, *turns: Turn, checks: dict[str, bool]) -> None:
+        """Report the scenario's checks and keep its line."""
+
+        nonlocal failed
+        last = turns[-1]
+        for turn in turns[:-1]:
+            turn.report(f"{name} — turn {turn.sequence}", {})
+        misses = last.report(name, checks)
+        failed += misses
+        rows.append(
+            Result(
+                letter=letter,
+                name=name,
+                failed=misses,
+                seconds=sum(turn.seconds for turn in turns),
+                model_calls=sum(turn.run.model_calls for turn in turns),
+                tool_calls=sum(turn.run.tool_calls for turn in turns),
+                input_tokens=sum(turn.run.input_tokens for turn in turns),
+                output_tokens=sum(turn.run.output_tokens for turn in turns),
+            )
+        )
 
     try:
+        # --- the mini set -----------------------------------------------------
+
         if wanted("A"):
-            # A — one request, no tools, no mode.
             a = await Turn(agent, telemetry, 10).ask("chat-a", "Привет! Как ты?")
-            failed += a.report(
-                "A ordinary question",
-                {
+            done(
+                "A", "A a plain question", a,
+                checks={
                     "one model call": a.run.model_calls == 1,
-                    "no tools": not a.tools,
+                    "no tool": not a.tools,
                     "an answer was given": bool(a.answer),
                 },
             )
 
         if wanted("B"):
-            # B — one tool, chosen by the model rather than by a route.
             (root / "notes.txt").write_text("The passphrase is marmalade.", encoding="utf-8")
             b = await Turn(agent, telemetry, 20).ask(
                 "chat-b", "Read notes.txt in my workspace and tell me the passphrase."
             )
-            failed += b.report(
-                "B one tool",
-                {
+            done(
+                "B", "B one tool", b,
+                checks={
                     "read_file ran": "read_file" in b.tools,
                     "no tool failed": not b.failures,
-                    "the passphrase is in the answer": "marmalade" in b.answer.lower(),
+                    "the result reached the model": "marmalade" in b.read_from("read_file"),
+                    "the answer uses it": "marmalade" in b.answer.lower(),
                 },
             )
 
         if wanted("C"):
-            # C — several steps, with no lifecycle to enter.
             c = await Turn(agent, telemetry, 30).ask(
                 "chat-c",
-                "In my workspace, write a file plan.txt containing three short lines "
-                "about how to store apples, then read it back and tell me what it says.",
+                "In my workspace, write primes.py that prints the prime numbers below "
+                "50 on one line, run it with run_command, and tell me exactly what it "
+                "printed.",
             )
-            failed += c.report(
-                "C multi-step work",
-                {
-                    "write_file then read_file": "write_file" in c.tools and "read_file" in c.tools,
-                    "plan.txt exists": (root / "plan.txt").is_file(),
+            done(
+                "C", "C files and a command", c,
+                checks={
+                    "write_file then run_command": "write_file" in c.tools and "run_command" in c.tools,
+                    "primes.py exists": (root / "primes.py").is_file(),
+                    "the command exited 0": "exit code: 0" in c.read_from("run_command"),
                     "no tool failed": not c.failures,
-                    "an answer was given": bool(c.answer),
-                },
-            )
-
-        if wanted("D"):
-            # D — a stop recorded while the turn is running.
-            stopped = Turn(agent, telemetry, 40)
-            work = asyncio.create_task(
-                stopped.ask(
-                    "chat-d",
-                    "In my workspace, create five files apple1.txt to apple5.txt, each "
-                    "with one sentence about apples, reading each one back after you "
-                    "write it.",
-                )
-            )
-            # Late enough to be mid-work rather than mid-first-request: the stop is
-            # only meaningful once the turn has actually started spending.
-            while len(stopped.tools) < 2 and not work.done():
-                await asyncio.sleep(0.05)
-            await agent.stops.request(USER, 41)
-            print("\n  (stop recorded while the turn was running)")
-            await work
-            failed += stopped.report(
-                "D stopped mid-flight",
-                {
-                    "the turn ended with the stop message": stopped.answer == "Stopped at your request.",
-                    "fewer than five files were made": len(list(root.glob("apple*.txt"))) < 5,
-                },
-            )
-
-        if wanted("E"):
-            # E — a tool that fails, typed. The model must read the result, not
-            # lose the turn, and telemetry must say why. The failure is one the
-            # model cannot see coming from a listing: the text it is asked to edit
-            # occurs twice, so the first `edit_file` is refused as ambiguous.
-            (root / "fruit.txt").write_text("apple pie\napple tart\n", encoding="utf-8")
-            e = await Turn(agent, telemetry, 50).ask(
-                "chat-e",
-                "In my workspace, use edit_file on fruit.txt to replace the word "
-                "'apple' with 'pear'. Do not read the file first and do not rewrite it "
-                "with write_file. Then tell me what happened.",
-            )
-            codes = [why.code for _, why in e.failures]
-            events = e.failed_events()
-            failed += e.report(
-                "E a failing tool",
-                {
-                    "edit_file ran": "edit_file" in e.tools,
-                    "the failure reached the loop as fs.ambiguous_edit": "fs.ambiguous_edit" in codes,
-                    "the model answered after the failure": bool(e.answer),
-                    "the turn was not ended by the repeat guard": e.run.model_calls <= 4,
-                    "tool_failed carries code and message": any(
-                        event.get("code") == "fs.ambiguous_edit" and event.get("message")
-                        for event in events
-                    ),
+                    "the output reached the answer": "47" in c.answer,
                 },
             )
 
         if wanted("F"):
-            # F — the model looks at what it made. The check is about the loop:
-            # the browser tool ran, returned no failure, and what the model read
-            # was the structure with refs rather than a count of buttons.
             f = await Turn(agent, telemetry, 60).ask(
                 "chat-f",
                 "In my workspace, write a small self-contained page counter.html with a "
@@ -448,11 +410,10 @@ async def run_scenarios(selected, agent, telemetry, agent_factory, prefix: str =
                 "in the heading when the button is pressed. Then open it with inspect_page "
                 "and tell me what the page contains.",
             )
-            failed += f.report(
-                "F a page the model made, looked at",
-                {
-                    "write_file then inspect_page": "write_file" in f.tools
-                    and "inspect_page" in f.tools,
+            done(
+                "F", "F the browser", f,
+                checks={
+                    "write_file then inspect_page": "write_file" in f.tools and "inspect_page" in f.tools,
                     "counter.html exists": (root / "counter.html").is_file(),
                     "no tool failed": not f.failures,
                     "the model read a structure with a ref": "[ref=e" in f.read_from("inspect_page"),
@@ -460,58 +421,33 @@ async def run_scenarios(selected, agent, telemetry, agent_factory, prefix: str =
                 },
             )
 
-        if wanted("G"):
-            # G — the person's own request, plan off (the default). What the checks
-            # ask is what the person asked for: it was built, looked at, and both
-            # the files and the screenshot came without a second request.
-            g = await Turn(agent, telemetry, 70).ask(
-                "chat-g",
-                "Создай небольшое веб-приложение Task Board. В отдельной папке Task Board\n\n"
-                "отдельные index.html, styles.css и app.js;\n"
-                "три колонки: To Do, In Progress, Done;\n"
-                "можно создавать и удалять задачи;\n"
-                "задачи можно переносить между колонками;\n"
-                "состояние сохраняется в localStorage и восстанавливается после перезагрузки;\n"
-                "добавь фильтр по тексту задачи;\n"
-                "интерфейс должен нормально выглядеть на desktop и mobile;\n\n"
-                "В итоге пришли в чат скриншот и файлы программы",
+        if wanted("W"):
+            w = await Turn(agent, telemetry, 65).ask(
+                "chat-w",
+                "Open https://example.com and tell me the exact text of its heading.",
             )
-            sent = [
-                part.name or part.kind
-                for message in g.tool_results
-                for part in message.content
-                if getattr(part, "outbound", False)
-            ]
-            failed += g.report(
-                "G the person's request, plan off",
-                {
-                    "no plan tool was offered or called": "todo_write" not in g.tools
-                    and "todo_write" not in agent.toolbox("chat-g").names,
-                    "write_file then inspect_page": "write_file" in g.tools and "inspect_page" in g.tools,
-                    "the files were sent": any(name.endswith(".html") for name in sent),
-                    "the screenshot was sent": any(name.endswith(".png") for name in sent),
-                    "no path was offered as delivery": "![" not in g.answer,
-                    "no tool failed": not g.failures,
-                    # Test 9, 2026-09-03: eleven writes and the ceiling. Test 8
-                    # wrote four; more than five is the rewrite loop again.
-                    "at most five write_file calls": g.tools.count("write_file") <= 5,
-                    "the turn finished before its first health check": not g.health_checked(),
+            fetched = w.read_from("fetch_page") + w.read_from("view_web_page")
+            done(
+                "W", "W the web", w,
+                checks={
+                    "a web tool ran": bool({"fetch_page", "view_web_page"} & set(w.tools)),
+                    "no tool failed": not w.failures,
+                    "the page reached the model": "Example Domain" in fetched,
+                    "the heading is in the answer": "example domain" in w.answer.lower(),
                 },
             )
-            print(f"  sent        {sent}")
-            # Not a check: the model repeating beside-the-call text as its
-            # closing message is ISS-0009, hidden by the Telegram adapter's
-            # verbatim dedupe and left for 4.7. Said here so a run shows it.
-            if len(g.text) > 1 and g.text[-1].strip() == g.text[0].strip():
-                print("  note        the closing text repeats the text beside the call (ISS-0009)")
-            elif len(g.text) > 1:
-                print(f"  note        {len(g.text)} texts in the turn; the adapter shows each once")
 
         if wanted("H"):
-            # H — the exact words behind the summary. A stored turn with one
+            # Memory: a fact saved in one conversation, asked for in another.
+            h1 = await Turn(agent, telemetry, 80).ask(
+                "chat-h", "Remember this: my favourite apple variety is Antonovka."
+            )
+            h2 = await Turn(agent, telemetry, 81).ask(
+                "chat-h2", "What is my favourite apple variety?"
+            )
+            # History: the exact words behind a summary. A stored turn with one
             # failure, folded into a summary that keeps the fact of the failure
-            # and loses its text, the way a summary does. The question is for
-            # the text; the only place it exists is history.
+            # and loses its text; the only place the text exists is history.
             exact = "no such folder: board-7/assets — the parent 'board-7' is a file"
             agent.store.append(
                 "chat-h",
@@ -533,35 +469,157 @@ async def run_scenarios(selected, agent, telemetry, agent_factory, prefix: str =
                 ],
                 USER,
             )
+            stored = len(agent.store.messages("chat-h"))
             agent.store.set_summary(
                 "chat-h",
-                "Goal: create board-7/assets/app.js with a hello function.\n"
-                "Done: one write_file attempt, which failed because of something in the path.\n"
+                "Goal: remember the favourite apple variety; then create "
+                "board-7/assets/app.js with a hello function.\n"
+                "Done: the fact was saved; one write_file attempt, which failed because "
+                "of something in the path.\n"
                 "Open: the person said not now.",
-                6,
+                stored,
             )
-            agent.store.record_compaction("chat-h", through=6, folded=6, trigger="asked", summary_chars=150)
-            h = await Turn(agent, telemetry, 80).ask(
+            agent.store.record_compaction("chat-h", through=stored, folded=stored, trigger="asked", summary_chars=150)
+            h3 = await Turn(agent, telemetry, 82).ask(
                 "chat-h",
                 "Какой точно был текст ошибки при той записи? Процитируй его дословно.",
             )
-            failed += h.report(
-                "H the exact words behind the summary",
-                {
-                    "history was searched or read": "search_history" in h.tools or "read_history" in h.tools,
-                    "the exact text is in the answer": "board-7/assets" in h.answer and "is a file" in h.answer,
-                    "nothing was written or retried": "write_file" not in h.tools,
-                    "no tool failed": not h.failures,
+            done(
+                "H", "H memory and history", h1, h2, h3,
+                checks={
+                    "remember_fact ran": "remember_fact" in h1.tools,
+                    "the fact was found in another conversation": "antonovka" in h2.answer.lower(),
+                    "history was searched or read": "search_history" in h3.tools or "read_history" in h3.tools,
+                    "the exact text is in the answer": "board-7/assets" in h3.answer and "is a file" in h3.answer,
+                    "nothing was written or retried": "write_file" not in h3.tools,
+                    "no tool failed": not (h1.failures or h2.failures or h3.failures),
                 },
             )
+
+        if wanted("E"):
+            # The failure is one the model cannot see coming from a listing:
+            # the text it is asked to edit occurs twice, so the first
+            # `edit_file` is refused as ambiguous.
+            (root / "fruit.txt").write_text("apple pie\napple tart\n", encoding="utf-8")
+            e = await Turn(agent, telemetry, 50).ask(
+                "chat-e",
+                "In my workspace, use edit_file on fruit.txt to replace the word "
+                "'apple' with 'pear'. Do not read the file first and do not rewrite it "
+                "with write_file. Then tell me what happened.",
+            )
+            codes = [why.code for _, why in e.failures]
+            done(
+                "E", "E a failing tool", e,
+                checks={
+                    "edit_file ran": "edit_file" in e.tools,
+                    "the failure reached the loop as fs.ambiguous_edit": "fs.ambiguous_edit" in codes,
+                    "the model answered after the failure": bool(e.answer),
+                    "the turn was not ended by the repeat guard": e.run.model_calls <= 4,
+                    "tool_failed carries code and message": any(
+                        event.get("code") == "fs.ambiguous_edit" and event.get("message")
+                        for event in e.failed_events()
+                    ),
+                },
+            )
+
+        if wanted("M"):
+            # A message while the turn works: offered once the model has asked
+            # for its first tool, taken at the end of that batch, answered, and
+            # the task still finished (ISS-0059 is exactly this not happening).
+            lane = agent.interjections
+            assert isinstance(lane, MemoryInterjections), "M needs the memory lane"
+            m = Turn(agent, telemetry, 180)
+            work = asyncio.create_task(
+                m.ask(
+                    "chat-m",
+                    "In my workspace, write three files note1.txt, note2.txt and "
+                    "note3.txt, one at a time, each with one sentence about apples, "
+                    "reading each one back after you write it. Then tell me you are done.",
+                )
+            )
+            while not m.tools and not work.done():
+                await asyncio.sleep(0.05)
+            await lane.offer(USER, 181, text_message("By the way, what is 12 times 12? Answer, then continue."))
+            print("\n  (a message was sent while the turn was running)")
+            await work
+            positions = [message.role for message in agent.store.messages("chat-m")]
+            mid = [index for index, role in enumerate(positions) if role == "user" and index > 0]
+            # A stop recorded while a second turn is running.
+            stopped = Turn(agent, telemetry, 190)
+            work = asyncio.create_task(
+                stopped.ask(
+                    "chat-m2",
+                    "In my workspace, create five files apple1.txt to apple5.txt, each "
+                    "with one sentence about apples, reading each one back after you "
+                    "write it.",
+                )
+            )
+            while len(stopped.tools) < 2 and not work.done():
+                await asyncio.sleep(0.05)
+            await agent.stops.request(USER, 191)
+            print("\n  (stop recorded while the turn was running)")
+            await work
+            done(
+                "M", "M control: a message mid-turn, then a stop", m, stopped,
+                checks={
+                    "the message was taken mid-turn": bool(m.events("turn_interjected")),
+                    "it is stored where the turn read it": bool(mid),
+                    "it was answered": "144" in m.said,
+                    "the task was still finished": all(
+                        (root / f"note{n}.txt").is_file() for n in (1, 2, 3)
+                    ),
+                    "no tool failed": not m.failures,
+                    "the stopped turn ended with the stop message": stopped.answer == "Stopped at your request.",
+                    "fewer than five files were made": len(list(root.glob("apple*.txt"))) < 5,
+                },
+            )
+
+        # --- the wider set ------------------------------------------------------
+
+        if wanted("G"):
+            # G — the person's own request, plan off (the default). What the checks
+            # ask is what the person asked for: it was built, looked at, and both
+            # the files and the screenshot came without a second request.
+            g = await Turn(agent, telemetry, 70).ask(
+                "chat-g",
+                "Создай небольшое веб-приложение Task Board. В отдельной папке Task Board\n\n"
+                "отдельные index.html, styles.css и app.js;\n"
+                "три колонки: To Do, In Progress, Done;\n"
+                "можно создавать и удалять задачи;\n"
+                "задачи можно переносить между колонками;\n"
+                "состояние сохраняется в localStorage и восстанавливается после перезагрузки;\n"
+                "добавь фильтр по тексту задачи;\n"
+                "интерфейс должен нормально выглядеть на desktop и mobile;\n\n"
+                "В итоге пришли в чат скриншот и файлы программы",
+            )
+            sent = g.outbound()
+            done(
+                "G", "G the person's request, plan off", g,
+                checks={
+                    "no plan tool was offered or called": "todo_write" not in g.tools
+                    and "todo_write" not in agent.toolbox("chat-g").names,
+                    "write_file then inspect_page": "write_file" in g.tools and "inspect_page" in g.tools,
+                    "the files were sent": any(name.endswith(".html") for name in sent),
+                    "the screenshot was sent": any(name.endswith(".png") for name in sent),
+                    "no path was offered as delivery": "![" not in g.answer,
+                    "no tool failed": not g.failures,
+                    # Test 9, 2026-09-03: eleven writes and the ceiling. Test 8
+                    # wrote four; more than five is the rewrite loop again.
+                    "at most five write_file calls": g.tools.count("write_file") <= 5,
+                    "the turn finished before its first health check": not g.health_checked(),
+                },
+            )
+            print(f"  sent        {sent}")
+            if len(g.text) > 1 and g.text[-1].strip() == g.text[0].strip():
+                print("  note        the closing text repeats the text beside the call (ISS-0009)")
+            elif len(g.text) > 1:
+                print(f"  note        {len(g.text)} texts in the turn; the adapter shows each once")
 
         if wanted("I"):
             # I — a result already shortened on the surface. Three stored results,
             # so the first is a stub naming its position; the detail asked for is
-            # in that one. The file is not on disk any more (the first run of
-            # this, `live-90`, left it there and the model simply read it again,
-            # which was fair), so the words exist only in history and the stub's
-            # locator is the way back. Trying the file first is allowed.
+            # in that one. The file is not on disk, so the words exist only in
+            # history and the stub's locator is the way back.
             config = "\n".join(f"setting_{n} = {n * 7}" for n in range(1, 40)) + "\nretry_timeout = 4711\n"
             listing = "\n".join(f"file_{n}.txt" for n in range(1, 40))
             agent.store.append(
@@ -582,9 +640,9 @@ async def run_scenarios(selected, agent, telemetry, agent_factory, prefix: str =
                 "chat-i",
                 "What was the retry_timeout in the config we read earlier? Quote the line.",
             )
-            failed += i.report(
-                "I a shortened result, read back",
-                {
+            done(
+                "I", "I a shortened result, read back", i,
+                checks={
                     "the value is in the answer": "4711" in i.answer,
                     "read back by position": "read_history" in i.tools,
                 },
@@ -593,14 +651,9 @@ async def run_scenarios(selected, agent, telemetry, agent_factory, prefix: str =
                 print("  note        the model tried the file first, then read history")
 
         if wanted("K"):
-            # K — a fold in the middle of a turn. The conversation already
-            # holds enough that a few steps of work push the request over a
-            # small budget; `fitted` folds it between two steps and the turn
-            # goes on. The checks are the fold event inside the turn, the
-            # work done, and an answer — the roadmap's "continues correctly
-            # across a compaction", on events.
-            # Twelve stored messages: the last two exchanges always stay
-            # verbatim, and a fold needs something older than that to fold.
+            # K — a fold in the middle of a turn: the conversation already holds
+            # enough that a few steps push the request over a small budget;
+            # `fitted` folds it between two steps and the turn goes on.
             seeded = []
             for batch, street in enumerate(("elm", "oak", "ash", "fir", "yew", "bay")):
                 notes = " ".join(
@@ -628,9 +681,9 @@ async def run_scenarios(selected, agent, telemetry, agent_factory, prefix: str =
             agent.rewire()
             kinds = k.event_types()
             folded_at = kinds.index("context_folded") if "context_folded" in kinds else -1
-            failed += k.report(
-                "K a fold in the middle of the turn",
-                {
+            done(
+                "K", "K a fold in the middle of the turn", k,
+                checks={
                     "the conversation was folded during the turn": folded_at >= 0,
                     "a model step followed the fold": folded_at >= 0
                     and "model_finished" in kinds[folded_at:],
@@ -642,10 +695,8 @@ async def run_scenarios(selected, agent, telemetry, agent_factory, prefix: str =
 
         if wanted("J"):
             # J — the worker dies while the model's tools are running, and a
-            # fresh agent on the same checkpoints takes the turn up. What is
-            # checked is the harness: the resume event, that the work exists,
-            # that the resumed turn did not write again without looking first,
-            # and that an answer came. Last, because the agent is replaced.
+            # fresh agent on the same checkpoints takes the turn up. Last,
+            # because the agent is replaced.
             killed = Turn(agent, telemetry, 110)
             work = asyncio.create_task(
                 killed.ask(
@@ -668,9 +719,9 @@ async def run_scenarios(selected, agent, telemetry, agent_factory, prefix: str =
             looked_first = first_write is None or any(
                 tool in ("read_file", "list_files") for tool in j.tools[:first_write]
             )
-            failed += j.report(
-                "J a worker killed mid-turn, taken up",
-                {
+            done(
+                "J", "J a worker killed mid-turn, taken up", j,
+                checks={
                     "the checkpoint held an unfinished turn": left is not None,
                     "the turn was resumed, not restarted": bool(resumed),
                     "poem.txt exists": (root / "poem.txt").is_file(),
@@ -680,61 +731,51 @@ async def run_scenarios(selected, agent, telemetry, agent_factory, prefix: str =
             )
             if resumed:
                 print(f"  resumed     {resumed[0]}")
+
         if wanted("O"):
-            # O — the first command. The check is the loop and the tool: a file
-            # written, a command run on this machine, and what it printed read
-            # back into the answer.
             o = await Turn(agent, telemetry, 130).ask(
                 "chat-o",
                 "In my workspace, write primes.py that prints the prime numbers below "
                 "50 on one line, run it with run_command, and tell me exactly what it "
                 "printed.",
             )
-            failed += o.report(
-                "O a script written and run",
-                {
-                    "write_file then run_command": "write_file" in o.tools
-                    and "run_command" in o.tools,
+            done(
+                "O", "O a script written and run", o,
+                checks={
+                    "write_file then run_command": "write_file" in o.tools and "run_command" in o.tools,
                     "no tool failed": not o.failures,
                     "the output reached the answer": "47" in o.answer,
                 },
             )
 
         if wanted("P"):
-            # P — the 4.3 acceptance that waited for this step: a PDF made with
-            # whatever the model installs, looked at, and handed over. Asserted
-            # on tools and outbound parts, never on wording.
             p = await Turn(agent, telemetry, 140).ask(
                 "chat-p",
                 "Make me a one-page PDF called apples.pdf about three kinds of apples, "
                 "check that the PDF really contains that text, and send it to me.",
             )
             pdfs = list(root.glob("**/apples.pdf"))
-            failed += p.report(
-                "P a PDF made, checked, handed over",
-                {
+            done(
+                "P", "P a PDF made, checked, handed over", p,
+                checks={
                     "run_command ran": "run_command" in p.tools,
                     "apples.pdf exists": bool(pdfs),
-                    "the document was looked at": bool(
-                        {"read_document", "view_pages"} & set(p.tools)
-                    ),
+                    "the document was looked at": bool({"read_document", "view_pages"} & set(p.tools)),
                     "send_file ran": "send_file" in p.tools,
                     "an answer was given": bool(p.answer),
                 },
             )
 
         if wanted("Q"):
-            # Q — a command that does not finish. The tool's own timeout kills
-            # it, the typed failure reaches the model, and the turn goes on.
             q = await Turn(agent, telemetry, 150).ask(
                 "chat-q",
                 "Run this exact command with run_command and timeout_seconds=3, then "
                 "tell me what happened: python -c \"import time; time.sleep(60)\"",
             )
             codes = [why.code for _, why in q.failures]
-            failed += q.report(
-                "Q a command past its timeout",
-                {
+            done(
+                "Q", "Q a command past its timeout", q,
+                checks={
                     "run_command ran": "run_command" in q.tools,
                     "shell.timeout reached the loop": "shell.timeout" in codes,
                     "the model answered after it": bool(q.answer),
@@ -743,11 +784,6 @@ async def run_scenarios(selected, agent, telemetry, agent_factory, prefix: str =
             )
 
         if wanted("R"):
-            # R — data into a picture. The second shape work with commands
-            # takes: a file that is there, summed with whatever the model
-            # runs, and a chart the person asked for, looked at and handed
-            # over. The checks are the files, the look and the number, not
-            # the library.
             (root / "sales.csv").write_text(
                 "region,amount\nnorth,10\nsouth,25\nnorth,20\neast,15\nsouth,20\n",
                 encoding="utf-8",
@@ -760,9 +796,9 @@ async def run_scenarios(selected, agent, telemetry, agent_factory, prefix: str =
                 "to check it, send it to me, and tell me which region has the largest "
                 "total and what it is.",
             )
-            failed += r.report(
-                "R data turned into a picture",
-                {
+            done(
+                "R", "R data turned into a picture", r,
+                checks={
                     "run_command ran": "run_command" in r.tools,
                     "chart.png exists": (root / "chart.png").is_file(),
                     "the chart was looked at": "chart.png" in r.read_from("read_file"),
@@ -772,11 +808,6 @@ async def run_scenarios(selected, agent, telemetry, agent_factory, prefix: str =
             )
 
         if wanted("S"):
-            # S — a failing script repaired. The third shape: a check that
-            # fails, a traceback that says why, one file changed, the check
-            # green. Asserted on the last exit code and the file, so a rewrite
-            # of the whole file and a one-line edit both pass; what is
-            # measured is that the traceback was acted on, not how.
             (root / "calc.py").write_text("def add(a, b):\n    return a - b\n", encoding="utf-8")
             (root / "check_calc.py").write_text(
                 "from calc import add\n\nresult = add(2, 3)\nassert result == 5, "
@@ -795,9 +826,9 @@ async def run_scenarios(selected, agent, telemetry, agent_factory, prefix: str =
                 if s_turn._names.get(message.tool_call_id or "") == "run_command"
             ]
             last = " ".join(part.text or "" for part in runs[-1].content) if runs else ""
-            failed += s_turn.report(
-                "S a failing script repaired",
-                {
+            done(
+                "S", "S a failing script repaired", s_turn,
+                checks={
                     "the check was run at least twice": len(runs) >= 2,
                     "calc.py was changed": "a - b" not in (root / "calc.py").read_text(encoding="utf-8"),
                     "the last run is green": "exit code: 0" in last and "calc ok" in last,
@@ -810,50 +841,86 @@ async def run_scenarios(selected, agent, telemetry, agent_factory, prefix: str =
         telemetry.close()
 
     print(f"\n{'all scenarios passed' if not failed else f'{failed} check(s) failed'}")
-    return failed
+    return failed, rows
 
 
-def deployed(selected) -> int:
+def side_by_side(local: list[Result], remote: list[Result]) -> str:
+    """The two runs as one table, a scenario per line, the difference last."""
+
+    here = {row.letter: row for row in local}
+    there = {row.letter: row for row in remote}
+    lines = [
+        f"{'':<3}{'local':<28}{'deployed':<28}{'difference':<12}",
+        f"{'':<3}{'result  seconds  calls tokens':<28}{'result  seconds  calls tokens':<28}{'seconds':<12}",
+    ]
+
+    def cell(row: Result | None) -> str:
+        if row is None:
+            return f"{'-':<28}"
+        verdict = "PASS" if row.passed else f"FAIL {row.failed}"
+        return (
+            f"{verdict:<7} {row.seconds:7.1f}  {row.model_calls}m/{row.tool_calls}t "
+            f"{row.input_tokens}/{row.output_tokens}"
+        ).ljust(28)
+
+    for letter in sorted(set(here) | set(there), key=lambda l: (MINI + WIDER).index(l)):
+        a, b = here.get(letter), there.get(letter)
+        delta = f"{b.seconds - a.seconds:+7.1f}" if a and b else "-"
+        lines.append(f"{letter:<3}{cell(a)}{cell(b)}{delta}")
+    return "\n".join(lines)
+
+
+def deployed(selected) -> tuple[int, list[Result]]:
     """The same scenarios, in the deployed worker, through its `scenarios` Function."""
 
     import modal
 
     function = modal.Function.from_name("assistant-control", "scenarios")
-    text, failed = function.remote("".join(sorted(selected)))
+    text, failed, rows = function.remote("".join(sorted(selected)))
     print(text)
     print("Read any of them back with:  python tools/show_run.py --last 20   (the deployed database)")
-    return failed
+    return failed, [Result(**row) for row in rows]
+
+
+async def local(selected) -> tuple[int, list[Result]]:
+    room = Path(tempfile.mkdtemp(prefix="loop-live-"))
+    settings = settings_in(room)
+    telemetry = open_telemetry(settings)
+    stops = MemoryStopRequests()
+    lane = MemoryInterjections()
+
+    def factory():
+        return create_agent(
+            agent_settings=settings,
+            user_id=USER,
+            telemetry=telemetry,
+            stops=stops,
+            interjections=lane,
+        )
+
+    print(f"telemetry {settings.telemetry_database}")
+    failed, rows = await run_scenarios(selected, factory(), telemetry, factory)
+    print(
+        f"\nRead any of them back with:\n  AGENT_TELEMETRY_DATABASE={settings.telemetry_database} "
+        f"AGENT_DATABASE_URL= python tools/show_run.py --last 10"
+    )
+    return failed, rows
 
 
 async def main() -> int:
     argv = sys.argv[1:]
     selected = chosen(argv)
+    if "--both" in argv:
+        print("=== local ===")
+        failed_here, here = await local(selected)
+        print("\n=== deployed ===")
+        failed_there, there = deployed(selected)
+        print("\n=== side by side ===")
+        print(side_by_side(here, there))
+        return failed_here + failed_there
     if "--deployed" in argv:
-        return deployed(selected)
-
-    room = Path(tempfile.mkdtemp(prefix="loop-live-"))
-    settings = settings_in(room)
-    telemetry = open_telemetry(settings)
-    stops = MemoryStopRequests()
-
-    def factory():
-        return create_agent(
-            agent_settings=settings, user_id=USER, telemetry=telemetry, stops=stops
-        )
-
-    print(f"telemetry {settings.telemetry_database}")
-    failed = await run_scenarios(selected, factory(), telemetry, factory)
-    print(
-        "\nItem 3 baseline, 2026-08-29 (reports/2026-08-29_v2_gpu_baseline_measured.md,"
-        " reports/2026-08-30_v2_step4_harness_preparation.md):\n"
-        "  six live turns, 21.22 s derived GPU, $0.0065 a successful turn;\n"
-        "  prefill ~2.3k tok/s, decode ~45 tok/s, a 12-second idle window charged to each turn."
-    )
-    print(
-        f"\nRead any of them back with:\n  AGENT_TELEMETRY_DATABASE={settings.telemetry_database} "
-        f"AGENT_DATABASE_URL= python tools/show_run.py --last 10 --summary"
-    )
-    return failed
+        return deployed(selected)[0]
+    return (await local(selected))[0]
 
 
 if __name__ == "__main__":

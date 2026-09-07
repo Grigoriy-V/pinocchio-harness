@@ -73,13 +73,19 @@ noted; the human's word starts each.
     hung tool holds the worker and no model check can reach it.
     ISS-0057, ISS-0032.
 
-15. **A mini scenario set, and why local and Modal differ.** Before the
-    tools change, a small set that can be run in minutes on one paid model,
-    with a result per scenario as it finishes, and a look at what is wrong
-    with the current checks. The human's runs from his own account and the
-    suite's probe user differ; his workspace carries an `AGENTS.md` with a
-    rule and the probe's does not; find out whether that explains it and
-    let a scenario run with instructions. The wider suite is 19.
+15. **A mini scenario set, bare on both sides.** Approved 2026-09-07 (the
+    human): eight scenarios, one per capability — a plain question, one
+    tool, files and a command, the browser, the web, memory and history, a
+    failing tool, control (a message mid-turn taken and the task finished,
+    `/stop`) — each checked on harness events and the store, never on the
+    model's wording, with the request text literal. A scenario passes when
+    every fact in its column is seen; the set is accepted when all eight
+    pass deployed in one run, each line with its time and cost. Both
+    profiles run bare: no `AGENTS.md`, an empty workspace every run (the
+    deployed probe user's directory is cleared first); a scenario seeds the
+    files it needs. `--local`, `--deployed`, `--both` (two tables side by
+    side, the difference per scenario). J, K, I, P, Q, R, S and an LLM judge
+    of agentic quality are the wider set, 19. Started 2026-09-07.
     `reports/2026-09-05_suite_and_tools_review.md`.
 
 16. **Tools with contracts, a browser with hands, a literal brief, and the

@@ -91,7 +91,8 @@ is [`docs/PROJECT_MAP.md`](docs/PROJECT_MAP.md).
 ## How it is checked
 
 - `pytest -q` — the offline suite, no model, no network, no credential.
-- `scripts/loop_live.py` — sixteen live scenarios, A–S, each asserting on
+- `scripts/loop_live.py` — the mini set of eight live scenarios (and nine
+  wider ones by letter), each asserting on
   files, tool calls and the answer, never on the route the model took;
   `--deployed` runs them inside the deployed worker from a clean thread and
   workspace.

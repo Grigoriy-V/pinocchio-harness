@@ -158,10 +158,11 @@ Pillow, pypdf, markdown). Heavy layers sit below the copied source.
 
 A deploy is not an invocation; an invocation starts a container (a gate,
 `AGENTS.md`). **After every deploy:** `/check` in Telegram (free), and on
-the human's word the after-deploy scenarios:
+the human's word the mini set (eight scenarios, item 15), bare on both
+sides; `--both` runs it here and deployed and prints the two side by side:
 
 ```text
-.venv\Scripts\python.exe -m scripts.loop_live --deployed --after-deploy
+.venv\Scripts\python.exe -m scripts.loop_live --deployed
 ```
 
 (A, B and G; each turn is a paid model call and a worker.)
@@ -250,7 +251,8 @@ stays `running`, which `--failed` lists.
   nothing; without it every scenario is a paid run. `--goal off`,
   `--prompt-file`; output under `reports/prompt_runs/`.
 - `tools/showcase.py` renders a stored conversation with its media, read-only.
-- `scripts/loop_live.py` runs scenarios locally (`A … S`) or deployed.
+- `scripts/loop_live.py` runs the mini set (A B C F W H E M) or wider letters
+  (G I J K O P Q R S) locally, deployed, or both side by side.
 - `scripts/measure_command_cold_start.py` starts a command container.
 - `scripts/doctor.py` diagnoses a local install. `scripts/smoke_test.py`,
   `stage3_live.py`, `v1_live.py` are earlier-stage runners.

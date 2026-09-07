@@ -529,26 +529,29 @@ async def self_test(include_model: bool = False, include_credit: bool = False) -
     min_containers=0,
     max_containers=1,
     scaledown_window=2,
-    # Every scenario is a turn of up to 300 s; the after-deploy three and a
-    # handful of letters fit well inside this.
+    # The mini set is eight scenarios of well under a minute each; the wider
+    # letters a few minutes. Half an hour holds either.
     timeout=1800,
     include_source=False,
 )
-async def scenarios(letters: str = "ABG") -> tuple[str, int]:
+async def scenarios(letters: str = "ABCFWHEM") -> tuple[str, int, list[dict]]:
     """Run `scripts/loop_live.py`'s scenarios here, in the worker's own environment.
 
     The same image, secrets, Volume and command runner the worker has, so what
     passes here is what passes for a person — the local run answers a different
     question (the human's point, 2026-09-04). A probe user's workspace on the
     Volume, the deployed telemetry with ids of this invocation's own. Returns
-    the printed report and the number of failed checks. Every turn wakes the
-    GPU: a product-runtime worker, permission each time.
+    the printed report, the number of failed checks and one row per scenario
+    for the side-by-side table. Every turn is a paid model call: a
+    product-runtime worker, permission each time.
     """
 
     import contextlib
     import io
     import uuid
+    from dataclasses import asdict
 
+    from app.agent.interjections import MemoryInterjections
     from app.agent.runtime import create_agent
     from app.agent.stop import MemoryStopRequests
     from app.config import AgentSettings
@@ -560,6 +563,7 @@ async def scenarios(letters: str = "ABG") -> tuple[str, int]:
     agent_settings = AgentSettings()
     telemetry = open_telemetry(agent_settings)
     stops = MemoryStopRequests()
+    lane = MemoryInterjections()
 
     def factory():
         return create_agent(
@@ -568,6 +572,7 @@ async def scenarios(letters: str = "ABG") -> tuple[str, int]:
             delivery=DELIVERY,
             telemetry=telemetry,
             stops=stops,
+            interjections=lane,
             runner=ModalRunner(),
         )
 
@@ -575,7 +580,7 @@ async def scenarios(letters: str = "ABG") -> tuple[str, int]:
     await workspaces.reload.aio()
     try:
         with contextlib.redirect_stdout(out):
-            failed = await run_scenarios(
+            failed, rows = await run_scenarios(
                 frozenset(letters.upper()),
                 factory(),
                 telemetry,
@@ -584,7 +589,7 @@ async def scenarios(letters: str = "ABG") -> tuple[str, int]:
             )
     finally:
         await workspaces.commit.aio()
-    return out.getvalue(), failed
+    return out.getvalue(), failed, [asdict(row) for row in rows]
 
 
 @app.function(

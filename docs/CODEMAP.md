@@ -77,7 +77,7 @@ are not reachable by following imports from `app/`.
 | Migrate the deployed database | `tools/setup_control_plane.py` | `setup_control_plane` |
 | Telegram webhook / bot profile | `tools/telegram_webhook.py`, `tools/telegram_profile.py` | `setWebhook`, `--delete`, `--publish` |
 | Work journals | `tools/work_log.py` | `reports/agent_tasks.jsonl`, `reports/ml_work.jsonl` |
-| Run the live scenarios | `scripts/loop_live.py` | scenarios A–K, O–S, `--after-deploy`, `--deployed`, `run_scenarios`, `Turn` |
+| Run the live scenarios | `scripts/loop_live.py` | `MINI` (A B C F W H E M), `WIDER`, `--deployed`, `--both`, `side_by_side`, `run_scenarios`, `Turn`, `tests/test_loop_live_set.py` |
 | Compare prompts on fixed scenarios | `tools/prompt_scenarios.py` | `SCENARIOS`, `--dry-run`, `--goal off`, `--prompt-file` |
 | Render a stored conversation as a page | `tools/showcase.py` | `render_thread`, read-only |
 | Measure a GPU App: wake, engine baseline, command cold start | `scripts/measure_endpoint_wake.py`, `tools/vllm_baseline.py`, `scripts/measure_command_cold_start.py` | each starts a container: permission |
