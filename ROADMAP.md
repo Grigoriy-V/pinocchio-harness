@@ -186,8 +186,9 @@ Recorded, not approved, not begun. One line each.
   conversation's queue during a tool and answer with a side model call —
   the model answers, never a harness-written status — carrying the turn so
   far and what the harness knows of the running tool (which, how long), with
-  no tools of its own; the message still reaches the turn at the step
-  boundary as now. Not a second worker: it would
+  no tools of its own — and sent to the person at once, while the render
+  or other long tool is still running, not after it; the message still
+  reaches the turn at the step boundary as now. Not a second worker: it would
   need the first one's state.
 - **Sound routed by the configuration, and transcribed.** The model does not
   declare what it hears; audio is admitted and sent regardless, and GLM
