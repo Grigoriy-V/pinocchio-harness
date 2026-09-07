@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pytest
 
-from app.agent.graph import TurnBudget, build_agent
+from app.agent.graph import build_agent
 from app.agent.stopping import Candidate
 from app.agent.todo import INSTRUCTION, FinishesItsOwnList
 from app.memory import LOCAL_USER_ID, SqliteStore
@@ -311,7 +311,7 @@ async def test_a_model_that_will_not_carry_on_is_asked_only_once(
         says("I stopped here."),
         says("I really stopped here."),
     )
-    agent = loop(backend, store, workspace, budget=TurnBudget(max_steps=9))
+    agent = loop(backend, store, workspace)
 
     result = await agent.ainvoke(ask("do the big thing"))
 

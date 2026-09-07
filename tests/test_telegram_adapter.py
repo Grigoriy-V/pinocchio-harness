@@ -1052,19 +1052,15 @@ async def test_a_fold_during_a_turn_is_announced(
     """Asked for by the human, 2026-09-03: a person should hear that older
     conversation was folded, and how much, without reading a trace."""
 
-    backend = ScriptedBackend(default=says("a summary of what was said"))
-    adapter = build(telegram, settings, tmp_path, backend, policy=ContextPolicy(summarize_after=16))
-    for index in range(8):
+    backend = ScriptedBackend(default=says("a summary of what was said", input_tokens=9_000), limit=10_000)
+    adapter = build(telegram, settings, tmp_path, backend, policy=ContextPolicy(keep_turns=2))
+    for index in range(4):
         await adapter.handle_update(text_update(f"message {index}", update_id=index + 1))
-    assert not any(text.startswith("Folded") for text in telegram.sent)
 
-    await adapter.handle_update(text_update("message 8", update_id=9))
-
-    assert telegram.sent[-1] == (
-        "Folded 14 older messages into the summary, because this conversation grew past "
-        "its size; the last 2 exchanges stay verbatim, and the exact words stay reachable "
-        "with search_history."
-    )
+    notice = telegram.sent[-1]
+    assert notice.startswith("Folded ") and "older messages into the summary" in notice
+    assert "because this conversation grew past its size" in notice
+    assert "the last 2 exchanges stay verbatim" in notice and "search_history" in notice
     assert telegram.sent[-2].startswith("a summary of what was sa"), "the answer comes first"
 
 

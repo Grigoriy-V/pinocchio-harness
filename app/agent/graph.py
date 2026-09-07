@@ -29,6 +29,7 @@ from app.agent.stopping import (
     STOP_ON_ANSWER,
     Candidate,
     Steered,
+    Steering,
     TurnStopping,
     steering_message,
 )
@@ -90,40 +91,41 @@ def extend(current: list[Message], incoming: list[Message]) -> list[Message]:
 
 
 @dataclass(frozen=True)
-class TurnBudget:
-    """What one turn may spend before it has to stop and say so.
+class TurnWatch:
+    """How long a turn works before it is asked whether it is still on track.
 
-    The loop's only other bound is LangGraph's recursion limit, which is a
-    guard against a graph that cannot terminate rather than a ceiling on what
-    an autonomous turn costs. This is the ceiling: a model that keeps finding
-    one more thing to check spends a GPU at roughly $0.0003 a second, and
-    nothing else stands between it and the bill.
+    A turn has no ceiling on steps, tool calls or seconds (the human,
+    2026-09-07): a ceiling ends work that is going well, and with a hosted
+    model there is no bill it protects. What bounds a turn instead is health.
+    After `check_seconds` of work, and again after each further interval, the
+    tools' results are followed by one question from the harness, framed as
+    turn control: is the work progressing and what is left. The model's next
+    completion is the answer, and the decision stays the model's: a tool call
+    or text continues, an answer ends the turn as it always did. A model that
+    does not answer at all is a model call that timed out, which fails the
+    turn with a message the way any timed-out call does.
 
     Time is accumulated by the nodes rather than measured from the turn's
     start, so a turn that waited an hour for someone to approve a call is not
-    over budget the moment they answer.
+    asked the moment they answer. Zero asks never.
 
-    Every limit bounds the *work*: when one is crossed no further tool runs,
-    and the model is asked once more, without tools, for the answer the person
-    is owed. So a ceiling of N steps costs at most N + 1 model calls.
+    The loop's other bound is LangGraph's recursion limit, raised well above
+    any real turn in `Agent`: a guard against a graph that cannot terminate,
+    not a ceiling.
     """
 
-    max_steps: int = 12
-    max_tool_calls: int = 24
-    max_seconds: float = 300.0
+    check_seconds: float = 600.0
 
     def __post_init__(self) -> None:
-        if self.max_steps < 1:
-            raise ValueError("max_steps must be at least 1")
-        if self.max_tool_calls < 0:
-            raise ValueError("max_tool_calls cannot be negative")
-        if self.max_seconds <= 0:
-            raise ValueError("max_seconds must be positive")
+        if self.check_seconds < 0:
+            raise ValueError("check_seconds cannot be negative")
+
+    def due(self, spent_seconds: float, checked_seconds: float) -> bool:
+        return self.check_seconds > 0 and spent_seconds - checked_seconds >= self.check_seconds
 
 
 # Why a turn stopped short of the model deciding it was finished. Empty is the
 # ordinary case: nothing stopped it.
-BUDGET_EXHAUSTED = "budget"
 STOP_REQUESTED = "stopped"
 REPEATED_FAILURE = "repeated"
 
@@ -145,7 +147,7 @@ MAX_IDENTICAL_SUCCESSES = 2
 # The states in which the turn is already finishing: the model gets one last
 # request, without tools, for the answer the person is owed, and nothing asks an
 # extension whether it may spend more.
-ENDING = frozenset({BUDGET_EXHAUSTED, REPEATED_FAILURE})
+ENDING = frozenset({REPEATED_FAILURE})
 
 
 @dataclass
@@ -183,6 +185,8 @@ class AgentState:
     stopping: str = ""
     steered: Steered | None = None
     steerings: int = 0
+    # The spend at which the turn was last asked whether it is on track.
+    checked_seconds: float = 0.0
 
 
 def assistant_message(completion: Completion) -> Message:
@@ -354,10 +358,6 @@ def halted(call: ToolCall, reason: str) -> Message:
     return refusal_message(call, ToolFailure(code=NOT_RUN, message=reason))
 
 
-BUDGET_REASON = (
-    "this turn has reached the limit of what it may spend; no further tools "
-    "will run, so answer now with what you already have"
-)
 STOP_REASON = "the user asked to stop; this call was not run"
 DONE_REASON = (
     "this exact call has already succeeded twice in this turn with these same "
@@ -370,17 +370,29 @@ REPEAT_REASON = (
     "and answer with what you have"
 )
 # What the person is told when the model spent its last request asking for one
-# more tool rather than answering. Two ways to reach it, and they are not the
-# same news: one turn ran out of what it may spend, the other kept making a call
-# that kept failing. Saying which is the difference between "try again" and
-# "this will fail again the same way".
-BUDGET_ANSWER = (
-    "I stopped here: this turn reached the limit of what it is allowed to spend."
-)
+# more tool rather than answering, after the same call kept failing.
 REPEAT_ANSWER = (
     "I stopped here: the same call kept failing in the same way, so trying it "
     "again would not have helped."
 )
+
+
+# The harness's one question to a long turn (`TurnWatch`). Literal: a
+# condition and an action, no figure of speech, because a cheap model reads
+# imagery as permission (the human's rule, 2026-09-07).
+HEALTH_QUESTION = (
+    "This turn has been working for {minutes} minutes. In one line, say whether "
+    "you are making progress and what is left. Then continue with the next "
+    "step, or finish and answer."
+)
+HEALTH_SOURCE = "watch"
+
+
+def health_question(spent_seconds: float) -> Steering:
+    return Steering(
+        instruction=HEALTH_QUESTION.format(minutes=max(1, round(spent_seconds / 60))),
+        source=HEALTH_SOURCE,
+    )
 
 
 def stopped_message() -> Message:
@@ -457,7 +469,7 @@ def build_agent(
     checkpointer: BaseCheckpointSaver | None = None,
     stream_answers: bool = True,
     telemetry: Telemetry | None = None,
-    budget: TurnBudget | None = None,
+    watch: TurnWatch | None = None,
     stops: StopRequests = NO_STOPS,
     stopping: TurnStopping = STOP_ON_ANSWER,
     instructions: Callable[[], str] | None = None,
@@ -465,9 +477,9 @@ def build_agent(
     """Compile the graph. This is the loop, and there is only one of it.
 
     A turn ends in one of four ways: the model answers without asking for a
-    tool, the person asks it to stop, it reaches its budget, or the request
-    cannot be made to fit. The first is the ordinary one; the other three are
-    the reason this loop is allowed to be autonomous.
+    tool, the person asks it to stop, the same call keeps failing, or the
+    request cannot be made to fit. The first is the ordinary one. A long turn
+    is not ended by the harness; it is asked how it is doing (`watch`).
 
     With a `checkpointer`, a turn that stops to ask a question — or dies — can be
     resumed from where it stopped. Without one the graph still runs; it just
@@ -489,7 +501,7 @@ def build_agent(
     """
 
     policy = policy or ContextPolicy()
-    limits = budget or TurnBudget()
+    limits = watch or TurnWatch()
     schemas = toolbox.schemas() or None
     # The schemas are rendered into the request by the server's chat template
     # and are part of what it counts; estimated once, since a toolbox does not
@@ -598,11 +610,9 @@ def build_agent(
             spent_ms=int(state.spent_seconds * 1000),
             stopping=state.stopping or None,
         )
-        # A turn that has spent its budget still gets to answer, and is offered
-        # no tools while it does: the alternative is to keep asking a model that
-        # keeps calling tools whether it would like to stop now. A turn ended by
-        # a repeating call is in exactly the same position: what it must not be
-        # able to do is try that call once more.
+        # A turn ended by a repeating call still gets to answer, and is offered
+        # no tools while it does: what it must not be able to do is try that
+        # call once more.
         offered = None if state.stopping in ENDING else schemas
 
         def produced(completion: Completion) -> Message | None:
@@ -624,14 +634,9 @@ def build_agent(
                 if not message.content:
                     # It asked for another tool instead of answering. Saying so
                     # is better than an empty bubble, and better than a lie.
-                    ended = (
-                        REPEAT_ANSWER
-                        if state.stopping == REPEATED_FAILURE
-                        else BUDGET_ANSWER
-                    )
                     return Message(
                         role="assistant",
-                        content=[ContentPart(kind="text", text=ended)],
+                        content=[ContentPart(kind="text", text=REPEAT_ANSWER)],
                     )
                 return Message(role="assistant", content=message.content)
             return message
@@ -690,11 +695,10 @@ def build_agent(
 
         if state.steered is None:
             return list(state.messages)
-        return [
-            *state.messages,
-            state.steered.candidate,
-            steering_message(state.steered.steering),
-        ]
+        # A health check has no candidate: the question follows the tool
+        # results that are already in `messages`.
+        candidate = [state.steered.candidate] if state.steered.candidate is not None else []
+        return [*state.messages, *candidate, steering_message(state.steered.steering)]
 
     async def settled(
         state: AgentState,
@@ -716,18 +720,15 @@ def build_agent(
         at all — the one arrangement in which a caller most plainly wired an
         extension on purpose.
 
-        This is also where the step just taken is priced. The elapsed time of
-        this very model call is added before the budget is asked whether
-        another step fits, so a request that took the turn past its seconds
-        cannot be steered into one more, and the spend an extension is shown is
-        the spend that has actually happened.
+        This is also where the step just taken is priced, so the spend an
+        extension is shown is the spend that has actually happened.
         """
 
         # The whole node, including a recovery attempt, is what this call cost.
         spent = state.spent_seconds + (time.monotonic() - started)
         keep = {"context": context, "usage": completion.usage, "spent_seconds": spent}
         if message is None:
-            if state.steered is not None:
+            if state.steered is not None and state.steered.candidate is not None:
                 # The model did what the steering asked and had nothing new
                 # to say. The answer it already wrote is the answer: the draft
                 # was refused as an ending, never as text, and asking for it
@@ -743,14 +744,8 @@ def build_agent(
             # The turn ends here with no further message.
             trace.event("nothing_to_add", step=state.steps + 1)
             return {**keep, "messages": []}
-        # `state.steps` has not been incremented yet, so the question asked of
-        # the budget is whether the turn could afford the step *after* this one.
         priced = replace(state, steps=state.steps + 1, spent_seconds=spent)
-        if (
-            message.tool_calls
-            or state.stopping in ENDING
-            or exceeded(priced, 0)
-        ):
+        if message.tool_calls or state.stopping in ENDING:
             return {**keep, "messages": [message]}
         try:
             steering = await stopping.stopping(
@@ -859,21 +854,6 @@ def build_agent(
         except Exception:  # noqa: BLE001 - a stop that cannot be read is not a stop
             return False
 
-    def delivers(call: ToolCall) -> bool:
-        tool = toolbox.get(toolbox.resolve(call.name) or call.name)
-        return tool is not None and tool.delivers
-
-    def exceeded(state: AgentState, incoming: int) -> str:
-        """Which limit the next batch of tools would cross, if any."""
-
-        if state.steps >= limits.max_steps:
-            return "steps"
-        if state.tool_calls + incoming > limits.max_tool_calls:
-            return "tool_calls"
-        if state.spent_seconds >= limits.max_seconds:
-            return "seconds"
-        return ""
-
     async def run_tools(
         state: AgentState, config: RunnableConfig
     ) -> dict[str, Any]:
@@ -881,10 +861,9 @@ def build_agent(
         trace = trace_of(config)
         calls = state.messages[-1].tool_calls
 
-        # Both checks happen before anything runs, and before anyone is asked to
-        # approve anything: a person who has already said stop should not then
-        # be shown a consent question, and a turn out of budget should not spend
-        # its last seconds waiting for an answer to one.
+        # Asked before anything runs, and before anyone is asked to approve
+        # anything: a person who has already said stop should not then be
+        # shown a consent question.
         if await asked_to_stop(state):
             trace.event("turn_stopped", step=state.steps, tool_calls=state.tool_calls)
             return {
@@ -918,11 +897,8 @@ def build_agent(
                 "stopping": REPEATED_FAILURE,
             }
         # A call that keeps succeeding identically is not work either. It is
-        # answered without running and the turn goes on — not a budget, not
-        # an ending, one refused call (ISS-0019).
-        # Judged against the whole batch, so a ceiling the batch crosses is
-        # still the ceiling; the refused repeats are then simply not run.
-        limit = exceeded(state, len(calls))
+        # answered without running and the turn goes on: not an ending, one
+        # refused call (ISS-0019).
         changing = [name for name in toolbox.names if getattr(toolbox.get(name), "mutates", False)]
         done_again = [
             call
@@ -937,31 +913,6 @@ def build_agent(
                 step=state.steps,
             )
             calls = [call for call in calls if call not in done_again]
-        stopping: dict[str, Any] = {}
-        if limit:
-            trace.event(
-                "turn_budget_exhausted",
-                limit=limit,
-                step=state.steps,
-                tool_calls=state.tool_calls,
-                spent_ms=int(state.spent_seconds * 1000),
-            )
-            stopping = {"stopping": BUDGET_EXHAUSTED}
-            # A delivery still goes: it is what the person is owed, it costs no
-            # model time, and refusing it left a finished piece of work in the
-            # workspace on 2026-09-03 (run `9c42241c`) with a sentence saying so.
-            halted_calls = [call for call in calls if not delivers(call)]
-            calls = [call for call in calls if delivers(call)]
-            if not calls:
-                return {
-                    "messages": [
-                        *(halted(call, BUDGET_REASON) for call in halted_calls),
-                        *(halted(call, DONE_REASON) for call in done_again),
-                    ],
-                    **stopping,
-                }
-        else:
-            halted_calls = []
 
         executor = ToolExecutor(toolbox, trace)
         prepared = [executor.pre_execute(call) for call in calls]
@@ -1000,14 +951,25 @@ def build_agent(
             result = await executor.run(item)
             spent += 1
             messages.append(result)
-        messages.extend(halted(call, BUDGET_REASON) for call in halted_calls)
         messages.extend(halted(call, DONE_REASON) for call in done_again)
-        return {
+        spent_seconds = state.spent_seconds + (time.monotonic() - started)
+        patch: dict[str, Any] = {
             "messages": messages,
             "tool_calls": state.tool_calls + spent,
-            "spent_seconds": state.spent_seconds + (time.monotonic() - started),
-            **stopping,
+            "spent_seconds": spent_seconds,
         }
+        if limits.due(spent_seconds, state.checked_seconds):
+            # The harness's question rides after these results as turn
+            # control; the model's next completion answers it and decides.
+            trace.event(
+                "turn_health_check",
+                step=state.steps,
+                tool_calls=state.tool_calls + spent,
+                spent_ms=int(spent_seconds * 1000),
+            )
+            patch["steered"] = Steered(candidate=None, steering=health_question(spent_seconds))
+            patch["checked_seconds"] = spent_seconds
+        return patch
 
     async def persist(state: AgentState, config: RunnableConfig) -> None:
         trace = trace_of(config)

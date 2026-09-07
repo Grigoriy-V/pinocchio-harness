@@ -198,22 +198,23 @@ def test_the_loop_s_steps_are_what_a_long_turn_is_read_by() -> None:
     assert "1 tool call(s) so far" in section
 
 
-def test_a_turn_that_hit_its_ceiling_says_so_where_its_steps_are() -> None:
+def test_a_turn_that_was_asked_how_it_was_doing_says_so_where_its_steps_are() -> None:
     trace = [
         event(1, "turn_started", "2026-08-29T10:00:00.000+00:00"),
         event(2, "loop_step", "2026-08-29T10:00:00.100+00:00", step=1, tool_calls=0, spent_ms=0),
         event(
             3,
-            "turn_budget_exhausted",
-            "2026-08-29T10:00:09.000+00:00",
-            limit="tool_calls",
-            step=1,
+            "turn_health_check",
+            "2026-08-29T10:10:09.000+00:00",
+            step=7,
+            tool_calls=9,
+            spent_ms=609_000,
         ),
     ]
 
     text = render_run(finished_run(), trace)
 
-    assert "reached its tool_calls limit" in text
+    assert "asked whether it was on track after" in text
 
 
 def test_a_turn_the_person_stopped_says_that_instead() -> None:

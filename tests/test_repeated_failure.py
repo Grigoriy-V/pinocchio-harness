@@ -19,7 +19,6 @@ import pytest
 from app.agent.graph import (
     MAX_IDENTICAL_FAILURES,
     REPEATED_FAILURE,
-    TurnBudget,
     build_agent,
     failed_before,
 )
@@ -233,7 +232,7 @@ async def test_a_call_that_works_once_its_file_exists_is_run(
         says("It says: here now."),
     )
     agent = build_agent(
-        backend, Toolbox(filesystem_tools(workspace)), store, OWNER, budget=TurnBudget(max_steps=12)
+        backend, Toolbox(filesystem_tools(workspace)), store, OWNER
     )
 
     result = await agent.ainvoke(ask("read late.txt"))
@@ -255,7 +254,6 @@ async def test_a_call_that_keeps_failing_ends_the_turn_instead_of_the_person(
         Toolbox(filesystem_tools(workspace)),
         store,
         OWNER,
-        budget=TurnBudget(max_steps=12),
     )
 
     result = await agent.ainvoke(ask("make a page"))

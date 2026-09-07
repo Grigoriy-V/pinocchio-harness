@@ -1,10 +1,9 @@
-"""What bounds one turn of the loop: its budget, and the person.
+"""What bounds one turn of the loop: its health, and the person.
 
 The loop's only ordinary exit is the model answering without asking for a tool.
-These are the other two, and they are the reason the loop is allowed to run
-without a second lifecycle beside it: a turn that will not stop by itself is
-stopped by its budget, and a turn the person no longer wants is stopped by
-them.
+Since 2026-09-07 there is no ceiling on steps, calls or seconds: a long turn
+is asked whether it is on track and decides for itself, and a turn the person
+no longer wants is stopped by them.
 """
 
 from __future__ import annotations
@@ -13,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from app.agent.graph import TurnBudget, build_agent
+from app.agent.graph import HEALTH_QUESTION, TurnWatch, build_agent
 from app.agent.stop import NO_STOPS, MemoryStopRequests
 from app.memory import LOCAL_USER_ID, SqliteStore
 from app.models import Completion, ContentPart, Message, ToolCall
@@ -30,15 +29,17 @@ def store() -> SqliteStore:
 
 
 def ping(recorded: list[str] | None = None) -> Tool:
-    def run() -> str:
+    def run(n: int = 0) -> str:
         if recorded is not None:
             recorded.append("ran")
         return "pong"
 
+    # `n` lets a script ask for a different ping each time, so the identical-
+    # success guard (ISS-0019) is not what ends the turn.
     return Tool(
         name="ping",
         description="answer",
-        parameters={"type": "object", "properties": {}},
+        parameters={"type": "object", "properties": {"n": {"type": "integer"}}},
         run=run,
     )
 
@@ -47,7 +48,7 @@ def loop(
     backend: ScriptedBackend,
     store: SqliteStore,
     tools: list[Tool] | None = None,
-    budget: TurnBudget | None = None,
+    watch: TurnWatch | None = None,
     stops=NO_STOPS,
 ):
     return build_agent(
@@ -55,7 +56,7 @@ def loop(
         Toolbox(tools if tools is not None else [ping()]),
         store,
         OWNER,
-        budget=budget,
+        watch=watch,
         stops=stops,
     )
 
@@ -71,157 +72,121 @@ def spoken(message: Message) -> str:
     return " ".join(part.text or "" for part in message.content)
 
 
-# --- the budget --------------------------------------------------------------
+# --- the watch ---------------------------------------------------------------
 
 
-async def test_a_model_that_never_stops_calling_tools_is_stopped(
-    store: SqliteStore,
-) -> None:
-    """Without this the only ceiling is LangGraph's recursion limit.
+class Clock:
+    """A monotonic clock that moves a fixed amount every time it is read."""
 
-    Which is a guard against a graph that cannot terminate, not a statement
-    about what a person's question is allowed to cost.
-    """
+    def __init__(self, step: float) -> None:
+        self.now = 0.0
+        self.step = step
 
-    ran: list[str] = []
-    backend = ScriptedBackend(default=calls("ping"))
-    agent = loop(backend, store, [ping(ran)], TurnBudget(max_steps=3))
-
-    result = await agent.ainvoke(ask())
-
-    assert result.get("stopping", "") == "budget"
-    assert len(ran) == 2, "the third step was the one that was refused"
-    # Four model calls for a ceiling of three steps: the ceiling bounds the
-    # work, and the answer the person is owed is always allowed after it.
-    assert result["steps"] == 4
+    def monotonic(self) -> float:
+        value = self.now
+        self.now += self.step
+        return value
 
 
-async def test_the_turn_still_answers_after_its_budget_is_spent(
-    store: SqliteStore,
-) -> None:
-    """A turn that hit its ceiling owes the person a sentence, not silence."""
+def freeze(monkeypatch: pytest.MonkeyPatch, step: float) -> Clock:
+    from types import SimpleNamespace
 
-    backend = ScriptedBackend(
-        calls("ping"), calls("ping"), says("I ran out of room, but here it is.")
-    )
-    agent = loop(backend, store, budget=TurnBudget(max_steps=2))
-
-    result = await agent.ainvoke(ask())
-
-    last = result["messages"][-1]
-    assert last.role == "assistant"
-    assert spoken(last) == "I ran out of room, but here it is."
-    # The refused call came back as a tool result, so the model could see why.
-    refused = [message for message in result["messages"] if message.role == "tool"]
-    assert "answer now" in spoken(refused[-1])
+    clock = Clock(step)
+    monkeypatch.setattr("app.agent.graph.time", SimpleNamespace(monotonic=clock.monotonic))
+    return clock
 
 
-async def test_a_delivery_still_runs_when_the_budget_is_spent(
-    store: SqliteStore,
-) -> None:
-    """Run `9c42241c`, 2026-09-03: the twelfth step was the `send_file` of the
-    finished work, refused with "answer now", and the person got a sentence
-    about files they never received. A delivery costs no model time."""
+def asked(request: list[Message]) -> bool:
+    last = request[-1]
+    return last.role == "user" and HEALTH_QUESTION[:30] in spoken(last)
+
+
+async def test_a_working_turn_is_never_ended_by_a_count(store: SqliteStore) -> None:
+    """Thirty tool steps, no ceiling: the loop ends when the model does."""
 
     ran: list[str] = []
-    handed: list[str] = []
+    backend = ScriptedBackend(*[calls("ping", n=index) for index in range(30)], says("done"))
+    agent = loop(backend, store, [ping(ran)])
 
-    def hand(path: str) -> str:
-        handed.append(path)
-        return f"sent {path}"
+    result = await agent.ainvoke(ask(), config={"recursion_limit": 1000})
 
-    deliver = Tool(
-        name="send_file",
-        description="hand over",
-        parameters={"type": "object", "properties": {"path": {"type": "string"}}},
-        run=hand,
-        delivers=True,
-    )
-    backend = ScriptedBackend(
-        calls("ping"),
-        Completion(
-            text="",
-            tool_calls=(
-                ToolCall(id="c1", name="send_file", arguments={"path": "a.html"}),
-                ToolCall(id="c2", name="ping", arguments={}),
-            ),
-            finish_reason="tool_calls",
-        ),
-        says("Here it is."),
-    )
-    agent = loop(backend, store, [ping(ran), deliver], TurnBudget(max_steps=2))
-
-    result = await agent.ainvoke(ask())
-
-    assert handed == ["a.html"]
-    assert len(ran) == 1, "the work was refused, the delivery was not"
-    assert result.get("stopping") == "budget"
-    results = {m.tool_call_id: spoken(m) for m in result["messages"] if m.role == "tool"}
-    assert results["c1"] == "sent a.html"
-    assert "answer now" in results["c2"]
-    assert backend.tools_seen[-1] is None
+    assert len(ran) == 30
+    assert result.get("stopping", "") == ""
+    assert spoken(result["messages"][-1]) == "done"
+    assert not any(asked(request) for request in backend.requests)
 
 
-async def test_the_last_request_of_a_spent_turn_is_offered_no_tools(
-    store: SqliteStore,
+async def test_a_long_turn_is_asked_whether_it_is_on_track(
+    store: SqliteStore, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Otherwise the answer is another tool call, and the ceiling is a loop."""
+    """Each node reads the clock twice, so a step is 3 s of model and 3 s of
+    tools; with a 10 s interval the question follows the second and the fourth
+    batch of results, not every one."""
 
-    backend = ScriptedBackend(default=calls("ping"))
-    agent = loop(backend, store, budget=TurnBudget(max_steps=2))
-
-    result = await agent.ainvoke(ask())
-
-    assert backend.tools_seen[-1] is None
-    # A model offered no tools may still ask for one; what must never be stored
-    # is an assistant message whose calls have no results.
-    assert not result["messages"][-1].tool_calls
-
-
-async def test_the_tool_ceiling_counts_calls_and_not_steps(store: SqliteStore) -> None:
-    ran: list[str] = []
-    backend = ScriptedBackend(default=calls("ping"))
-    agent = loop(
-        backend, store, [ping(ran)], TurnBudget(max_steps=99, max_tool_calls=2)
-    )
+    freeze(monkeypatch, step=3.0)
+    backend = ScriptedBackend(*[calls("ping", n=index) for index in range(4)], says("done"))
+    agent = loop(backend, store, watch=TurnWatch(check_seconds=10.0))
 
     result = await agent.ainvoke(ask())
 
-    assert result.get("stopping", "") == "budget"
-    assert len(ran) == 2
+    assert [asked(request) for request in backend.requests] == [False, False, True, False, True]
+    assert result.get("checked_seconds", 0.0) >= 20.0
+    # The question is turn control, not conversation: nothing of it is stored.
+    assert not any(asked([message]) for message in result["messages"])
+    assert spoken(result["messages"][-1]) == "done"
 
 
-class Restless(ScriptedBackend):
-    """Asks for a different ping every time, so nothing but time stops it."""
-
-    async def invoke(self, messages, tools=None, response_format=None):
-        self.default = calls("ping", n=len(self.requests))
-        return await super().invoke(messages, tools, response_format)
-
-
-async def test_a_turn_that_spent_its_seconds_stops(store: SqliteStore) -> None:
-    backend = Restless(default=calls("ping"))
-    agent = loop(
-        backend, store, budget=TurnBudget(max_steps=99, max_seconds=0.000_001)
-    )
-
-    result = await agent.ainvoke(ask())
-
-    assert result.get("stopping", "") == "budget"
-
-
-async def test_an_ordinary_turn_spends_none_of_its_budget_on_the_next_one(
-    store: SqliteStore,
+async def test_the_question_names_the_minutes(
+    store: SqliteStore, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The counters are reset per turn, or the second one starts exhausted."""
+    freeze(monkeypatch, step=90.0)
+    backend = ScriptedBackend(calls("ping"), says("done"))
+    agent = loop(backend, store, watch=TurnWatch(check_seconds=60.0))
+
+    await agent.ainvoke(ask())
+
+    question = spoken(backend.requests[-1][-1])
+    assert "Turn control (not from the user)" in question
+    assert "working for 3 minutes" in question
+
+
+async def test_the_model_may_answer_the_question_by_stopping(
+    store: SqliteStore, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The decision is the model's: text after the question ends the turn."""
+
+    freeze(monkeypatch, step=30.0)
+    backend = ScriptedBackend(calls("ping"), says("Half done; I will stop here."))
+    agent = loop(backend, store, watch=TurnWatch(check_seconds=1.0))
+
+    result = await agent.ainvoke(ask())
+
+    assert asked(backend.requests[-1])
+    assert spoken(result["messages"][-1]) == "Half done; I will stop here."
+    assert result.get("steered") is None
+
+
+async def test_zero_asks_never(store: SqliteStore, monkeypatch: pytest.MonkeyPatch) -> None:
+    freeze(monkeypatch, step=1000.0)
+    backend = ScriptedBackend(calls("ping"), calls("ping", n=2), says("done"))
+    agent = loop(backend, store, watch=TurnWatch(check_seconds=0.0))
+
+    await agent.ainvoke(ask())
+
+    assert not any(asked(request) for request in backend.requests)
+
+
+async def test_an_ordinary_turn_starts_the_next_one_fresh(store: SqliteStore) -> None:
+    """The counters are reset per turn, or the second one starts already asked."""
 
     backend = ScriptedBackend(default=says("done"))
-    agent = loop(backend, store, budget=TurnBudget(max_steps=2))
+    agent = loop(backend, store)
 
     first = await agent.ainvoke(ask("one"))
     second = await agent.ainvoke(ask("two"))
 
     assert first["steps"] == second["steps"] == 1
+    assert second.get("checked_seconds", 0.0) == 0.0
     assert second.get("stopping", "") == ""
 
 

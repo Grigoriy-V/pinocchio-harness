@@ -24,7 +24,7 @@ are not reachable by following imports from `app/`.
 | Change a secret's name or what is published | `env.example`, `tools/sync_control_secret.py` | `ALLOWED`, `MODEL_SET` |
 | Choose or add a model set | `config.toml` `[model.sets.<name>]`, `app/config.py` | `ModelChoice`, `chosen_model`, `_env_prefix`, `ModelBudget`, `providers`, `tests/test_model_settings_chat_template.py` |
 | Change the agent loop | `app/agent/graph.py` | `build_agent`, `AgentState`, `interrupt`, `tests/test_agent_graph.py` |
-| Change what one turn may spend | `app/agent/graph.py` | `TurnBudget`, `exceeded`, `BUDGET_EXHAUSTED`, `tests/test_turn_bounds.py` |
+| Change when a long turn is asked how it is doing | `app/agent/graph.py` | `TurnWatch`, `HEALTH_QUESTION`, `health_question`, `checked_seconds`, `turn_health_check`, `tests/test_turn_bounds.py` |
 | Change the repeat guards | `app/agent/graph.py` | `failed_before`, `succeeded_before`, `MAX_IDENTICAL_FAILURES`, `MAX_IDENTICAL_SUCCESSES`, `tests/test_repeated_failure.py` |
 | Change what an empty or cut completion does | `app/agent/graph.py` | `silent_cut`, `nothing_to_add`, `output_cut_silent`, `finish_reason` |
 | Change how a running turn is stopped | `app/agent/stop.py` | `StopRequests`, `MemoryStopRequests`, `PostgresStopRequests`, `asked_to_stop` |
@@ -40,7 +40,7 @@ are not reachable by following imports from `app/`.
 | Change prompt layer order / the surface | `app/context/window.py` | `build_prelude`, `facts_layer`, `Context.surface`, `shortened`, `within_media_budget`, `ContextPolicy` |
 | Change the person's context size | `app/context/choice.py`, `app/agent/runtime.py` | `CONTEXT_CHOICE`, `context_choice`, `Agent.budget`, `Agent.context_report`, `Agent.compact` |
 | Read/write standing instructions | `app/instructions.py` | `AGENTS.md`, `read_instructions`, `instruction_message` |
-| Change folding: when and how much | `app/context/summary.py`, `app/agent/graph.py` | `fold_older_messages`, `verbatim_floor`, `cut_for`, `summarize_after`, `keep_turns`, `fitted`, `context_folded` |
+| Change folding: when and how much | `app/context/summary.py`, `app/agent/graph.py` | `fold_older_messages`, `verbatim_floor`, `cut_for`, `keep_turns`, `fitted`, `context_folded` |
 | Estimate a request's size | `app/models/base.py`, `app/models/openai_compatible.py` | `estimate_tokens`, `measure_request`, `_calibrate` |
 | Change the store contract | `app/memory/base.py` | `ConversationStore`, `search_messages`, `active_thread` |
 | Change SQLite / PostgreSQL persistence | `app/memory/store.py`, `app/memory/postgres.py` | `SqliteStore`, `PostgresStore`, `SCHEMA_VERSION`, `_opened`, `match_query` |
@@ -145,7 +145,7 @@ run the offline suite. Useful searches:
 ```text
 rg "CapabilityRegistry|capability_brief" tests
 rg "send_file|outbound" tests
-rg "TurnBudget|StopRequests" tests
+rg "TurnWatch|StopRequests" tests
 rg "OpenAICompatibleBackend|build_messages|extra_body" tests
 rg "PostgresStore|ConversationStore" tests
 rg "TelegramWebhook|PostgresUpdateInbox" tests

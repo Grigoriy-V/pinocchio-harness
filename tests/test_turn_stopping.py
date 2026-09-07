@@ -17,7 +17,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.agent.graph import RUN_ID, TurnBudget, build_agent
+from app.agent.graph import RUN_ID, TurnWatch, build_agent
 from app.agent.runtime import Agent, AnswerWithdrawn, MessageProduced
 from app.agent.stop import MemoryStopRequests
 from app.agent.stopping import (
@@ -76,7 +76,7 @@ class Once(Never):
 
 
 class Always(Never):
-    """Never lets a turn stop. Only the turn's own budget ends it."""
+    """Never lets a turn stop. Only the recursion guard ends it."""
 
     async def stopping(self, candidate: Candidate) -> Steering | None:
         self.seen.append(candidate)
@@ -149,7 +149,7 @@ def loop(
     store: SqliteStore,
     tools: list[Tool] | None = None,
     stopping=None,
-    budget: TurnBudget | None = None,
+    watch: TurnWatch | None = None,
     stops=None,
 ):
     kwargs = {}
@@ -162,7 +162,7 @@ def loop(
         Toolbox(tools if tools is not None else [ping()]),
         store,
         OWNER,
-        budget=budget,
+        watch=watch,
         **kwargs,
     )
 
@@ -364,23 +364,6 @@ async def test_a_tool_call_is_not_a_result_that_would_end_the_turn(
     assert [candidate.text for candidate in extension.seen] == ["done"]
 
 
-async def test_a_turn_finalizing_after_its_budget_is_not_asked(
-    store: SqliteStore,
-) -> None:
-    """A turn out of budget is not asking anyone whether it may spend more."""
-
-    extension = Never()
-    backend = ScriptedBackend(default=calls("ping"))
-    agent = loop(
-        backend, store, stopping=extension, budget=TurnBudget(max_steps=1)
-    )
-
-    result = await agent.ainvoke(ask("go"))
-
-    assert result["stopping"] == "budget"
-    assert extension.seen == []
-
-
 async def test_a_turn_the_person_stopped_is_not_asked(store: SqliteStore) -> None:
     extension = Never()
     stops = MemoryStopRequests()
@@ -412,22 +395,21 @@ async def test_a_context_refusal_is_not_asked(store: SqliteStore) -> None:
 # --- the seam cannot run away with the turn ----------------------------------
 
 
-async def test_steering_cannot_outlive_the_turn_s_step_budget(
+async def test_an_extension_that_never_stops_is_stopped_by_the_recursion_guard(
     store: SqliteStore,
 ) -> None:
-    """An extension that never stops is stopped by what the turn may spend."""
+    """There is no step ceiling since 2026-09-07; an extension caps itself
+    (`FinishesItsOwnList(limit=…)`), and one that does not meets LangGraph's
+    guard, which is an error rather than a turn."""
+
+    from langgraph.errors import GraphRecursionError
 
     extension = Always()
     backend = ScriptedBackend(default=says("still going"))
-    agent = loop(
-        backend, store, stopping=extension, budget=TurnBudget(max_steps=3)
-    )
+    agent = loop(backend, store, stopping=extension)
 
-    result = await agent.ainvoke(ask("go"))
-
-    assert len(backend.requests) == 3
-    assert spoken(result["messages"][-1]) == "still going"
-    assert result.get("steered") is None
+    with pytest.raises(GraphRecursionError):
+        await agent.ainvoke(ask("go"), config={"recursion_limit": 8})
 
 
 async def test_an_extension_that_fails_does_not_fail_the_turn(
@@ -632,33 +614,6 @@ async def test_a_failing_extension_is_recorded_by_type_and_not_by_message(
     assert [event.data.get("error") for event in failed] == ["RuntimeError"]
     assert "a private draft" not in json.dumps([event.data for event in failed])
     telemetry.close()
-
-
-async def test_a_call_that_spent_the_turn_s_seconds_is_not_steered_again(
-    store: SqliteStore, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """The step just taken is priced before the budget is asked about the next.
-
-    Without this the seconds a request itself cost were invisible to the
-    decision, so a turn already over its ceiling could still be steered into
-    one more model call — which is the ceiling not existing.
-    """
-
-    freeze(monkeypatch, step=6.0)
-    extension = Always()
-    backend = ScriptedBackend(default=says("the only answer"))
-    agent = loop(
-        backend,
-        store,
-        stopping=extension,
-        budget=TurnBudget(max_seconds=5.0, max_steps=99),
-    )
-
-    result = await agent.ainvoke(ask("go"))
-
-    assert len(backend.requests) == 1
-    assert extension.seen == []
-    assert spoken(result["messages"][-1]) == "the only answer"
 
 
 async def test_the_spend_an_extension_is_shown_includes_the_call_it_judges(

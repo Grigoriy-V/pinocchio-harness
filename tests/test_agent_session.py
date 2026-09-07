@@ -171,9 +171,9 @@ async def test_a_fact_is_only_saved_when_the_model_asks_for_it(
 async def test_older_context_is_summarized_rather_than_grown(
     database: Path, workspace: Path
 ) -> None:
-    policy = ContextPolicy(keep_turns=2, summarize_after=8)
-    backend = ScriptedBackend(default=says("a summary of what came before"))
-    agent = open_agent(database, workspace, backend, policy)
+    policy = ContextPolicy(keep_turns=2)
+    backend = ScriptedBackend(default=says("a summary of what came before", input_tokens=9_000), limit=10_000)
+    agent = Agent(backend, SqliteStore(database), workspace, policy, context_fraction=0.6)
 
     for turn in range(10):
         await agent.answer("t1", user(f"turn {turn}"))
@@ -181,13 +181,14 @@ async def test_older_context_is_summarized_rather_than_grown(
     summary, through = agent.store.summary("t1")
     assert summary == "a summary of what came before"
     assert through > 0
-    assert "Summary of the earlier conversation" in prompt_text(backend.requests[-1])
+    # The last request is the fold itself; the one before it carried the summary.
+    assert any("Summary of the earlier conversation" in prompt_text(r) for r in backend.requests)
 
 
 async def test_the_full_history_is_never_sent(database: Path, workspace: Path) -> None:
-    policy = ContextPolicy(keep_turns=2, summarize_after=8)
-    backend = ScriptedBackend(default=says("ok"))
-    agent = open_agent(database, workspace, backend, policy)
+    policy = ContextPolicy(keep_turns=2)
+    backend = ScriptedBackend(default=says("ok", input_tokens=9_000), limit=10_000)
+    agent = Agent(backend, SqliteStore(database), workspace, policy, context_fraction=0.6)
 
     for turn in range(12):
         await agent.answer("t1", user(f"turn {turn}"))
@@ -198,8 +199,9 @@ async def test_the_full_history_is_never_sent(database: Path, workspace: Path) -
 
 
 async def test_folding_never_deletes_a_message(database: Path, workspace: Path) -> None:
-    policy = ContextPolicy(keep_turns=2, summarize_after=8)
-    agent = open_agent(database, workspace, ScriptedBackend(default=says("ok")), policy)
+    policy = ContextPolicy(keep_turns=2)
+    backend = ScriptedBackend(default=says("ok", input_tokens=9_000), limit=10_000)
+    agent = Agent(backend, SqliteStore(database), workspace, policy, context_fraction=0.6)
 
     for turn in range(10):
         await agent.answer("t1", user(f"turn {turn}"))
@@ -302,7 +304,7 @@ async def test_a_request_over_budget_folds_the_conversation(
 ) -> None:
     """The bound is a token bound: nothing here is long enough to fold by count."""
 
-    policy = ContextPolicy(keep_turns=1, summarize_after=100)
+    policy = ContextPolicy(keep_turns=1)
     backend = ScriptedBackend(default=says("ok", input_tokens=9_000), limit=10_000)
     agent = Agent(backend, SqliteStore(database), workspace, policy, context_fraction=0.6)
 
@@ -347,7 +349,7 @@ async def test_a_conversation_over_budget_folds_before_the_request_is_sent(
         says("an answer"),
         limit=1_000,
     )
-    policy = ContextPolicy(keep_turns=1, summarize_after=100)
+    policy = ContextPolicy(keep_turns=1)
     agent = Agent(backend, store, workspace, policy, context_fraction=0.6)
 
     produced = await agent.answer("t1", user("new question"))
@@ -378,7 +380,7 @@ async def test_context_overflow_folds_then_retries_once(
         says("recovered answer", input_tokens=40),
         limit=100_000,
     )
-    policy = ContextPolicy(keep_turns=1, summarize_after=100)
+    policy = ContextPolicy(keep_turns=1)
     agent = Agent(backend, store, workspace, policy, context_fraction=0.6)
 
     produced = await agent.answer("t1", user("new question"))
@@ -400,7 +402,7 @@ async def test_a_second_context_overflow_returns_a_clear_refusal(
         ContextOverflowError("still too large"),
         limit=100_000,
     )
-    policy = ContextPolicy(keep_turns=1, summarize_after=100)
+    policy = ContextPolicy(keep_turns=1)
     agent = Agent(backend, store, workspace, policy, context_fraction=0.6)
 
     produced = await agent.answer("t1", user("huge new question"))
@@ -436,7 +438,7 @@ async def test_overflow_while_summarizing_stops_with_a_refusal(
         ContextOverflowError("summary also overflowed"),
         limit=100_000,
     )
-    policy = ContextPolicy(keep_turns=1, summarize_after=100)
+    policy = ContextPolicy(keep_turns=1)
     agent = Agent(backend, store, workspace, policy, context_fraction=0.6)
 
     produced = await agent.answer("t1", user("new question"))
@@ -478,9 +480,9 @@ async def test_a_summarizer_that_does_not_fit_does_not_fail_a_delivered_turn(
     """ISS-0029: the answer was streamed, then the fold in `persist` raised
     and the person read "That request failed" under a complete answer."""
 
-    policy = ContextPolicy(keep_turns=2, summarize_after=8)
-    backend = _Overflowing(default=says("ok"))
-    agent = open_agent(database, workspace, backend, policy)
+    policy = ContextPolicy(keep_turns=2)
+    backend = _Overflowing(default=says("ok", input_tokens=9_000), limit=10_000)
+    agent = Agent(backend, SqliteStore(database), workspace, policy, context_fraction=0.6)
 
     answers = [await agent.answer("t1", user(f"turn {turn}")) for turn in range(6)]
 
@@ -496,7 +498,7 @@ async def test_a_fold_before_a_step_that_does_not_fit_still_answers(
     """The same guard in `fitted`: the request goes unfolded and the overflow
     path answers if it must; here it fits, so the answer is the answer."""
 
-    policy = ContextPolicy(keep_turns=1, summarize_after=100)
+    policy = ContextPolicy(keep_turns=1)
     backend = _Overflowing(default=says("ok"), limit=100)
     agent = open_agent(database, workspace, backend, policy)
 

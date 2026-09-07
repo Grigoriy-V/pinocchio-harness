@@ -280,18 +280,13 @@ def step_section(events: Sequence[TraceEvent]) -> list[str]:
             f"  {index:<4}{seconds(spent_ms):>9} spent"
             f"   {tool_calls} tool call(s) so far{note}"
         )
-    ended = [
-        event
-        for event in events
-        if event.type in {"turn_budget_exhausted", "turn_stopped"}
-    ]
-    for event in ended:
-        why = (
-            f"reached its {event.data.get('limit')} limit"
-            if event.type == "turn_budget_exhausted"
-            else "was stopped by the person"
-        )
-        lines.append(f"  the turn {why}")
+    for event in events:
+        if event.type == "turn_stopped":
+            lines.append("  the turn was stopped by the person")
+        elif event.type == "turn_health_check":
+            lines.append(
+                f"  asked whether it was on track after {seconds(event.data.get('spent_ms', 0))}"
+            )
     return lines
 
 

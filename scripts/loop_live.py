@@ -217,11 +217,13 @@ class Turn:
     def answer(self) -> str:
         return self.text[-1] if self.text else ""
 
-    def budget_exhausted(self) -> bool:
+    def health_checked(self) -> bool:
+        """Whether the turn ran long enough to be asked how it was doing."""
+
         store = self.telemetry.store
         if store is None:
             return False
-        return any(event.type == "turn_budget_exhausted" for event in store.events(self.run_id))
+        return any(event.type == "turn_health_check" for event in store.events(self.run_id))
 
     def events(self, kind: str) -> list[dict]:
         """The events of one type the store kept for this turn, by their data."""
@@ -493,7 +495,7 @@ async def run_scenarios(selected, agent, telemetry, agent_factory, prefix: str =
                     # Test 9, 2026-09-03: eleven writes and the ceiling. Test 8
                     # wrote four; more than five is the rewrite loop again.
                     "at most five write_file calls": g.tools.count("write_file") <= 5,
-                    "the turn ended before its ceiling": not g.budget_exhausted(),
+                    "the turn finished before its first health check": not g.health_checked(),
                 },
             )
             print(f"  sent        {sent}")
@@ -634,7 +636,7 @@ async def run_scenarios(selected, agent, telemetry, agent_factory, prefix: str =
                     and "model_finished" in kinds[folded_at:],
                     "orchard.txt exists": (root / "orchard.txt").is_file(),
                     "an answer was given": bool(k.answer),
-                    "the turn ended before its ceiling": not k.budget_exhausted(),
+                    "the turn finished before its first health check": not k.health_checked(),
                 },
             )
 

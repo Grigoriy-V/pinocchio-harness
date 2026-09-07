@@ -22,7 +22,7 @@ from langgraph.types import Command
 from app.agent.graph import (
     ASSISTANT_DELTA,
     RUN_ID,
-    TurnBudget,
+    TurnWatch,
     build_agent,
     interrupted,
     latest_text,
@@ -61,6 +61,10 @@ from app.tools import (
     todo_tools,
     goal_tools,
 )
+
+# LangGraph's own guard against a loop that never ends. Each step is two
+# nodes, so a thousand is five hundred model calls, far past any real turn.
+RECURSION_LIMIT = 1000
 
 # The checkpoint holds this project's own dataclasses, so LangGraph is told
 # which types it is allowed to reconstruct. Nothing else may come back out.
@@ -197,20 +201,17 @@ class Agent:
         delivery: Delivery = CHAT_DELIVERY,
         stream_answers: bool = True,
         telemetry: Telemetry | None = None,
-        turn_budget: TurnBudget | None = None,
+        turn_watch: TurnWatch | None = None,
         stops: StopRequests = NO_STOPS,
         stopping: TurnStopping = STOP_ON_ANSWER,
     ) -> None:
         self.backend = backend
         self.stream_answers = stream_answers
-        # What a turn may spend, and where a request to end one is recorded.
-        # Both belong to the agent rather than to a graph, because a graph is
-        # compiled per thread and these are the same for every thread a person
-        # has: one person, one ceiling, one stop.
-        # Named apart from `budget()` below, which answers a different question:
-        # that one is how much context a request may occupy, this one is how
-        # much work a turn may do.
-        self.turn_budget = turn_budget or TurnBudget()
+        # When a long turn is asked how it is doing, and where a request to
+        # end one is recorded. Both belong to the agent rather than to a
+        # graph, because a graph is compiled per thread and these are the
+        # same for every thread a person has.
+        self.turn_watch = turn_watch or TurnWatch()
         self.stops = stops
         # Asked when a model result would otherwise end a turn. The default
         # stops, so an agent nobody wired an extension into behaves exactly as
@@ -399,7 +400,7 @@ class Agent:
                 await self._checkpointer(),
                 self.stream_answers,
                 self.telemetry,
-                self.turn_budget,
+                self.turn_watch,
                 self.stops,
                 self.stopping,
                 self.instructions,
@@ -431,7 +432,10 @@ class Agent:
         # The run identity rides beside the thread, so a node can find the
         # recorder for the turn it is part of without the graph holding one.
         config = {
-            "configurable": {"thread_id": thread_id, RUN_ID: trace.run.run_id or None}
+            "configurable": {"thread_id": thread_id, RUN_ID: trace.run.run_id or None},
+            # A guard against a graph that cannot terminate, never a ceiling:
+            # a turn is bounded by its health check, not by a step count.
+            "recursion_limit": RECURSION_LIMIT,
         }
         stream = graph.astream(command, config=config, stream_mode=["updates", "custom"])
         async for mode, payload in stream:
@@ -629,7 +633,10 @@ class Agent:
             return
         graph = await self._graph(thread_id)
         config = {
-            "configurable": {"thread_id": thread_id, RUN_ID: trace.run.run_id or None}
+            "configurable": {"thread_id": thread_id, RUN_ID: trace.run.run_id or None},
+            # A guard against a graph that cannot terminate, never a ceiling:
+            # a turn is bounded by its health check, not by a step count.
+            "recursion_limit": RECURSION_LIMIT,
         }
         replayed = unknown = 0
         if left.node == "tools" and left.messages and left.messages[-1].tool_calls:
@@ -774,7 +781,6 @@ def create_agent(
     agent_settings = agent_settings or AgentSettings()
     policy = ContextPolicy(
         keep_turns=agent_settings.keep_turns,
-        summarize_after=agent_settings.summarize_after,
         retrieved_facts=agent_settings.retrieved_facts,
         keep_results=agent_settings.keep_results,
     )
@@ -799,11 +805,7 @@ def create_agent(
         delivery=delivery,
         stream_answers=agent_settings.stream_answers,
         telemetry=telemetry,
-        turn_budget=TurnBudget(
-            max_steps=agent_settings.turn_max_steps,
-            max_tool_calls=agent_settings.turn_max_tool_calls,
-            max_seconds=agent_settings.turn_max_seconds,
-        ),
+        turn_watch=TurnWatch(check_seconds=agent_settings.turn_check_seconds),
         stops=stops,
         stopping=stopping if stopping is not None else FinishesItsOwnList(),
     )

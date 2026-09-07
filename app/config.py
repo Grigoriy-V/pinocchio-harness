@@ -423,25 +423,17 @@ class AgentSettings(Configured):
     workspace: str = "workspace"
     # How many of the newest exchanges always stay verbatim (`keep_turns`).
     keep_turns: int = 2
-    # How many messages past the summary before the conversation folds on
-    # count alone. The size trigger, from the model's own window, is the one
-    # that decides on any server that reports one; this bounds the rest.
-    summarize_after: int = 60
     retrieved_facts: int = 5
     # How many of the newest tool results of stored history a request carries
     # in full; older ones are stubs on the surface and whole in history. The
     # turn in progress is never shortened (ISS-0041). Two is the result the
     # model was reading when the previous turn ended and the one before it.
     keep_results: int = 2
-    # What one turn may spend before it has to stop and say so. These are the
-    # only ceiling on an autonomous turn: the loop ends when the model stops
-    # asking for tools, and nothing else limits how long it may keep asking.
-    # Settings rather than constants because the right answer differs between a
-    # personal machine, where the GPU is already paid for, and a deployment
-    # where every second is billed.
-    turn_max_steps: int = 12
-    turn_max_tool_calls: int = 24
-    turn_max_seconds: float = 300.0
+    # After how many seconds of work a turn is asked, between two of its
+    # steps, whether it is on track; and again after each further interval.
+    # No ceiling on steps, calls or seconds: a ceiling ends work that is going
+    # well (the human, 2026-09-07). Zero asks never.
+    turn_check_seconds: float = 600.0
     # The share of the model's own context a request may occupy. The limit
     # itself is read from the server, never copied here: two copies of one
     # number are one number and one lie waiting to happen. The headroom is what

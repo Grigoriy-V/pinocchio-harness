@@ -84,12 +84,14 @@ The deployed default, `[model.sets.or]`: GLM 5.3 Flash through OpenRouter,
 
 ### Turn and context settings
 
-`AGENT_TURN_MAX_STEPS` 12, `AGENT_TURN_MAX_TOOL_CALLS` 24,
-`AGENT_TURN_MAX_SECONDS` 300 are the only ceiling on an autonomous turn; the
-seconds count tool time too (ISS-0057). `AGENT_CONTEXT_FRACTION` 0.8 of a
-reported ceiling, or `AGENT_CONTEXT_TOKENS`; `AGENT_KEEP_TURNS` 2;
-`AGENT_SUMMARIZE_AFTER` 60. `AGENT_STREAM_ANSWERS` and `AGENT_TELEMETRY` are
-on; telemetry holds timings and counts only and can never fail a turn.
+A turn has no ceiling on steps, tool calls or seconds (2026-09-07). After
+`turn_check_seconds` (600) of work the harness asks the model, between two
+steps, whether it is on track and what is left; the model's answer streams
+to the chat and the decision is the model's; zero asks never. Context:
+`context_fraction` 0.8 of a reported ceiling, or the set's `context_tokens`;
+a fold happens only when the request would not fit, or on `/compact`;
+`keep_turns` 2. `stream_answers` and `telemetry` are on; telemetry holds
+timings and counts only and can never fail a turn.
 
 ## Secrets
 

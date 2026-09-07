@@ -53,6 +53,10 @@ name = "gemma-4-12b-it"
 auth_style = "modal_proxy"
 
 [agent]
+# After how many seconds of work a turn is asked, between two steps, whether
+# it is on track; again after each further interval. No ceiling on steps,
+# calls or seconds. Zero asks never.
+turn_check_seconds = 600
 # The share of a reported context ceiling one request may occupy; a set's
 # `context_tokens` names the budget where the server reports none.
 context_fraction = 0.8

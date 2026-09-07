@@ -84,7 +84,9 @@ class Steered:
     turn, in the same way a tool result the model reads is not an answer.
     """
 
-    candidate: Message
+    # `None` for a question the harness asks a long turn on its own (the
+    # health check): there is no draft, only the instruction.
+    candidate: Message | None
     steering: Steering
 
 

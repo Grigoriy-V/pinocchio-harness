@@ -169,7 +169,7 @@ async def fold_older_messages(
         and used_tokens is not None
         and used_tokens > policy.max_input_tokens
     )
-    if len(pending) <= policy.summarize_after and not oversized and not force:
+    if not oversized and not force:
         return None
     if excess is None and oversized:
         excess = used_tokens - policy.max_input_tokens  # type: ignore[operator]
@@ -192,7 +192,7 @@ async def fold_older_messages(
         thread_id,
         through=through + cut,
         folded=cut,
-        trigger=reason or ("forced" if force else "size" if oversized else "count"),
+        trigger=reason or ("size" if oversized else "forced"),
         summary_chars=len(updated),
     )
     return updated

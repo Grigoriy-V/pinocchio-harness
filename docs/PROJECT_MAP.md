@@ -17,7 +17,7 @@ boundaries below, `reports/` the evidence.
                      └──────────────────┬────────────────────┘
                                         │ ModelBackend
 Telegram ─┐                             ▼
-          ├─> interface adapter ─────> Agent ── one loop, TurnBudget, StopRequests
+          ├─> interface adapter ─────> Agent ── one loop, TurnWatch, StopRequests
 Chainlit ─┘                             │
                                         ├─ Context engine (surface, fold, history tools)
                                         ├─ ConversationStore (SQLite | PostgreSQL)
@@ -61,17 +61,20 @@ does not, and then the set's own budget stands (`Agent.budget`).
 load context ─> model ─> tools ─> model ─> … ─> persist
                   ▲        │
                   └────────┘
-   before each batch of tools: asked to stop? budget spent?
-   a delivery (send_file) still runs at the ceiling
+   before each batch of tools: asked to stop?
+   after a batch, once every check_seconds of work: "on track? what is left?"
 ```
 
 - `Agent` (`app/agent/runtime.py`) wires backend, store, context policy,
   workspace, grant, checkpointer and telemetry for one user; a graph is
   compiled per thread.
-- `TurnBudget` (steps 12, tool calls 24, seconds 300) is enforced in the
-  `tools` node; a crossed limit asks the model once more, without tools, for
-  the answer. Time is accumulated by the nodes, so a wait for approval does
-  not spend it; a tool's run does (ISS-0057).
+- `TurnWatch`: no ceiling on steps, calls or seconds. After
+  `check_seconds` (600) of work the tools node follows its results with one
+  turn-control question (progress, what is left; continue or finish); the
+  model's next completion answers and decides; asked again after each
+  further interval. Time is accumulated by the nodes, so a wait for approval
+  does not count. LangGraph's recursion limit (1000) is the guard against a
+  loop that never ends, not a ceiling.
 - `StopRequests` (`app/agent/stop.py`): memory locally, `turn_stops` deployed.
   A stop carries the sequence its update arrived with and applies only to
   turns begun before it.
@@ -110,9 +113,8 @@ Before every model step (`app/context/window.py`, `fitted` in the graph):
 3. the request is estimated (`ModelBackend.estimate_tokens`, calibrated from
    reported usage) and folded before it is sent when over budget, the oldest
    exchanges one at a time, the last `keep_turns` (2) exchanges always
-   verbatim. A count rule (`summarize_after`, 60 messages) is the fallback
-   when the server reports no window, which on a hosted model makes it the
-   rule that fires (ISS-0032 note). The summarizer reads the same stubs; a
+   verbatim. Nothing folds by message count (2026-09-07): only a request
+   that would not fit, or `/compact`. The summarizer reads the same stubs; a
    failed fold leaves the turn as it is.
 
 Stored history is canonical and never rewritten. The model gets back to it

@@ -1,4 +1,4 @@
-from app.agent.graph import TurnBudget, build_agent
+from app.agent.graph import TurnWatch, build_agent
 from app.agent.runtime import (
     AnswerWithdrawn,
     Agent,
@@ -35,7 +35,7 @@ __all__ = [
     "MemoryStopRequests",
     "PostgresStopRequests",
     "StopRequests",
-    "TurnBudget",
+    "TurnWatch",
     "build_agent",
     "create_agent",
     "user_workspace",

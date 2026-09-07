@@ -75,7 +75,7 @@ async def folding_by_tokens(room: Path) -> None:
     show("a request over budget folds the conversation, though it is short")
     # A deliberately tiny share, so even these few turns overshoot it, and a
     # count trigger far out of reach: nothing here folds because it is long.
-    policy = ContextPolicy(keep_turns=1, summarize_after=1000)
+    policy = ContextPolicy(keep_turns=1)
     async with open_agent(room, fraction=0.02, policy=policy) as agent:
         print(f"  budget: {await agent.budget()} tokens")
 
