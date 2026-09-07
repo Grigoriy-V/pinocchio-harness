@@ -28,6 +28,7 @@ from app.agent.graph import (
     latest_text,
 )
 from app.agent.mode import careful_enabled
+from app.agent.interjections import NO_INTERJECTIONS, Interjections
 from app.agent.stop import NO_STOPS, StopRequests
 from app.agent.stopping import STOP_ON_ANSWER, TurnStopping
 from app.agent.todo import FinishesItsOwnList, planning_enabled
@@ -109,7 +110,20 @@ class AnswerWithdrawn:
     message: Message
 
 
-AgentEvent = AssistantDelta | MessageProduced | AnswerWithdrawn
+@dataclass(frozen=True)
+class MessageTaken:
+    """A message the person sent while the turn ran, now part of the turn.
+
+    It is the person's own words, stored in the conversation where the turn
+    read them, and it must not be delivered back to them as an answer. An
+    interface that shows the transcript as it grows may show it in place;
+    a chat that already displays what the person sent ignores it.
+    """
+
+    message: Message
+
+
+AgentEvent = AssistantDelta | MessageProduced | AnswerWithdrawn | MessageTaken
 
 
 @dataclass(frozen=True)
@@ -204,6 +218,7 @@ class Agent:
         turn_watch: TurnWatch | None = None,
         stops: StopRequests = NO_STOPS,
         stopping: TurnStopping = STOP_ON_ANSWER,
+        interjections: Interjections = NO_INTERJECTIONS,
     ) -> None:
         self.backend = backend
         self.stream_answers = stream_answers
@@ -213,6 +228,9 @@ class Agent:
         # same for every thread a person has.
         self.turn_watch = turn_watch or TurnWatch()
         self.stops = stops
+        # Where a running turn takes what the person wrote meanwhile; the
+        # same lane as the stops, read at the same boundary.
+        self.interjections = interjections
         # Asked when a model result would otherwise end a turn. The default
         # stops, so an agent nobody wired an extension into behaves exactly as
         # it did before the seam existed.
@@ -403,6 +421,7 @@ class Agent:
                 self.turn_watch,
                 self.stops,
                 self.stopping,
+                self.interjections,
                 self.instructions,
             )
         return self._graphs[thread_id]
@@ -461,7 +480,12 @@ class Agent:
                 # conversation and are delivered like any other: the first G
                 # with the check on lost two `send_file` results here.
                 for produced in patch.get("messages") or []:
-                    yield MessageProduced(produced)
+                    if produced.role == "user":
+                        # The person's own words, taken mid-turn: kept by
+                        # the store, never sent back to them as an answer.
+                        yield MessageTaken(produced)
+                    else:
+                        yield MessageProduced(produced)
 
     async def events(
         self,
@@ -752,6 +776,7 @@ def create_agent(
     telemetry: Telemetry | None = None,
     stops: StopRequests = NO_STOPS,
     stopping: TurnStopping | None = None,
+    interjections: Interjections = NO_INTERJECTIONS,
     system_prompt: str | None = None,
     runner: Runner | None = None,
 ) -> Agent:
@@ -812,4 +837,5 @@ def create_agent(
         turn_watch=TurnWatch(check_seconds=agent_settings.turn_check_seconds),
         stops=stops,
         stopping=stopping if stopping is not None else FinishesItsOwnList(),
+        interjections=interjections,
     )

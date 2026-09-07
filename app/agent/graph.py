@@ -24,6 +24,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.types import StreamWriter, interrupt
 
+from app.agent.interjections import NO_INTERJECTIONS, Interjections
 from app.agent.stop import NO_STOPS, StopRequests
 from app.agent.stopping import (
     STOP_ON_ANSWER,
@@ -87,6 +88,8 @@ def extend(current: list[Message], incoming: list[Message]) -> list[Message]:
 
     if incoming and incoming[0].role == "user":
         return list(incoming)
+    # Which is why a message the person sent mid-turn rides in the tools
+    # node's patch *after* that batch's results, never first in a patch.
     return [*current, *incoming]
 
 
@@ -472,6 +475,7 @@ def build_agent(
     watch: TurnWatch | None = None,
     stops: StopRequests = NO_STOPS,
     stopping: TurnStopping = STOP_ON_ANSWER,
+    interjections: Interjections = NO_INTERJECTIONS,
     instructions: Callable[[], str] | None = None,
 ) -> CompiledStateGraph:
     """Compile the graph. This is the loop, and there is only one of it.
@@ -489,6 +493,10 @@ def build_agent(
     `stops` is asked at each step boundary and never at the start: a turn that
     has not run anything yet has nothing to stop, and in the deployed profile
     the question costs a round trip to the control plane.
+
+    `interjections` is asked after each batch of tools, like `stops`: what the
+    person wrote while the batch ran enters the turn there, after the results
+    and before the next model request, as their own words.
 
     `stopping` is asked only at the first of those four endings, and only when
     the turn could still afford another step. Its default stops, so wiring
@@ -969,6 +977,17 @@ def build_agent(
             )
             patch["steered"] = Steered(candidate=None, steering=health_question(spent_seconds))
             patch["checked_seconds"] = spent_seconds
+        # What the person wrote while the batch ran. After the results, so the
+        # model reads the batch and then the comment on it; taken here and by
+        # no later turn. Never raises, for the same reason `asked_to_stop`
+        # does not: a lane that could fail the turn is worse than none.
+        try:
+            taken = await interjections.take(user_id, state.sequence)
+        except Exception:  # noqa: BLE001 - a message that cannot be read waits for its own turn
+            taken = []
+        if taken:
+            trace.event("turn_interjected", step=state.steps, count=len(taken))
+            patch["messages"] = [*messages, *taken]
         return patch
 
     async def persist(state: AgentState, config: RunnableConfig) -> None:

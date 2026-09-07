@@ -287,6 +287,11 @@ def step_section(events: Sequence[TraceEvent]) -> list[str]:
             lines.append(
                 f"  asked whether it was on track after {seconds(event.data.get('spent_ms', 0))}"
             )
+        elif event.type == "turn_interjected":
+            count = event.data.get("count", 1)
+            lines.append(
+                f"  read {count} message(s) the person sent while it worked, at step {event.data.get('step')}"
+            )
     return lines
 
 

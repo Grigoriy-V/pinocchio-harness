@@ -29,7 +29,13 @@ from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 from typing import Any
 
-from app.agent.runtime import Agent, AnswerWithdrawn, AssistantDelta, create_agent
+from app.agent.runtime import (
+    Agent,
+    AnswerWithdrawn,
+    AssistantDelta,
+    MessageTaken,
+    create_agent,
+)
 from app.agent.mode import MODES, current_mode, set_mode
 from app.agent.todo import PLAN_SWITCH, planning_enabled, set_planning
 from app.context.choice import CONTEXT_CHOICE, SIZES, set_context_choice
@@ -1142,6 +1148,10 @@ class TelegramAdapter:
                     # nothing, and replace it in place if the model does.
                     preview.hold()
                     continue
+                if isinstance(event, MessageTaken):
+                    # The person's own message, read by the running turn.
+                    # They sent it; it is not sent back.
+                    continue
                 await self._deliver(
                     chat_id, event.message, activity, preview, trace, delivered
                 )
@@ -1350,6 +1360,8 @@ class TelegramAdapter:
                         continue
                     if isinstance(event, AnswerWithdrawn):
                         await preview.discard()
+                        continue
+                    if isinstance(event, MessageTaken):
                         continue
                     await self._deliver(
                         incoming.chat_id, event.message, activity, preview, trace
