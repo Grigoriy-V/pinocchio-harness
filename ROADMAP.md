@@ -9,7 +9,7 @@ own, and what a tool tells the model it does. The order below was approved
 by the human on 2026-09-07; each item still gets its own start signal, and
 research before code where the item says so.
 
-**Current approved step:** 14, 15 and 20 are in Done (2026-09-07). 16 researched (`reports/2026-09-07_item16_research.md`), the page tool's shape approved; 17 absorbs the folder-per-task rule. 16 deployed and run on both sides, in Done. Next: 17 (the command environment, a folder per task), on the human's word.
+**Current approved step:** 14, 15 and 20 are in Done (2026-09-07). 16 researched (`reports/2026-09-07_item16_research.md`), the page tool's shape approved; 17 absorbs the folder-per-task rule. 16 deployed and run on both sides, in Done. 21 added (one browser tool on the renderer; ISS-0060 is the breach it closes). Next: 17, then 21, on the human's word.
 
 Observed defects are in `ISSUES.md`, which is not a plan and authorizes
 nothing. `docs/PRODUCT.md` is the product contract (it carries the rule that
@@ -108,6 +108,22 @@ noted; the human's word starts each.
 19. **The scenario suite, reconsidered.** After 16: checks on events rather
     than routes, time split into model, tool and wait, a batch that survives
     its container. Was item 10.
+
+21. **One browser tool, and the page rendered apart from the secrets.**
+    Approved 2026-09-07 (the human). Deployed, `use_page open url` runs a
+    stranger's page in the worker's own Chromium, beside the bot token, the
+    model key and the database URL — the arrangement the separate renderer
+    exists to avoid, reintroduced by item 16 without a word (ISS-0060).
+    Build: `page_session`, a Function in the renderer image (no secret, the
+    workspaces Volume read-only), spawned once at the turn's first `open`
+    and running until told to close or idle for a set time; the worker
+    sends actions through a `modal.Queue` and reads results, screenshots as
+    bytes, from another. Locally `BrowserSession` stays in-process with the
+    same idle timeout; no end-of-turn close on either side. `view_web_page`
+    and `render_web_page` go; the routing line becomes "read with
+    fetch_page, everything else with use_page". Accepted by F and W on both
+    sides, and a deployed W that opens the page with `use_page` and is
+    served from the renderer, not the worker.
 
 Waiting, not in the order above:
 
