@@ -207,3 +207,36 @@ What this changes in §2–§6:
 - **Taking back a queued message** (Claude Code `Up`, Pi `Alt+Up`, Codex
   `Esc`) has no equivalent in a chat front end: a sent Telegram message is
   sent. Not built.
+
+## 8. Built (2026-09-07), awaiting the deploy
+
+Commits cf44925 (step 1) and 29bc... (steps 2–3, see `git log`): 
+
+- `app/agent/interjections.py`: `Interjections`, `NO_INTERJECTIONS`,
+  `MemoryInterjections` (`offer` / `take` / `settle`). `build_agent`, `Agent`
+  and `create_agent` take `interjections`; `run_tools` takes after the health
+  check and appends after the batch's results (`turn_interjected` in the
+  trace, one inspector line). `_run` yields a taken user message as
+  `MessageTaken`; the Telegram adapter skips it in both event loops.
+- `ui/telegram/interjections.py`: `InboxInterjections` over
+  `PostgresUpdateInbox.take_pending` (one `UPDATE … RETURNING`, `pending` to
+  `done`, `last_error = "taken by the running turn"`, messages only, never a
+  control row) and `release` (back to `pending` for a row whose file could
+  not be read or which was a button press). The adapter builds it when given
+  the inbox (`control_app.process_telegram_update` passes it) and the memory
+  lane otherwise; the polling door `offer`s before the chat lock and asks
+  `taken` after it.
+- Not in the prompt: nothing, as the references (§7).
+- Tests: `tests/test_interjections.py` (8), `tests/test_inbox_interjections.py`
+  (3), two polling tests, four inbox contract tests (live Postgres only, not
+  run here: `AGENT_TEST_DATABASE_URL` is unset on this machine). Suite: 1159
+  passed, 31 skipped.
+- Chainlit is unchanged: the memory lane is there but nothing offers to it;
+  whether Chainlit runs a second `on_message` during a turn is still
+  unverified.
+
+The live check to run after the deploy: one G-like turn with several tool
+batches, one text message and one screenshot sent while it runs; expected in
+the trace `turn_interjected`, in the store the two user messages between the
+batches, in the chat no echo and no second answer; the inbox rows `done` with
+the marker.

@@ -78,6 +78,13 @@ load context ─> model ─> tools ─> model ─> … ─> persist
 - `StopRequests` (`app/agent/stop.py`): memory locally, `turn_stops` deployed.
   A stop carries the sequence its update arrived with and applies only to
   turns begun before it.
+- `Interjections` (`app/agent/interjections.py`): a message the person sends
+  while a turn runs is taken at the tools boundary, after the batch's results,
+  as their own words (`role: user`, unframed), and stored there; the
+  interface sees it as `MessageTaken`, never as an answer. Memory locally
+  (the polling door offers before it waits), the inbox itself deployed
+  (`pending` → `done` in one statement, `ui/telegram/interjections.py`).
+  A message during the final answer is the next turn, as before.
 - `TurnStopping` (`app/agent/stopping.py`) is asked only for a result that
   would end the turn; the default stops; explicit `Steering` from an extension
   runs one more step. The one wired extension, the todo list's, objects to
@@ -247,6 +254,7 @@ application never imports them.
 | messages, summaries, facts, current thread | `ConversationStore` | yes |
 | in-flight turn | LangGraph checkpointer | resumable |
 | stop requests | `StopRequests` (memory / `turn_stops`) | yes |
+| messages sent mid-turn | `Interjections` (memory / the inbox's pending rows) | yes |
 | accepted Telegram updates, leases, `run_id` | Postgres inbox / polling loop | yes |
 | turn runs and traces | `TelemetryStore` | yes |
 | user files, previews, screenshots, `AGENTS.md`, `.agent/` switches | workspace dir / Volume | yes |

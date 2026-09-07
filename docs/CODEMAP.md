@@ -28,6 +28,7 @@ are not reachable by following imports from `app/`.
 | Change the repeat guards | `app/agent/graph.py` | `failed_before`, `succeeded_before`, `MAX_IDENTICAL_FAILURES`, `MAX_IDENTICAL_SUCCESSES`, `tests/test_repeated_failure.py` |
 | Change what an empty or cut completion does | `app/agent/graph.py` | `silent_cut`, `nothing_to_add`, `output_cut_silent`, `finish_reason` |
 | Change how a running turn is stopped | `app/agent/stop.py` | `StopRequests`, `MemoryStopRequests`, `PostgresStopRequests`, `asked_to_stop` |
+| Change how a message sent mid-turn reaches the model | `app/agent/interjections.py`, `ui/telegram/interjections.py`, `inbox.take_pending` | `Interjections`, `MemoryInterjections`, `InboxInterjections`, `MessageTaken`, `tests/test_interjections.py` |
 | Change whether a model result ends the turn | `app/agent/stopping.py` | `TurnStopping`, `Candidate`, `Steering`, `STOP_ON_ANSWER`, `tests/test_turn_stopping.py` |
 | Change the plan tool or its switch | `app/tools/todo.py`, `app/agent/todo.py` | `todo_write`, `PLAN_SWITCH`, `planning_enabled`, `FinishesItsOwnList`, `tests/test_todo.py` |
 | Change the goal the model writes first | `app/tools/goal.py` | `set_goal`, `DESCRIPTION`, `tests/test_goal.py` |

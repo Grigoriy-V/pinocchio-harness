@@ -222,6 +222,7 @@ configured the deployed worker refuses rather than rendering beside secrets.
 | `/agents [set\|clear]` | standing instructions, `AGENTS.md` in the workspace | `app/instructions.py` | no |
 | `/new`, `/chats` | conversation choice, stored | `ui/telegram/adapter.py` | no |
 | `/stop` | out of band; the loop reads it at its next step | `app/agent/stop.py` | no |
+| a message while a turn runs | taken by the running turn after its next tool batch, as the person's words; answered as its own turn if no batch follows | `app/agent/interjections.py`, `ui/telegram/interjections.py` | no |
 
 A fold during a turn is announced after the answer: how many messages, that
 the last two exchanges stay verbatim, that `search_history` reaches the rest.
