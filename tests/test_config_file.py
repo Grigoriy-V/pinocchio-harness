@@ -107,11 +107,10 @@ def test_a_set_without_its_own_key_uses_the_shared_one(monkeypatch, tmp_path: Pa
     """The Modal Apps share one proxy token: `MODEL_API_KEY` covers every set
     that names no key of its own; a set with its own keeps it."""
 
-    path = write(tmp_path, FILE + '
-[model.sets.int4]
-endpoint = "https://int4.modal.run/v1"
-auth_style = "modal_proxy"
-')
+    path = write(
+        tmp_path,
+        FILE + '\n[model.sets.int4]\nendpoint = "https://int4.modal.run/v1"\nauth_style = "modal_proxy"\n',
+    )
     monkeypatch.setenv("MODEL_API_KEY", "wk-shared.ws-x")
     monkeypatch.setenv("MODEL", "int4")
     assert ModelSettings(_env_file=None, _config_file=path).api_key == "wk-shared.ws-x"
