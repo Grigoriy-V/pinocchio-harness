@@ -9,7 +9,7 @@ own, and what a tool tells the model it does. The order below was approved
 by the human on 2026-09-07; each item still gets its own start signal, and
 research before code where the item says so.
 
-**Current approved step:** 15 and 20 are done (2026-09-07): 20 built, deployed and seen live (`reports/2026-09-07_mid_turn_message.md`); 15 built, its first `--both` run passed 16/16 (`reports/2026-09-07_mini_set.md`) and it is the after-deploy check now. 16 researched (`reports/2026-09-07_item16_research.md`), the page tool's shape approved, 21 added after it. Next: build 16, on the human's word.
+**Current approved step:** 14, 15 and 20 are in Done (2026-09-07). 16 researched (`reports/2026-09-07_item16_research.md`), the page tool's shape approved; 17 absorbs the folder-per-task rule. Next: build 16, on the human's word.
 
 Observed defects are in `ISSUES.md`, which is not a plan and authorizes
 nothing. `docs/PRODUCT.md` is the product contract (it carries the rule that
@@ -48,46 +48,24 @@ Qwen3.8-27B as GPU Apps (2026-09-05,
 model sets and the OpenRouter default (2026-09-06,
 `reports/2026-09-06_hosted_model_cometapi.md`).
 
+Items of the 2026-09-07 order, closed:
+
+- **14, the turn bounded by health** (2026-09-07): no step or tool-call
+  ceiling; a health check between steps after a set time; a fold only when
+  the request would not fit; one provider, the next only after retries
+  failed; settings in `config.toml`. Deployed, seen live on B and G.
+  `reports/2026-09-07_turn_bounds_context_provider.md`.
+- **15, the mini scenario set** (2026-09-07): eight scenarios, bare on both
+  sides, `--local`/`--deployed`/`--both`; 16/16 on the first run; the
+  after-deploy check. `reports/2026-09-07_mini_set.md`.
+- **20, a message in the middle of a turn** (2026-09-07): taken at the tools
+  boundary as the person's words, memory lane locally, the inbox deployed;
+  seen live. `reports/2026-09-07_mid_turn_message.md`.
+
 ## Queue
 
 The order approved 2026-09-07. One item at a time; research first where
 noted; the human's word starts each.
-
-14. **The turn is bounded by health, not by a clock or a step count.** The
-    step and tool-call ceilings go: they end autonomous work that is going
-    well. The seconds ceiling becomes a watchdog: when a turn has run longer
-    than a set time, the harness asks the model between steps whether all is
-    well and it should go on; an answer means the model decides, no answer
-    within the timeout means the system hung and the turn is ended with a
-    message to the person. Context: the default budget is 256k
-    (`AGENT_OR_CONTEXT_TOKENS`; check the model's served ceiling first), and
-    a fold happens only when the request would not fit, never by message
-    count (`summarize_after` goes). Provider: one provider by default,
-    Novita; a fallback to Z.ai only after a retry shows the provider is
-    really down, never because it answered slowly, since a provider change
-    loses the cache (11 of 89 deployed calls switched and every one lost it;
-    `reports/2026-09-07_turn_bounds_context_provider.md`). First step:
-    settings move out of `.env` into a committed `config.toml` that the
-    agent may edit; `.env` keeps secrets only; environment still overrides. **Draft, for
-    discussion, not approved:** a deadline per tool (ISS-0033), because a
-    hung tool holds the worker and no model check can reach it.
-    ISS-0057, ISS-0032.
-
-15. **A mini scenario set, bare on both sides.** Approved 2026-09-07 (the
-    human): eight scenarios, one per capability — a plain question, one
-    tool, files and a command, the browser, the web, memory and history, a
-    failing tool, control (a message mid-turn taken and the task finished,
-    `/stop`) — each checked on harness events and the store, never on the
-    model's wording, with the request text literal. A scenario passes when
-    every fact in its column is seen; the set is accepted when all eight
-    pass deployed in one run, each line with its time and cost. Both
-    profiles run bare: no `AGENTS.md`, an empty workspace every run (the
-    deployed probe user's directory is cleared first); a scenario seeds the
-    files it needs. `--local`, `--deployed`, `--both` (two tables side by
-    side, the difference per scenario). J, K, I, P, Q, R, S and an LLM judge
-    of agentic quality are the wider set, 19. Built and run 2026-09-07:
-    16/16 passed on both sides (`reports/2026-09-07_mini_set.md`).
-    `reports/2026-09-05_suite_and_tools_review.md`.
 
 16. **Tools with contracts, a browser with hands, a literal brief, and the
     whole system prompt reviewed.** Every
@@ -114,13 +92,26 @@ noted; the human's word starts each.
     human, 2026-09-07). The review's findings and the rewrite's draft:
     `reports/2026-09-07_item16_research.md`. ISS-0008, ISS-0010, ISS-0016.
 
-17. **The command environment is a place to develop.** Deployed, the command
-    container is the assistant's own server: what a command needs works
-    there without the model fighting the sandbox. Today `HOME` and temp sit
-    on the Volume path, so Chrome cannot bind a socket, npm's cache carries
-    the wrong uid, and what is put in `/tmp` to escape it vanishes with the
-    container. Short temp and caches off the Volume, installs kept in the
-    workspace, the "new environment" line gone. ISS-0053, ISS-0058.
+17. **The command environment is a place to develop, and a folder per
+    task.** Where a command runs and where what it installs lands, both
+    profiles (merged with the former 21, the human, 2026-09-07). Deployed:
+    the command container is the assistant's own server; today `HOME` and
+    temp sit on the Volume path, so Chrome cannot bind a socket, npm's
+    cache carries the wrong uid, and what is put in `/tmp` to escape it
+    vanishes with the container — short temp and caches off the Volume,
+    the "new environment" line gone. Local: the runner stops making a
+    `.venv` at the workspace root before every command and putting it
+    first on `PATH` (`LocalRunner.prepare`, `command_environment`), which
+    fills the root whatever the model intended and hides the machine's own
+    packages (item 7's open note); a venv is made where a command makes
+    one. The prompt, both profiles: one literal line — each piece of work
+    gets its own folder in the workspace, named for the task; its files,
+    its virtual environment and its packages go in that folder and nowhere
+    else; a folder is reused when the person continues the same work.
+    Accepted by scenario C extended with an install, on both sides: the
+    package landed under the task's folder and the root holds no venv.
+    Whether the model follows the line is the suite's measurement, not a
+    rule. ISS-0053, ISS-0058.
 
 18. **The harness's own seconds.** Name in the timeline what runs between
     steps and after persist (Telegram preview edits and status calls, the
@@ -131,35 +122,12 @@ noted; the human's word starts each.
     than routes, time split into model, tool and wait, a batch that survives
     its container. Was item 10.
 
-20. **A message in the middle of a turn.** The person can write while the
-    assistant works, as in a coding agent's chat: a comment or a question
-    arrives at the loop's next step boundary as the person's words, through
-    the out-of-band lane `/stop` already uses, and the model decides what to
-    do with it. Right after 14, the same step boundary (the human,
-    2026-09-07).
-
-21. **A folder per task; the workspace kept.** Approved 2026-09-07, after
-    16. Two halves. The runner: the local profile stops making a `.venv`
-    at the workspace root before every command and putting it first on
-    `PATH` (`LocalRunner.prepare`, `command_environment`), which is what
-    fills the root today whatever the model intended, and which hides the
-    machine's own packages (item 7's open note); a venv is made where a
-    command makes one, and the deployed profile stays as it is (item 17
-    owns its temp and caches). The prompt: one literal line — each piece
-    of work gets its own folder in the workspace, named for the task; its
-    files, its virtual environment and its packages go in that folder and
-    nowhere else; a folder is reused when the person continues the same
-    work. Accepted by scenario C extended with an install: the package
-    landed under the task's folder and the root holds no venv. Whether
-    the model follows the line is the suite's measurement, not a rule
-    (the human, 2026-09-07).
-
 Waiting, not in the order above:
 
 7. **The local profile as a place to work.** Built: `run_command` over a
    one-method `Runner`, the two modes and `/mode`, on Windows a
    write-restricted token. Open: the automatic workspace venv hides the
-   machine's own packages (goes with 21); no way to choose the project folder in the UI;
+   machine's own packages (goes with 17); no way to choose the project folder in the UI;
    Chainlit has no `/mode` or `/plan`; no boundary outside Windows.
    `reports/2026-09-04_v2_isolated_execution_review.md` §10–§11.
 
@@ -177,6 +145,8 @@ Waiting, not in the order above:
 
 Recorded, not approved, not begun. One line each.
 
+- **A deadline per tool** (ISS-0033), drafted inside item 14 and not
+  approved: a hung tool holds the worker and no health check can reach it.
 - **The whole-code review of 2026-09-03**, its items 3 onward:
   `reports/2026-09-03_v2_whole_code_review.md`.
 - **Finish the `todo` tool.** A turn ending on an item the model does not
