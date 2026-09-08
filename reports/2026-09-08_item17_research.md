@@ -290,3 +290,36 @@ boundary. Scenario C then passed 7/7 locally in 56 s (run `live-40`, 7
 model calls, 38,466 tokens in): `set_goal`, three commands, `write_file`, a
 command; `primes_task/` holds `venv` and `primes.py`, the root holds
 nothing else. Deployed C and the Chrome probe wait for the deploy gate.
+
+## 9. Deployed 2026-09-08: scenario C and the Chrome probe
+
+Deployed at 09:1x UTC (34 s). Scenario C deployed, run
+`deployed-181da5a2-40`: 7/7, 62.7 s, 4 model calls, 21,531 tokens in;
+`run_command`, `write_file`, `run_command` — the venv and `primes.py` in one
+task folder, the root empty.
+
+The probe, four calls of the `run_command` Function in one container
+(scratchpad `probe_chrome*.py`, workspace `loop-live-check`):
+
+- `HOME=/root TMPDIR=/tmp`; a Unix socket binds under `$TMPDIR`
+  (`/tmp/probe.sock`, 15 bytes). A socket under the workspace fails with
+  `Errno 95 Operation not supported`: the Volume cannot hold a socket at
+  all, whatever the path's length — so `$TMPDIR` is the whole answer to
+  ISS-0058's socket, and the unresolved cwd is moot: the shell's `$PWD` is
+  the real `/__modal/volumes/vo-…` path regardless, because the kernel
+  resolves the mount's symlink. The code keeps the mount path (harmless).
+- `npm config get cache` → `/root/.npm`; `npm cache verify` clean. No uid
+  complaint.
+- Chrome (puppeteer's `chrome` 152, installed into `/root/.cache/puppeteer`
+  by `npx puppeteer browsers install chrome`; its shared libraries by
+  `apt-get install` — root in the container, ~15 s) launched from the
+  workspace with `--headless=new --no-sandbox --dump-dom` and printed the
+  page: `<html><head><title>probe</title></head><body><h1>ok</h1></body></html>`.
+  "Socket path too long" (ISS-0058) is gone. dbus and crashpad errors on
+  stderr are noise. The container was reused across the four calls
+  (`fresh False` after the first), so what the first call installed served
+  the rest — three minutes of idle, as before.
+
+What stays true and is said in the brief: the libraries Chrome needs are
+not in the command image, and the install lives only as long as the
+container. A browser for the model is item 21's renderer, not this.

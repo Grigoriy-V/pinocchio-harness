@@ -9,7 +9,7 @@ own, and what a tool tells the model it does. The order below was approved
 by the human on 2026-09-07; each item still gets its own start signal, and
 research before code where the item says so.
 
-**Current approved step:** 14, 15 and 20 are in Done (2026-09-07). 16 researched (`reports/2026-09-07_item16_research.md`), the page tool's shape approved; 17 absorbs the folder-per-task rule. 16 deployed and run on both sides, in Done. 21 added (one browser tool on the renderer; ISS-0060 is the breach it closes). 22 deployed and seen live (the worker outlives the turn, a heartbeat lease); it uncovered a `persist` that hangs for the worker's whole life (ISS-0064); 23 deployed and seen live (connection bounds, a sent file kept by name). 17 built and deployed (home, temp and the workspace are three places; a folder per task), local C 7/7, deployed C and the Chrome probe pending. Next: 21, on the human's word.
+**Current approved step:** 14, 15 and 20 are in Done (2026-09-07). 16 researched (`reports/2026-09-07_item16_research.md`), the page tool's shape approved; 17 absorbs the folder-per-task rule. 16 deployed and run on both sides, in Done. 21 added (one browser tool on the renderer; ISS-0060 is the breach it closes). 22 deployed and seen live (the worker outlives the turn, a heartbeat lease); it uncovered a `persist` that hangs for the worker's whole life (ISS-0064); 23 deployed and seen live (connection bounds, a sent file kept by name). 17 in Done (2026-09-08). Next: 21, on the human's word.
 
 Observed defects are in `ISSUES.md`, which is not a plan and authorizes
 nothing. `docs/PRODUCT.md` is the product contract (it carries the rule that
@@ -78,42 +78,20 @@ Items of the 2026-09-07 order, closed:
   that is not a picture or a sound is saved under the workspace's `inbox/`,
   never its root, and the turn names it; archives are the model's to unpack
   with a command, moving a file into place is its decision. Offline tests.
+- **17, the command environment is a place to develop, and a folder per
+  task** (2026-09-08): home is the person's (the container's, deployed),
+  temp is the runner's own and never the workspace, the agent's venv off
+  the command's `PATH`, nothing made or activated; the folder-per-task
+  line in the brief; the "new environment" line gone. Scenario C with a
+  venv and an install 7/7 on both sides; Chrome launches from the deployed
+  workspace. ISS-0053, ISS-0058 fixed; two boundary defects found and
+  fixed on the way (a venv's `ensurepip`, pip's cache).
+  `reports/2026-09-08_item17_research.md`.
 
 ## Queue
 
 The order approved 2026-09-07. One item at a time; research first where
 noted; the human's word starts each.
-
-17. **The command environment is a place to develop, and a folder per
-    task.** Where a command runs and where what it installs lands, both
-    profiles (merged with the former 21, the human, 2026-09-07). Deployed:
-    the command container is the assistant's own server; today `HOME` and
-    temp sit on the Volume path, so Chrome cannot bind a socket, npm's
-    cache carries the wrong uid, and what is put in `/tmp` to escape it
-    vanishes with the container — short temp and caches off the Volume,
-    the "new environment" line gone. Local: the runner stops making a
-    `.venv` at the workspace root before every command and putting it
-    first on `PATH` (`LocalRunner.prepare`, `command_environment`), which
-    fills the root whatever the model intended and hides the machine's own
-    packages (item 7's open note); a venv is made where a command makes
-    one. The prompt, both profiles: one literal line — each piece of work
-    gets its own folder in the workspace, named for the task; its files,
-    its virtual environment and its packages go in that folder and nowhere
-    else; a folder is reused when the person continues the same work.
-    Accepted by scenario C extended with an install, on both sides: the
-    package landed under the task's folder and the root holds no venv.
-    Whether the model follows the line is the suite's measurement, not a
-    rule. ISS-0053, ISS-0058. Researched 2026-09-08
-    (`reports/2026-09-08_item17_research.md`; Hermes and DeepSeek for the
-    local shape, OpenClaw for the deployed one, the human's word) and built
-    the same day: home is the person's (the container's, deployed), temp is
-    the runner's own and never the workspace, the agent's venv is off the
-    command's `PATH`, no venv made, nothing activated, the "new
-    environment" line gone, cwd by the mount path; the folder-per-task line
-    in the brief; scenario C extended with a venv and an install. Offline
-    tests; local C 7/7 (after two boundary fixes the check found: a venv's
-    `ensurepip` in isolated mode, pip's cache in the real profile). Deployed
-    2026-09-08; deployed C and the Chrome probe: pending.
 
 18. **The harness's own seconds.** Name in the timeline what runs between
     steps and after persist (Telegram preview edits and status calls, the
