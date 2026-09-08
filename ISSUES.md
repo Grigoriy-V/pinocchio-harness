@@ -31,7 +31,7 @@ authorizes nothing; `ROADMAP.md` alone orders work. Evidence lives in
 | ISS-0059 | open | a question sent mid-turn is answered and the task it interrupted stops to ask "continue?" | roadmap 15, 20 |
 | ISS-0058 | fixed 2026-09-08 | command temp files and caches on the Volume path: too long for a socket, wrong uid | 0053, 0057, roadmap 17 |
 | ISS-0057 | fixed 2026-09-07 | the turn's seconds budget counts tool run time and provider queue | 0056, 0054 |
-| ISS-0056 | open | seconds between a turn's steps that no model, tool or store accounts for | roadmap 10 |
+| ISS-0056 | open, the seconds named | seconds between a turn's steps that no model, tool or store accounts for | roadmap 18 |
 | ISS-0055 | fixed 2026-09-06 | an output cap spent on reasoning delivered as an empty answer | 0031 |
 | ISS-0054 | open, GPU Apps only | the model endpoint sleeps mid-turn when a tool outlives the idle window | 0044 |
 | ISS-0053 | fixed 2026-09-08 | what a command installs outside the workspace is gone by the next command | 0058, 0043, roadmap 17 |
@@ -302,7 +302,10 @@ in use since 2026-09-06; it is not seen on the hosted model.
 
 ### ISS-0056 — a turn spends seconds between its own steps that no model, tool or store accounts for
 
-- **Status:** open
+- **Status:** open; the first half of roadmap 18 built 2026-09-08: every
+  thing the harness spends time on names itself on the trace with a
+  duration (`reports/2026-09-08_item18_harness_seconds.md` §3). Deploy and
+  the measured run pending; what to remove is decided from it.
 - **Seen:** 2026-09-06, live, run `42cebe2d531c4a1199b8b663c6f8832c`
   (Telegram, GLM at Novita): 71.8 s in all, model 46.6 s, tools 1.9 s,
   persist 2.7 s, queue 4.9 s, **18.3 s unattributed**: 1.8 s between every
