@@ -22,9 +22,11 @@ authorizes nothing; `ROADMAP.md` alone orders work. Evidence lives in
 
 | Id | Status | Defect | Related |
 |---|---|---|---|
-| ISS-0063 | open, fix built | a dead worker's lease holds the conversation; nothing wakes the queue when it expires | 0061, 0062, roadmap 22 |
-| ISS-0062 | open, fix built | the retry of a killed turn sends the final answer a second time | 0061, roadmap 22 |
-| ISS-0061 | open, fix built | a turn runs up to the worker's own timeout and is killed while persisting | 0057, 0056, roadmap 14, 22 |
+| ISS-0065 | open | a `send_file` result carries the file's bytes into the thread's history | 0064 |
+| ISS-0064 | open | `persist` hangs on the store's write and the worker sits in it until the platform kills it | 0061, 0048, 0065 |
+| ISS-0063 | fixed 2026-09-07 | a dead worker's lease holds the conversation; nothing wakes the queue when it expires | 0061, 0062, roadmap 22 |
+| ISS-0062 | fixed 2026-09-07 | the retry of a killed turn sends the final answer a second time | 0061, roadmap 22 |
+| ISS-0061 | fixed 2026-09-07 | a turn runs up to the worker's own timeout and is killed while persisting | 0057, 0056, 0064, roadmap 14, 22 |
 | ISS-0060 | open | deployed `use_page open url` renders a public page in the worker, beside the secrets | 0051, roadmap 21 |
 | ISS-0059 | open | a question sent mid-turn is answered and the task it interrupted stops to ask "continue?" | roadmap 15, 20 |
 | ISS-0058 | open | command temp files and caches on the Volume path: too long for a socket, wrong uid | 0053, 0057 |
@@ -93,12 +95,63 @@ in use since 2026-09-06; it is not seen on the hosted model.
 
 ## Open
 
+### ISS-0065 — a `send_file` result carries the file's bytes into the thread's history
+
+- **Status:** open
+- **Seen:** 2026-09-07, deployed. The thread's `messages` row for the
+  `send_file` result of `blender/street_video0000-0240.mp4` is 1,019,473
+  characters (position 92); the earlier send of a shorter cut is 290,929
+  (position 69). The text of the result is one line ("Selected … for
+  delivery to the person."); the rest is the media part. A read of a PNG
+  (`read_file`, position 90) is 242,931, which is the image the model is
+  shown and is by design.
+- **Costs:** a megabyte written to the store per sent video, read back by
+  every later turn's history load, for a part no model is ever shown.
+- **Reproduce:** deployed, ask for a rendered video; read the row.
+- **Cause:** unknown; the tool result keeps the media part it built for the
+  adapter after the adapter has taken it.
+- **Evidence:** `reports/2026-09-08_persist_hang_logs.txt` (the row sizes at
+  the end).
+- **Related:** ISS-0064 (the write that hung was this row's).
+
+### ISS-0064 — `persist` hangs on the store's write and the worker sits in it until the platform kills it
+
+- **Status:** open
+- **Seen:** 2026-09-07 15:26–19:52 UTC, deployed. Turn 814913253 (a
+  four-minute Blender render, 11 model calls, 10 tools) sent its answer and
+  the video at 15:26:33 and entered `persist`; `persist_finished` never
+  came. The store's write is synchronous psycopg on the event loop, so the
+  heartbeat stopped with it, the lease ran out, and the worker of the next
+  message (814913255, 15:51) took the update up as attempt 2 — and hung in
+  `persist` the same way, seven seconds into a fresh container. Attempt 3
+  (the worker of 814913257, 15:53:33) wrote the same rows in 1.2 s. Both
+  hung containers lived on until their 14400 s timeout: killed at 19:22:27
+  and 19:51:29, "failed to respond to cancellation for too long".
+  ISS-0061 (14:33, `persist_started` at 598 s, killed at 600 s) is most
+  likely this hang seen through the old timeout, not a slow turn.
+- **Costs:** two CPU containers for four hours each doing nothing; the
+  turn's history reaches the store 27 minutes late and only because a
+  later message brought a third worker. The person saw nothing wrong.
+- **Reproduce:** deployed, a turn whose `persist` writes a megabyte row
+  (ISS-0065) — twice out of three attempts on 2026-09-07; not reproduced on
+  purpose.
+- **Cause:** unknown. What is known: the write is `psycopg.connect` with no
+  `connect_timeout`, no `statement_timeout`, no TCP keepalive, sent in
+  pipeline mode through Neon's pooled endpoint; the row was 1 MB; the same
+  write from a third container went through at once. Whether the client
+  waits on a dead socket, the pooler on the pipeline, or the server on a
+  lock is not shown by the logs.
+- **Evidence:** `reports/2026-09-08_persist_hang_logs.txt`.
+- **Related:** ISS-0061, ISS-0048 (the store's connection after a long
+  call), ISS-0065.
+
 ### ISS-0063 — a dead worker's lease holds the conversation; nothing wakes the queue when it expires
 
-- **Status:** open; fix built 2026-09-07 (roadmap 22: a 60 s lease the
-  worker extends every 20 s, every queued update starts a worker, one that
-  finds the conversation held waits out a lease), offline tests, not yet
-  seen live.
+- **Status:** fixed 2026-09-07 (roadmap 22: a 60 s lease the worker
+  extends every 20 s, every queued update starts a worker, one that finds
+  the conversation held waits out a lease). Seen live 2026-09-07 15:51: the
+  holder of 814913253 hung (ISS-0064), its lease ran out, and the worker of
+  the next message took the update up within a minute of arriving.
 - **Seen:** 2026-09-07 14:43 UTC, deployed. After the worker of ISS-0061 was
   killed, its row stayed `running` with a lease to 14:53:02 (attempts 2).
   Two later messages (814913247, 814913248) were queued `pending` with
@@ -119,12 +172,11 @@ in use since 2026-09-06; it is not seen on the hosted model.
 
 ### ISS-0062 — the retry of a killed turn sends the final answer a second time
 
-- **Status:** open; fix built 2026-09-07 (roadmap 22: `Agent.delivered_before`
+- **Status:** fixed 2026-09-07 (roadmap 22: `Agent.delivered_before`
   reads what the checkpoint holds for the same update id and the adapter
-  does not send it again), offline tests, not yet seen live. The exact path
-  by which the retry re-emitted the answer was not reproduced offline (a
-  SQLite resume from `persist` re-emits nothing); the guard does not depend
-  on it.
+  does not send it again). Seen live 2026-09-07 15:51 and 15:53: update
+  814913253 was taken up twice after its answer had gone out, and neither
+  attempt sent anything (no `telegram_final_sent` in either run).
 - **Seen:** 2026-09-07 14:43 UTC, deployed. The turn of ISS-0061 sent its
   final at 14:42:58; the platform's retry (`retries=1`) reclaimed the row at
   14:43:12, resumed from the checkpoint and sent the same final again at
@@ -141,9 +193,10 @@ in use since 2026-09-06; it is not seen on the hosted model.
 
 ### ISS-0061 — a turn runs up to the worker's own timeout and is killed while persisting
 
-- **Status:** open; fix built 2026-09-07 (roadmap 22: the worker's timeout
-  is four hours, a guard, the turn stays bounded by its health check),
-  deploy pending.
+- **Status:** fixed 2026-09-07 (roadmap 22: the worker's timeout is four
+  hours, a guard, the turn stays bounded by its health check). Deployed and
+  seen 2026-09-07 15:26: no turn was killed at 600 s again. What was killed
+  at 600 s here was most likely a hung `persist`, which is ISS-0064.
 - **Seen:** 2026-09-07 14:33–14:43 UTC, deployed. A Blender scene turn
   (23 steps, 28 tool calls) reached `persist_started` at 598 s of elapsed
   time; at 600 s the platform cancelled the input

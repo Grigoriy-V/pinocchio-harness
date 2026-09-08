@@ -9,7 +9,7 @@ own, and what a tool tells the model it does. The order below was approved
 by the human on 2026-09-07; each item still gets its own start signal, and
 research before code where the item says so.
 
-**Current approved step:** 14, 15 and 20 are in Done (2026-09-07). 16 researched (`reports/2026-09-07_item16_research.md`), the page tool's shape approved; 17 absorbs the folder-per-task rule. 16 deployed and run on both sides, in Done. 21 added (one browser tool on the renderer; ISS-0060 is the breach it closes). 22 built and deployed (the worker outlives the turn, a heartbeat lease), live check pending. Next: 17, then 21, on the human's word.
+**Current approved step:** 14, 15 and 20 are in Done (2026-09-07). 16 researched (`reports/2026-09-07_item16_research.md`), the page tool's shape approved; 17 absorbs the folder-per-task rule. 16 deployed and run on both sides, in Done. 21 added (one browser tool on the renderer; ISS-0060 is the breach it closes). 22 deployed and seen live (the worker outlives the turn, a heartbeat lease); it uncovered a `persist` that hangs for the worker's whole life (ISS-0064), not yet a roadmap item. Next: 17, then 21, on the human's word.
 
 Observed defects are in `ISSUES.md`, which is not a plan and authorizes
 nothing. `docs/PRODUCT.md` is the product contract (it carries the rule that
@@ -142,7 +142,9 @@ noted; the human's word starts each.
     starts a worker, and one that finds its conversation held waits out one
     lease and takes the conversation up if the holder died; what the
     checkpoint holds for the same update id was delivered before a death
-    and is not sent again. Offline tests; deployed 2026-09-07. Seen live: pending.
+    and is not sent again. Offline tests; deployed 2026-09-07; seen live the
+    same evening (ISS-0061..0063 fixed; the hang it uncovered is ISS-0064).
+    `reports/2026-09-08_persist_hang_logs.txt`.
 
 Waiting, not in the order above:
 
