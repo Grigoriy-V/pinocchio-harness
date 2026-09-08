@@ -276,7 +276,7 @@ in use since 2026-09-06; it is not seen on the hosted model.
 
 - **Status:** open; fix built 2026-09-08 (roadmap 17: home and temp are
   the container's, cwd is the workspace by its short mount path), offline
-  tests, deploy and a Chrome probe pending.
+  tests, deployed 2026-09-08; a Chrome probe pending.
 - **Seen:** 2026-09-06, live, run `75c145f09f624ef5b311517c7e889058`
   (Telegram, GLM at Novita): `npm i puppeteer` failed twice on the
   workspace's `.npm` cache ("please run: sudo chown -R 0:0 …/.npm");
@@ -344,7 +344,8 @@ in use since 2026-09-06; it is not seen on the hosted model.
   line is gone, the brief says once what the container keeps, and the
   folder-per-task rule tells the model where a venv and packages live),
   offline tests, deploy pending. Whether the model follows the rule is the
-  suite's measurement (scenario C).
+  suite's measurement (scenario C: 7/7 locally; deployed pending). Deployed
+  2026-09-08.
 - **Seen:** 2026-09-05, scenario G on the INT4 App (`deployed-c0c0a622-70`):
   `npm install puppeteer` in `/tmp` and `apt-get install` of Chromium's
   libraries, then the script could not find what it had installed; each
