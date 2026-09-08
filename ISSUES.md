@@ -99,7 +99,7 @@ in use since 2026-09-06; it is not seen on the hosted model.
 
 - **Status:** open; fix built 2026-09-08 (roadmap 23: the store writes an
   outbound part as "Sent <name> (<type>, <size> bytes)."), offline tests,
-  deploy pending.
+  deployed 2026-09-08, not yet seen live.
 - **Seen:** 2026-09-07, deployed. The thread's `messages` row for the
   `send_file` result of `blender/street_video0000-0240.mp4` is 1,019,473
   characters (position 92); the earlier send of a shorter cut is 290,929
@@ -121,7 +121,7 @@ in use since 2026-09-06; it is not seen on the hosted model.
 - **Status:** open; fix built 2026-09-08 (roadmap 23: `CONNECTION_GUARDS`
   on every store and inbox connection, so the wait ends in about a minute
   as an `OperationalError` and the worker's retry resumes `persist` on a
-  fresh connection), deploy pending. The cause stays unknown; what is
+  fresh connection), deployed 2026-09-08, not yet seen live. The cause stays unknown; what is
   bounded is the wait, and the row that waited is a hundred bytes now
   (ISS-0065).
 - **Seen:** 2026-09-07 15:26–19:52 UTC, deployed. Turn 814913253 (a
