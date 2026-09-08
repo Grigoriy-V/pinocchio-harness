@@ -93,7 +93,7 @@ async def test_native_history_resumes_text_and_media(layer) -> None:
 
 
 @pytest.mark.asyncio
-async def test_native_history_hides_observation_media_and_keeps_explicit_outbound(layer) -> None:
+async def test_native_history_hides_observation_media_and_names_what_was_sent(layer) -> None:
     layer.store.append(
         "chat",
         [
@@ -127,8 +127,9 @@ async def test_native_history_hides_observation_media_and_keeps_explicit_outboun
 
     assert thread is not None
     assert [step["output"] for step in thread["steps"]] == ["Completed.", "Completed."]
-    assert len(thread["elements"]) == 1
-    assert thread["elements"][0]["name"] == "chosen.png"
+    # The sent picture is in the history by name, not as an element: the
+    # store keeps the delivery, not the bytes (ISS-0065).
+    assert thread["elements"] == []
 
 
 @pytest.mark.asyncio

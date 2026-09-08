@@ -99,9 +99,30 @@ def install_connection(
     connection = FakeConnection(row)
     monkeypatch.setattr(
         "app.memory.postgres.psycopg.connect",
-        lambda _dsn, *, row_factory: connection,
+        lambda _dsn, *, row_factory, **guards: connection,
     )
     return connection
+
+
+def test_every_connection_carries_the_socket_guards(monkeypatch: pytest.MonkeyPatch) -> None:
+    """ISS-0064: a write into a socket nobody answers waited for ever. The
+    bounds are libpq's, so they have to ride on the connect call itself."""
+
+    from app.memory.postgres import CONNECTION_GUARDS
+
+    seen: list[dict[str, object]] = []
+
+    def connect(_dsn: str, *, row_factory: object, **guards: object) -> FakeConnection:
+        seen.append(dict(guards))
+        return FakeConnection({})
+
+    monkeypatch.setattr("app.memory.postgres.psycopg.connect", connect)
+    PostgresStore("postgresql://unused", schema="test", migrate_schema=False)
+
+    assert seen == [dict(CONNECTION_GUARDS)]
+    assert CONNECTION_GUARDS["connect_timeout"] > 0
+    assert CONNECTION_GUARDS["tcp_user_timeout"] > 0
+    assert CONNECTION_GUARDS["keepalives"] == 1
 
 
 class HungUpConnection(FakeConnection):
@@ -129,7 +150,7 @@ def test_a_server_hang_up_during_idle_is_answered_with_a_fresh_connection(
     handed_out = iter([hung_up, fresh])
     monkeypatch.setattr(
         "app.memory.postgres.psycopg.connect",
-        lambda _dsn, *, row_factory: next(handed_out),
+        lambda _dsn, *, row_factory, **guards: next(handed_out),
     )
     store = PostgresStore("postgresql://unused", schema="test", migrate_schema=False)
 
@@ -148,7 +169,7 @@ def test_a_hang_up_on_the_fresh_connection_too_is_the_callers(
     handed_out = iter([HungUpConnection({}), HungUpConnection({})])
     monkeypatch.setattr(
         "app.memory.postgres.psycopg.connect",
-        lambda _dsn, *, row_factory: next(handed_out),
+        lambda _dsn, *, row_factory, **guards: next(handed_out),
     )
     store = PostgresStore("postgresql://unused", schema="test", migrate_schema=False)
 

@@ -119,7 +119,10 @@ additive. Store schema version is **4** in both implementations (`user_version`
 in SQLite, `schema_version` in PostgreSQL): 2 `user_state`, 3 `messages.failure`
 and `compactions`, 4 the derived `text` column with a full-text index (FTS5 /
 `simple` tsvector + GIN) that `search_history` reads. The deployed database is
-at 4. Migrating or resetting a populated database is a human gate; there is no
+at 4. Every connection the store and the inbox open carries libpq's bounds
+(`app/memory/postgres.py` `CONNECTION_GUARDS`: `connect_timeout` 10 s, TCP
+keepalives and `tcp_user_timeout` that declare an unanswered socket dead in
+about a minute; ISS-0064). Migrating or resetting a populated database is a human gate; there is no
 application path to a reset (`drop_schema` refuses `public`).
 
 ## Telegram mode

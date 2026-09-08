@@ -5,8 +5,14 @@ content, the same base64 media, the same tool calls. The encoding lives here so
 a second implementation cannot quietly invent a second format — the contract
 suite checks behaviour, and behaviour would not notice.
 
-Media is stored rather than dropped, so a reloaded conversation is the same
-conversation.
+Media the model was shown is stored rather than dropped, so a reloaded
+conversation is the same conversation. Media the agent sent is the exception:
+an outbound part carries the file's bytes for the transport, and once the
+adapter has delivered them the history has no reader for them — no model is
+ever shown an outbound part, and the file is in the workspace under its name.
+Observed 2026-09-07 (ISS-0065): one sent video was a megabyte row, written by
+every attempt at that turn's `persist` and read by every later turn. What is
+stored is the delivery: the name, the type and the size, as text.
 """
 
 from __future__ import annotations
@@ -24,6 +30,16 @@ def now() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
 
 
+def delivered(part: ContentPart) -> ContentPart:
+    """What the history keeps of an outbound part: the delivery, as text."""
+
+    size = len(part.data or b"")
+    return ContentPart(
+        kind="text",
+        text=f"Sent {part.name or part.kind} ({part.media_type}, {size} bytes).",
+    )
+
+
 def dump_content(parts: Sequence[ContentPart]) -> str:
     payload = [
         {
@@ -34,7 +50,7 @@ def dump_content(parts: Sequence[ContentPart]) -> str:
             "name": part.name,
             "outbound": part.outbound,
         }
-        for part in parts
+        for part in (delivered(part) if part.outbound else part for part in parts)
     ]
     return json.dumps(payload)
 

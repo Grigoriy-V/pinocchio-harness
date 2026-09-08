@@ -510,6 +510,30 @@ Consequences: `Agent.unfinished`, `Agent.resume_interrupted_events`,
 `Tool.replay_safe`, `LEASE_SECONDS` derived from the Modal timeout.
 `reports/2026-09-04_v2_restart_resume_review.md`.
 
+## 2026-09-08 — A store write that nobody answers ends; the history keeps a sent file by name
+
+Decision: every connection the store and the update inbox open carries
+libpq's own bounds — a connect that takes longer than ten seconds fails, a
+socket whose peer stops answering is dead after about a minute — so a
+statement can end in an `OperationalError` but never in a wait with no end;
+what follows is the caller's ordinary failure path (the worker's retry
+resumes `persist` from the checkpoint). And the history stores an outbound
+part as its delivery in words (name, type, size), never the bytes: no model
+is shown an outbound part, the file is in the workspace under its name, and
+the local history names what was sent instead of showing it.
+
+Why: on 2026-09-07 `persist` waited for ever on a one-megabyte `send_file`
+row, in two containers that each lived to the four-hour timeout, while a
+third wrote the same row at once (ISS-0064, ISS-0065). The cause was not
+shown by the logs; what the harness owns is that no wait is unbounded and
+that no row carries bytes nobody reads. Amends "Media is stored rather than
+dropped" in `app/memory/records.py`, which now holds for media the model was
+shown.
+
+Consequences: `app/memory/postgres.py` `CONNECTION_GUARDS`,
+`ui/telegram/inbox.py`, `app/memory/records.py` `delivered`; the Chainlit
+history shows no element for a sent file. Roadmap 23.
+
 ## 2026-09-07 — The worker outlives the turn; a live worker is known by its heartbeat
 
 Decision: the deployed worker's platform timeout is a guard against a

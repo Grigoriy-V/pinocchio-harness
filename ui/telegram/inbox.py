@@ -128,8 +128,10 @@ class PostgresUpdateInbox:
         import psycopg
         from psycopg.rows import dict_row
 
+        from app.memory.postgres import CONNECTION_GUARDS
+
         return await psycopg.AsyncConnection.connect(
-            self.dsn, autocommit=True, row_factory=dict_row
+            self.dsn, autocommit=True, row_factory=dict_row, **CONNECTION_GUARDS
         )
 
     async def setup(self) -> None:

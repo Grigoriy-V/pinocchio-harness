@@ -20,6 +20,18 @@ database closes idle connections, so a store that outlives a pause has to be
 able to open a new one. `_cursor` does that once per call rather than assuming
 the socket from start-up is still there.
 
+The other is that a statement sent into a socket nobody answers must end.
+Observed 2026-09-07 (ISS-0064): `persist` wrote the turn's rows and waited for
+ever, twice, in two containers that then lived to the platform's four-hour
+timeout; the same write from a third went through at once. `CONNECTION_GUARDS`
+are libpq's own bounds, carried on every connection this module and the update
+inbox open: a connect that takes longer than ten seconds fails, and a socket
+whose peer stops answering — no acknowledgement of what was sent, no reply to a
+keepalive — is declared dead after about a minute, which surfaces here as an
+`OperationalError` instead of a wait with no end. What happens next is the
+caller's: the store drops the connection, and `persist` is resumed from the
+checkpoint by the worker's retry on a fresh one.
+
 The store is synchronous, like the SQLite one, because `ConversationStore` is.
 The worker waits on the model, not on this.
 """
@@ -27,7 +39,7 @@ The worker waits on the model, not on this.
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterable, Iterator, Mapping
 from contextlib import contextmanager
 from typing import Any
 
@@ -152,6 +164,24 @@ def match_query(query: str) -> str:
 # parser did split.
 
 
+# libpq connection parameters, the same on every connection to the database.
+# `tcp_user_timeout` bounds how long sent data may go unacknowledged; the
+# keepalives bound how long an idle socket may go unanswered. Both are in
+# seconds except `tcp_user_timeout`, which libpq takes in milliseconds; both
+# are ignored by libpq where the platform lacks them (Windows), which is the
+# local profile and not where the wait was seen.
+CONNECT_TIMEOUT_SECONDS = 10
+DEAD_SOCKET_SECONDS = 60
+CONNECTION_GUARDS: Mapping[str, int] = {
+    "connect_timeout": CONNECT_TIMEOUT_SECONDS,
+    "keepalives": 1,
+    "keepalives_idle": DEAD_SOCKET_SECONDS // 3,
+    "keepalives_interval": DEAD_SOCKET_SECONDS // 6,
+    "keepalives_count": 3,
+    "tcp_user_timeout": DEAD_SOCKET_SECONDS * 1000,
+}
+
+
 def migrate(connection: psycopg.Connection, schema: str) -> int:
     """Bring the database up to `SCHEMA_VERSION`, returning the version found.
 
@@ -228,7 +258,7 @@ class PostgresStore(ConversationStore):
     # --- connection ----------------------------------------------------------
 
     def _open(self) -> psycopg.Connection:
-        connection = psycopg.connect(self.dsn, row_factory=dict_row)
+        connection = psycopg.connect(self.dsn, row_factory=dict_row, **CONNECTION_GUARDS)
         self._connection = connection
         return connection
 
