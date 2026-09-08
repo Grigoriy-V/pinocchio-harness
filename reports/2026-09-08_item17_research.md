@@ -186,3 +186,77 @@ appeared, is a cheap addition if wanted.
   2026-09-04), ISS-0053 and ISS-0058 status, roadmap 17.
 - Then: local scenario C; deploy (gate); deployed scenario C (gate); the
   Chrome probe (gate).
+
+## 6. The references, read on the human's word (2026-09-08)
+
+Read from source through the GitHub API: Hermes Agent
+`tools/environments/local.py`, `base.py`, `local_pythonpath.py`,
+`tools/terminal_tool.py`, `agent/prompt_builder.py`, `agent/runtime_cwd.py`,
+`hermes_constants.py`; DeepSeek Harness `docs/subsystems/sandbox.md`,
+`packages/shell/tool-bash`, `bash-sandbox`, `shell-env`,
+`packages/sandbox/sandbox-windows-acl` READMEs; OpenClaw
+`docs/gateway/sandboxing.md`, `src/agents/sandbox/{docker,docker-backend,
+config,constants,workspace}.ts`. Copies in the session scratchpad.
+
+### 6.1 Local: Hermes and DeepSeek
+
+| Concern | Hermes (local backend) | DeepSeek Harness (local / sandboxed bash) |
+|---|---|---|
+| Where a command runs | The host shell, `bash -c` per call over a session snapshot (env, functions, cwd persist). cwd is the configured one or the launch dir; a deleted cwd falls back to the nearest usable ancestor. | A fresh `bash -c` per call; nothing persists; `workdir` per call, resolved against the session's immutable cwd, which is the workspace-write boundary. |
+| `HOME` | The person's **real home** (`TERMINAL_HOME_MODE=auto`; a container gets `{HERMES_HOME}/home`). Never the workspace. | Untouched: the real home. The harness's own facts travel as a `DSH_*` namespace rebuilt per call (`DSH_HOME`, `DSH_SESSION_ID`), not as `HOME`. |
+| Temp | Not redirected. Its own artifacts under `{HERMES_HOME}/cache/terminal`, pruned after 72 h. | **A private random temp directory per live session/workspace pair**, `TMP`/`TEMP` rewritten to it, writable under the ACL, revoked on dispose; on Linux `/tmp`. Never the workspace, never the ambient temp root. |
+| The agent's own Python | **Stripped**: Hermes-owned `PYTHONPATH` entries and the active-venv marker variables (`VIRTUAL_ENV` and kin) are removed from the child env, so the model's `python` is the machine's, never the agent's venv. `PATH` repaired to a sane list when the launcher's was minimal. | Not addressed; the `DSH_*` namespace is the only managed thing. |
+| A venv for the model | None made. The tool text: "Environment state persists: activate a virtualenv or export variables once per session, not before every command." | None made; no install rule. |
+| Boundary | None on the host. | `workspace-write`: the workspace root plus the temp area; a denial is a result fact and may be escalated once with a justification through approval. |
+| What the prompt states | `Host: <OS>`, `User home directory: <real home>`, `Current working directory: <cwd>`, plus a Windows note that the shell is bash. | The bash guidance section, plus the sandbox state from the policy owner. |
+
+What follows for us, beyond §3.2:
+
+- **`HOME` is the person's real home, not the workspace** (both). What a
+  tool reads from `$HOME` — a `.gitconfig`, an `.npmrc`, `.ssh` for git —
+  is the person's, which is the point of the local profile. Today we set
+  `HOME` to the workspace, which hides all of it.
+- **Temp is a private directory outside the workspace** (DeepSeek), granted
+  by the write boundary like the workspace, and `APPDATA`/`LOCALAPPDATA`
+  under it so a tool that writes "for the user" on Windows lands there
+  rather than in the real profile, which the boundary would refuse. The
+  workspace stops carrying `.tmp`, so it holds work and nothing else.
+- **The agent's own venv is stripped from the child's environment**
+  (Hermes). `command_environment` passes `PATH` through untouched, so an
+  agent launched from its activated `.venv` hands that venv's `Scripts` to
+  the model as `python`. Remove our own venv's directory from `PATH` and
+  drop `VIRTUAL_ENV`, `PYTHONPATH`, `PYTHONHOME` when they name it.
+- **Nothing activated, nothing made** (both), as §3.2 L1 already says.
+- **The brief states host, home, cwd** (Hermes), which our `where` does in
+  its own words; add the home.
+
+### 6.2 Deployed: OpenClaw
+
+| Concern | OpenClaw (Docker sandbox) |
+|---|---|
+| A container per | session (`scope: session`), or per agent, or one shared; kept and reused, pruned after 24 h idle or 7 days. Nobody starts one per command. |
+| Working directory | `/workspace` — the **sandbox workspace**, a directory of the session's own under `~/.openclaw/sandboxes`, seeded from the agent workspace's bootstrap files, deleted with the container. |
+| The person's workspace | Mounted apart: read-only at `/agent` (default `ro`), read-write at `/workspace` when allowed, hidden with `none`. Credential roots (`~/.npm`, `~/.ssh`, `~/.config`, …) refused as bind sources. |
+| `HOME` | The image's: a non-root `sandbox` user, `WORKDIR /home/sandbox`. Never the mounted workspace. Chromium's profile is `${HOME}/.chrome`. |
+| Temp | `readOnlyRoot: true` with **tmpfs at `/tmp`, `/var/tmp`, `/run`** — the container's own, gone with it. |
+| Environment | Not inherited from the host; only `sandbox.docker.env`, sanitized, through an env file. |
+| Installs | "System package installation … is image provisioning, not normal sandbox-turn behavior." A custom image, or `setupCommand` once per container (`sh -lc`, needs network, a writable root and root). "Project-local dependencies can be installed in a writable workspace when the operator enables network egress." Network `none` by default. |
+
+What follows for us: **§3.1 D1 is OpenClaw's shape** — home and temp are
+the container's, the working directory is the mounted workspace, the
+environment is only what the harness sets. Two things OpenClaw does that
+we do not: a non-root user (ours runs as root; a change to the image, worth
+its own line, not this item), and a container kept per session for a day
+(ours dies after three idle minutes; the folder-per-task venv is our answer
+to that, and OpenClaw's "project-local dependencies in a writable
+workspace" is the same answer).
+
+## 7. Recommendation, revised
+
+Deployed, D1 as in §3.1, which is OpenClaw's shape. Local, L1 as in §3.2
+with the three refinements of §6.1: `HOME` is the real home, temp is a
+private per-session directory outside the workspace under the boundary,
+and the agent's own venv is stripped from the child's `PATH` and markers.
+The prompt paragraph of §3.3 unchanged. The acceptance of §3.4, plus one
+check on the local side: the workspace root holds no `.tmp` and no `.venv`
+after scenario C.
