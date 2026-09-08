@@ -132,6 +132,28 @@ if _sys.platform == "win32":
         return _mkdir(path, mode, dir_fd=dir_fd)
 
     _os.mkdir = mkdir
+
+    # A venv made here runs `ensurepip` in isolated mode (`-I`), which reads no
+    # PYTHONPATH, so this file would not be there for it: the bundled wheel is
+    # copied into a 0o700 temp directory and refused (roadmap 17, 2026-09-08).
+    # A venv's own site-packages is on its path in every mode, so every venv
+    # made under the boundary gets this file there, before pip is set up.
+    try:
+        import pathlib as _pathlib
+        import venv as _venv
+
+        _setup_python = _venv.EnvBuilder.setup_python
+
+        def setup_python(self, context):
+            _setup_python(self, context)
+            site = _pathlib.Path(context.env_dir) / "Lib" / "site-packages" / "sitecustomize.py"
+            if not site.exists():
+                site.parent.mkdir(parents=True, exist_ok=True)
+                site.write_text(_pathlib.Path(__file__).read_text(encoding="utf-8"), encoding="utf-8")
+
+        _venv.EnvBuilder.setup_python = setup_python
+    except Exception:  # noqa: BLE001 - a venv that cannot be helped is still a venv
+        pass
 """
 
 
@@ -196,6 +218,11 @@ def command_environment(
     env["TEMP"] = env["TMP"] = env["TMPDIR"] = str(tmp)
     env["APPDATA"] = str(tmp / "appdata")
     env["LOCALAPPDATA"] = str(tmp / "local")
+    # pip finds its cache through the shell folder API, not `LOCALAPPDATA`, so
+    # under the boundary it wrote into the real profile, was refused, and
+    # `tempfile` then tried ten thousand names (2026-09-08: every `pip
+    # install` 240 s). Told where directly.
+    env["PIP_CACHE_DIR"] = str(tmp / "pip-cache")
     if sys.platform == "win32":
         env["PYTHONPATH"] = str(tmp / "python")
     env["PYTHONUTF8"] = "1"

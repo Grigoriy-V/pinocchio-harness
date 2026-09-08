@@ -109,6 +109,7 @@ def test_the_environment_is_what_a_shell_needs_with_home_and_temp_as_told(
     assert env["HOME"] == str(home) == env["USERPROFILE"]
     assert env["TEMP"] == env["TMP"] == env["TMPDIR"] == str(tmp)
     assert env["APPDATA"].startswith(str(tmp)) and env["LOCALAPPDATA"].startswith(str(tmp))
+    assert env["PIP_CACHE_DIR"].startswith(str(tmp))
     assert not env["TEMP"].startswith(str(workspace))
 
 
@@ -374,6 +375,28 @@ def test_a_command_can_write_inside_the_workspace_and_nowhere_else(workspace: Pa
     assert "profile refused" in finished.output
     assert "WRITTEN" not in finished.output
     assert not outside.exists()
+
+
+@windows_only
+def test_a_venv_the_model_makes_under_the_boundary_has_pip(workspace: Path) -> None:
+    """Roadmap 17: no venv is made for the model, so the model makes one, and
+    `python -m venv` runs `ensurepip` in isolated mode where the runner's
+    `sitecustomize` is not on the path; the bundled wheel then lands in a
+    0o700 temp directory and is refused. Every venv made here carries the
+    accommodation in its own site-packages."""
+
+    finished = run(
+        LocalRunner().run(
+            "python -m venv task\.venv && task\.venv\Scripts\python -m pip --version",
+            workspace,
+            180,
+        )
+    )
+
+    assert finished.exit_code == 0, finished.output
+    assert "pip" in finished.output
+    assert (workspace / "task" / ".venv" / "Lib" / "site-packages" / "sitecustomize.py").is_file()
+    assert not (workspace / ".venv").exists()
 
 
 @windows_only

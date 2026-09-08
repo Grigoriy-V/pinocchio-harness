@@ -111,7 +111,9 @@ noted; the human's word starts each.
     command's `PATH`, no venv made, nothing activated, the "new
     environment" line gone, cwd by the mount path; the folder-per-task line
     in the brief; scenario C extended with a venv and an install. Offline
-    tests. Local C, deploy, deployed C and the Chrome probe: pending.
+    tests; local C 7/7 (after two boundary fixes the check found: a venv's
+    `ensurepip` in isolated mode, pip's cache in the real profile). Deploy,
+    deployed C and the Chrome probe: pending.
 
 18. **The harness's own seconds.** Name in the timeline what runs between
     steps and after persist (Telegram preview edits and status calls, the

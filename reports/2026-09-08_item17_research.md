@@ -260,3 +260,33 @@ and the agent's own venv is stripped from the child's `PATH` and markers.
 The prompt paragraph of §3.3 unchanged. The acceptance of §3.4, plus one
 check on the local side: the workspace root holds no `.tmp` and no `.venv`
 after scenario C.
+
+## 8. Built 2026-09-08, and what the local check found
+
+Built as §7 says (commit `e8a052f` and the two fixes below). The first
+local scenario C ran out of its 400 s: the model's `python -m venv` failed
+and its `pip install` hung. Two defects of the boundary, found by hand with
+`LocalRunner` (scratchpad probes), both general and both fixed:
+
+1. **`python -m venv` could not bootstrap pip.** `venv` runs `ensurepip`
+   with `-I`, which reads no `PYTHONPATH`, so the runner's `sitecustomize`
+   (the 0o700 accommodation) was not there; `ensurepip` copies its bundled
+   wheel into a `mkdtemp` directory and was refused. Until this item the
+   agent made the venv outside the boundary, so it never showed. Fix: the
+   `sitecustomize` also wraps `venv.EnvBuilder.setup_python` and writes
+   itself into every new venv's `Lib/site-packages`, which is on that
+   venv's path in every mode, before pip is set up. Test:
+   `test_a_venv_the_model_makes_under_the_boundary_has_pip`.
+2. **`pip install` took 240 s and was killed.** pip's self-version check
+   writes its HTTP cache under `platformdirs.user_cache_dir`, which on
+   Windows reads the shell folder through ctypes and not `LOCALAPPDATA`;
+   the real profile is refused by the boundary, and `tempfile` on Windows
+   retries a `PermissionError` ten thousand times. Fix: `PIP_CACHE_DIR`
+   under the runner's temp, both profiles. Probably the mechanism behind
+   the three 120 s `pip install` of 2026-09-04 as well.
+
+With both: `python -m venv` 2.2 s, `pip install tabulate` 3.2 s under the
+boundary. Scenario C then passed 7/7 locally in 56 s (run `live-40`, 7
+model calls, 38,466 tokens in): `set_goal`, three commands, `write_file`, a
+command; `primes_task/` holds `venv` and `primes.py`, the root holds
+nothing else. Deployed C and the Chrome probe wait for the deploy gate.
