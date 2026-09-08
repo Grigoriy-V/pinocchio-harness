@@ -9,7 +9,7 @@ own, and what a tool tells the model it does. The order below was approved
 by the human on 2026-09-07; each item still gets its own start signal, and
 research before code where the item says so.
 
-**Current approved step:** 14, 15 and 20 are in Done (2026-09-07). 16 researched (`reports/2026-09-07_item16_research.md`), the page tool's shape approved; 17 absorbs the folder-per-task rule. 16 deployed and run on both sides, in Done. 21 added (one browser tool on the renderer; ISS-0060 is the breach it closes). 22 deployed and seen live (the worker outlives the turn, a heartbeat lease); it uncovered a `persist` that hangs for the worker's whole life (ISS-0064); 23 built and deployed for it (connection bounds, a sent file kept by name), live check pending. Next: 17, then 21, on the human's word.
+**Current approved step:** 14, 15 and 20 are in Done (2026-09-07). 16 researched (`reports/2026-09-07_item16_research.md`), the page tool's shape approved; 17 absorbs the folder-per-task rule. 16 deployed and run on both sides, in Done. 21 added (one browser tool on the renderer; ISS-0060 is the breach it closes). 22 deployed and seen live (the worker outlives the turn, a heartbeat lease); it uncovered a `persist` that hangs for the worker's whole life (ISS-0064); 23 deployed and seen live (connection bounds, a sent file kept by name). Next: 17, then 21, on the human's word.
 
 Observed defects are in `ISSUES.md`, which is not a plan and authorizes
 nothing. `docs/PRODUCT.md` is the product contract (it carries the rule that
@@ -157,7 +157,9 @@ noted; the human's word starts each.
     the history stores an outbound part as the delivery in words — name,
     type, size — never the bytes, on both stores. Offline tests; the guards
     opened a live connection from the local machine. Deployed 2026-09-08;
-    seen live: pending.
+    seen live the same morning: a sent file's row is 313 characters and
+    `persist` took 3.5 s (ISS-0065 fixed; ISS-0064 stays open until a hang
+    is seen ending).
 
 Waiting, not in the order above:
 

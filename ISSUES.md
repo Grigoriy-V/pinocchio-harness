@@ -22,7 +22,7 @@ authorizes nothing; `ROADMAP.md` alone orders work. Evidence lives in
 
 | Id | Status | Defect | Related |
 |---|---|---|---|
-| ISS-0065 | open, fix built | a `send_file` result carries the file's bytes into the thread's history | 0064, roadmap 23 |
+| ISS-0065 | fixed 2026-09-08 | a `send_file` result carries the file's bytes into the thread's history | 0064, roadmap 23 |
 | ISS-0064 | open, fix built | `persist` hangs on the store's write and the worker sits in it until the platform kills it | 0061, 0048, 0065, roadmap 23 |
 | ISS-0063 | fixed 2026-09-07 | a dead worker's lease holds the conversation; nothing wakes the queue when it expires | 0061, 0062, roadmap 22 |
 | ISS-0062 | fixed 2026-09-07 | the retry of a killed turn sends the final answer a second time | 0061, roadmap 22 |
@@ -98,8 +98,9 @@ in use since 2026-09-06; it is not seen on the hosted model.
 ### ISS-0065 — a `send_file` result carries the file's bytes into the thread's history
 
 - **Status:** open; fix built 2026-09-08 (roadmap 23: the store writes an
-  outbound part as "Sent <name> (<type>, <size> bytes)."), offline tests,
-  deployed 2026-09-08, not yet seen live.
+  outbound part as "Sent <name> (<type>, <size> bytes)."). Seen live
+  2026-09-08 06:08 UTC: the `send_file` result row of update 814913263 is
+  313 characters; `persist` took 3.5 s in one attempt.
 - **Seen:** 2026-09-07, deployed. The thread's `messages` row for the
   `send_file` result of `blender/street_video0000-0240.mp4` is 1,019,473
   characters (position 92); the earlier send of a shorter cut is 290,929
@@ -121,7 +122,8 @@ in use since 2026-09-06; it is not seen on the hosted model.
 - **Status:** open; fix built 2026-09-08 (roadmap 23: `CONNECTION_GUARDS`
   on every store and inbox connection, so the wait ends in about a minute
   as an `OperationalError` and the worker's retry resumes `persist` on a
-  fresh connection), deployed 2026-09-08, not yet seen live. The cause stays unknown; what is
+  fresh connection), deployed 2026-09-08; a hang has not been seen since
+  (one sent file, 06:08 UTC, persisted in 3.5 s). The cause stays unknown; what is
   bounded is the wait, and the row that waited is a hundred bytes now
   (ISS-0065).
 - **Seen:** 2026-09-07 15:26–19:52 UTC, deployed. Turn 814913253 (a
