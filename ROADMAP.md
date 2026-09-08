@@ -103,7 +103,8 @@ noted; the human's word starts each.
     Accepted by scenario C extended with an install, on both sides: the
     package landed under the task's folder and the root holds no venv.
     Whether the model follows the line is the suite's measurement, not a
-    rule. ISS-0053, ISS-0058.
+    rule. ISS-0053, ISS-0058. Researched 2026-09-08:
+    `reports/2026-09-08_item17_research.md`.
 
 18. **The harness's own seconds.** Name in the timeline what runs between
     steps and after persist (Telegram preview edits and status calls, the
