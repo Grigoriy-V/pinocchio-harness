@@ -55,6 +55,7 @@ from app.memory import ConversationStore, Thread
 from app.tools import Runner
 from app.models import ContentPart, Message
 from app.telemetry import NO_TRACE, Telemetry, TurnTrace
+from app.telemetry.trace import reset_active, set_active, spent
 from ui.telegram.interjections import InboxInterjections
 from ui.telegram.api import (
     MAX_PHOTO_BYTES,
@@ -727,8 +728,19 @@ class TelegramAdapter:
         it is where a turn's outcome is decided. A turn left without one is a
         turn that did not reach any of the endings below, which the worker
         closes as a failure rather than guessing.
+
+        The trace is the active one for everything below: what the client,
+        the saver, the store and the runner spend is named on it by the thing
+        that spends it (roadmap 18).
         """
 
+        active = set_active(trace)
+        try:
+            await self._handle_update(update, trace)
+        finally:
+            reset_active(active)
+
+    async def _handle_update(self, update: dict[str, Any], trace: TurnTrace) -> None:
         incoming = read_update(update)
         if incoming is None:
             return
@@ -1170,17 +1182,18 @@ class TelegramAdapter:
     ) -> None:
         activity = ToolActivity(self.client, chat_id)
         preview = AnswerPreview(self.client, chat_id)
-        # What this request already received before a death, so that a turn
-        # taken up again does not say it twice. Empty for a request seen the
-        # first time.
-        delivered: set[str] = set(await agent.delivered_before(thread_id, sequence))
-        _, covered = agent.store.summary(thread_id)
-        events = (
-            agent.resume_interrupted_events(thread_id, trace)
-            if resume
-            else agent.events(thread_id, message, trace, sequence)
-        )
         try:
+            # What this request already received before a death, so that a
+            # turn taken up again does not say it twice. Empty for a request
+            # seen the first time.
+            with spent("turn_prepared"):
+                delivered: set[str] = set(await agent.delivered_before(thread_id, sequence))
+                _, covered = agent.store.summary(thread_id)
+            events = (
+                agent.resume_interrupted_events(thread_id, trace)
+                if resume
+                else agent.events(thread_id, message, trace, sequence)
+            )
             async for event in events:
                 if isinstance(event, AssistantDelta):
                     if await preview.add(event.text):
@@ -1203,14 +1216,15 @@ class TelegramAdapter:
                 await self._deliver(
                     chat_id, event.message, activity, preview, trace, delivered
                 )
-        finally:
             # Including when the turn failed: the last thing a person should be
             # left looking at is not "Reading page…" on a turn that stopped, and
             # not half an answer that is never going to be finished.
+        finally:
             await activity.clear()
             await preview.discard()
-        await self._fold_notice(agent, thread_id, chat_id, covered)
-        asked = await self._ask_pending_calls(agent, chat_id, thread_id)
+        with spent("turn_closed"):
+            await self._fold_notice(agent, thread_id, chat_id, covered)
+            asked = await self._ask_pending_calls(agent, chat_id, thread_id)
         # A turn that stopped to ask is not a turn that failed to answer. Both
         # are successful endings, and they are told apart here.
         trace.finish("approval_requested" if asked else "answer_delivered")

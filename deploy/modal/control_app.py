@@ -315,10 +315,15 @@ class ModalRunner:
             relative = Path(cwd).resolve().relative_to(root)
         except ValueError as error:
             raise ToolError("the workspace is not on the volume", code=COMMAND_NOT_STARTED) from error
+        from app.telemetry.trace import spent
+
         started = time.monotonic()
-        await workspaces.commit.aio()
-        result = await run_command.remote.aio(str(relative.as_posix()), command, timeout)
-        await workspaces.reload.aio()
+        with spent("volume_commit", where="before_command"):
+            await workspaces.commit.aio()
+        with spent("command_remote"):
+            result = await run_command.remote.aio(str(relative.as_posix()), command, timeout)
+        with spent("volume_reload", where="after_command"):
+            await workspaces.reload.aio()
         failure = result.get("failure")
         if failure:
             raise ToolError(str(failure["message"]), code=str(failure["code"]), detail=failure.get("detail"))
@@ -408,7 +413,22 @@ async def process_telegram_update(update_id: int) -> bool:
     # the next message would be answered against a stale workspace. Committing
     # afterwards is what makes this turn's files exist for the next one, whichever
     # container answers it.
+    from app.telemetry.trace import TraceEvent, log_event
+
+    def said(kind: str, started: float) -> None:
+        # Outside any turn's trace, so the log alone has it (roadmap 18).
+        log_event(
+            TraceEvent(
+                run_id=f"update-{update_id}",
+                seq=0,
+                type=kind,
+                data={"duration_ms": int((time.monotonic() - started) * 1000)},
+            )
+        )
+
+    started = time.monotonic()
     await workspaces.reload.aio()
+    said("volume_reload_before_turn", started)
     try:
         # `_spawn` again, for the same reason the webhook has it: a conversation
         # with more messages than one worker's drain window continues in a fresh
@@ -417,12 +437,16 @@ async def process_telegram_update(update_id: int) -> bool:
             inbox, adapter, telemetry, spawn=_spawn
         ).run(update_id)
     finally:
+        started = time.monotonic()
         await workspaces.commit.aio()
+        said("volume_commit_after_turn", started)
         await adapter.aclose()
         await client.aclose()
         # Flushes anything a turn left behind before the container can be
         # scaled away with it still in memory.
+        started = time.monotonic()
         telemetry.close()
+        said("telemetry_closed", started)
 
 
 @app.function(

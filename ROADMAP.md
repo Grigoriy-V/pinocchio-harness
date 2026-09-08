@@ -9,7 +9,7 @@ own, and what a tool tells the model it does. The order below was approved
 by the human on 2026-09-07; each item still gets its own start signal, and
 research before code where the item says so.
 
-**Current approved step:** 14, 15 and 20 are in Done (2026-09-07). 16 researched (`reports/2026-09-07_item16_research.md`), the page tool's shape approved; 17 absorbs the folder-per-task rule. 16 deployed and run on both sides, in Done. 21 added (one browser tool on the renderer; ISS-0060 is the breach it closes). 17, 22 and 23 in Done (2026-09-08). Next: 21, on the human's word.
+**Current approved step:** 14, 15 and 20 are in Done (2026-09-07). 16 researched (`reports/2026-09-07_item16_research.md`), the page tool's shape approved; 17 absorbs the folder-per-task rule. 16 deployed and run on both sides, in Done. 21 added (one browser tool on the renderer; ISS-0060 is the breach it closes). 17, 22 and 23 in Done (2026-09-08). 18 started, its first half built (the harness's seconds named), deploy pending; 21 waits for its research.
 
 Observed defects are in `ISSUES.md`, which is not a plan and authorizes
 nothing. `docs/PRODUCT.md` is the product contract (it carries the rule that
@@ -107,7 +107,15 @@ noted; the human's word starts each.
 18. **The harness's own seconds.** Name in the timeline what runs between
     steps and after persist (Telegram preview edits and status calls, the
     checkpoint write, the telemetry flush, the two Volume commits around
-    every command), then remove what is needless. ISS-0056.
+    every command), then remove what is needless. ISS-0056. Started
+    2026-09-08 (the human, 21 set aside for its research). First half
+    built the same day: the turn's trace is the task's active trace and
+    every thing the harness spends time on names itself with a duration
+    (Telegram calls, checkpoint reads and writes, the graph build, the
+    context load, the interjections read, the history write, the Volume
+    trips around a command, the turn's preparation and closing, the
+    telemetry write, the inbox completion). Offline test. Deploy and the
+    measured run: pending. `reports/2026-09-08_item18_harness_seconds.md`.
 
 19. **The scenario suite, reconsidered.** After 16: checks on events rather
     than routes, time split into model, tool and wait, a batch that survives

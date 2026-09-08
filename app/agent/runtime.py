@@ -47,6 +47,7 @@ from app.context.window import DEFAULT_SYSTEM_PROMPT, system
 from app.memory import LOCAL_USER_ID, ConversationStore, Thread, open_store
 from app.models import ContentPart, Message, ModelBackend, Usage
 from app.telemetry import NO_TRACE, Telemetry, TurnTrace
+from app.telemetry.trace import spent
 from app.preflight import Probe, backend_probe, report, run, store_probes, tool_probes
 from app.models.openai_compatible import OpenAICompatibleBackend
 from app.tools import (
@@ -397,6 +398,12 @@ class Agent:
 
     async def _graph(self, thread_id: str) -> CompiledStateGraph:
         if thread_id not in self._graphs:
+            with spent("graph_built"):
+                await self._build(thread_id)
+        return self._graphs[thread_id]
+
+    async def _build(self, thread_id: str) -> None:
+        if True:
             toolbox = self.toolbox(thread_id)
             # The model is told what it actually has. Left to its own account it
             # denies abilities it has and invents tools it does not. What it is
@@ -424,7 +431,6 @@ class Agent:
                 self.interjections,
                 self.instructions,
             )
-        return self._graphs[thread_id]
 
     def instructions(self) -> str:
         """The person's standing instructions, read fresh for each turn."""

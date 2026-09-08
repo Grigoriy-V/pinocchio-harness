@@ -50,6 +50,7 @@ from app.models import (
     Usage,
 )
 from app.telemetry import NO_TRACE, Telemetry, TurnTrace
+from app.telemetry.trace import spent
 from app.tools import (
     DECLINED,
     INTERRUPTED,
@@ -545,7 +546,8 @@ def build_agent(
         )
 
     def load(state: AgentState) -> dict[str, Context]:
-        return {"context": assemble_context(state)}
+        with spent("context_loaded"):
+            return {"context": assemble_context(state)}
 
     async def complete(
         prompt: list[Message],
@@ -982,7 +984,8 @@ def build_agent(
         # no later turn. Never raises, for the same reason `asked_to_stop`
         # does not: a lane that could fail the turn is worse than none.
         try:
-            taken = await interjections.take(user_id, state.sequence)
+            with spent("interjections_read"):
+                taken = await interjections.take(user_id, state.sequence)
         except Exception:  # noqa: BLE001 - a message that cannot be read waits for its own turn
             taken = []
         if taken:
@@ -993,8 +996,9 @@ def build_agent(
     async def persist(state: AgentState, config: RunnableConfig) -> None:
         trace = trace_of(config)
         with trace.step("persist"):
-            if not already_stored(store, state.thread_id, state.messages):
-                store.append(state.thread_id, state.messages, user_id)
+            with spent("history_written"):
+                if not already_stored(store, state.thread_id, state.messages):
+                    store.append(state.thread_id, state.messages, user_id)
         try:
             await fold_older_messages(
                 backend, store, state.thread_id, policy, state.usage.input_tokens

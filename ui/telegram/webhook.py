@@ -365,7 +365,17 @@ class TelegramUpdateWorker:
             # A turn the adapter did not close is one that ended some other way.
             trace.finish("failed", error_type="incomplete")
             self.telemetry.release(job.run_id)
+        started = time.monotonic()
         await self.inbox.complete(job)
+        # After the trace is closed, so the log alone has it (roadmap 18).
+        log_event(
+            TraceEvent(
+                run_id=job.run_id,
+                seq=0,
+                type="inbox_completed",
+                data={"duration_ms": int((time.monotonic() - started) * 1000)},
+            )
+        )
 
     async def _hand_off(self, job: InboxJob) -> None:
         """Ask for another worker. Never raises: the queue keeps the update."""

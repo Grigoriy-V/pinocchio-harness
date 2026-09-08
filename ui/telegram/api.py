@@ -38,6 +38,7 @@ from typing import Any, Self
 import httpx
 
 from app.config import TelegramSettings
+from app.telemetry.trace import spent
 from ui.telegram import markdown
 from ui.telegram.wire import SETTLED_APPROVED, SETTLED_REJECTED
 
@@ -355,7 +356,8 @@ class TelegramClient:
         """
 
         for hold in range(MAX_RATE_LIMIT_HOLDS + 1):
-            body = await self._post(method, payload)
+            with spent("telegram_call", method=method):
+                body = await self._post(method, payload)
             if body.get("ok"):
                 return body.get("result")
             pause = retry_after(body)

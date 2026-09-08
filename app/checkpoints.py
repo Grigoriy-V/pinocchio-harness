@@ -11,6 +11,7 @@ connection until a graph actually asks for the saver.
 
 from __future__ import annotations
 
+import functools
 from pathlib import Path
 from typing import Any
 
@@ -18,9 +19,42 @@ import aiosqlite
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
+from app.telemetry.trace import spent
+
+
+# What a saver does for the graph, named on the active trace: a read before
+# the first node and a write after every node, which is where a turn's
+# seconds went unaccounted (roadmap 18).
+_TIMED = {
+    "aget_tuple": "checkpoint_read",
+    "alist": "checkpoint_read",
+    "aput": "checkpoint_write",
+    "aput_writes": "checkpoint_write",
+}
+
+
+def timed_saver(saver: Any) -> Any:
+    """The same saver, its graph-facing methods measured on the active trace."""
+
+    for method, kind in _TIMED.items():
+        original = getattr(saver, method, None)
+        if original is None:
+            continue
+
+        def wrap(original: Any = original, kind: str = kind, method: str = method) -> Any:
+            @functools.wraps(original)
+            async def measured(*args: Any, **kwargs: Any) -> Any:
+                with spent(kind, op=method):
+                    return await original(*args, **kwargs)
+
+            return measured
+
+        setattr(saver, method, wrap())
+    return saver
+
 
 class CheckpointHandle:
-    """Lazily own one SQLite or PostgreSQL LangGraph saver."""
+    """Lazily own one SQLite or PostgreSQL LangGraph saver, its calls measured."""
 
     def __init__(
         self,
@@ -54,13 +88,13 @@ class CheckpointHandle:
             # may have been used by another client, so normalize the session at
             # this boundary before any checkpoint query runs.
             await self._saver.conn.execute("SET search_path TO public")
-            return self._saver
+            return timed_saver(self._saver)
 
         self.sqlite_path.parent.mkdir(parents=True, exist_ok=True)
         self._connection = await aiosqlite.connect(str(self.sqlite_path))
         self._saver = AsyncSqliteSaver(self._connection, serde=serde)
         await self._saver.setup()
-        return self._saver
+        return timed_saver(self._saver)
 
     async def close(self) -> None:
         if self._context is not None:

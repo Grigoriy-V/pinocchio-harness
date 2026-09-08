@@ -320,6 +320,39 @@ async def test_an_executed_tool_has_one_start_and_one_terminal_event(
     assert stored_run(telemetry, run_id).tool_calls == 1
 
 
+async def test_the_harness_names_its_own_seconds(tmp_path: Path, telemetry: Telemetry) -> None:
+    """Roadmap 18, ISS-0056: what runs between a turn's steps was unattributed.
+    Every thing the harness spends time on — the checkpoint, the store, the
+    Telegram client, the turn's own preparation and closing — names itself on
+    the active trace, with a duration."""
+
+    telegram, inbox = FakeTelegram(), FakeInbox()
+    tool = Tool(
+        name="ping",
+        description="answer",
+        parameters={"type": "object", "properties": {}},
+        run=lambda: "pong",
+    )
+    backend = ScriptedBackend(calls("ping"), says("It said pong."))
+    adapter = build(telegram, tmp_path, backend, telemetry, tools=[tool])
+
+    await deliver(adapter, inbox, telemetry, text_update("Ping it"))
+
+    events = stored_events(telemetry, the_run_id(inbox))
+    named = {event.type for event in events if event.duration_ms is not None}
+    assert {"turn_prepared", "graph_built", "context_loaded", "history_written", "turn_closed"} <= named
+    assert {"checkpoint_read", "checkpoint_write"} <= named
+    assert "telegram_call" in named
+    methods = {event.data.get("method") for event in events if event.type == "telegram_call"}
+    assert "sendMessage" in methods
+    # Every named second has a duration; nothing is a bare marker.
+    assert all(
+        event.duration_ms is not None
+        for event in events
+        if event.type in {"turn_prepared", "telegram_call", "checkpoint_write"}
+    )
+
+
 async def test_a_tool_trace_keeps_the_path_but_not_argument_content(
     tmp_path: Path, telemetry: Telemetry
 ) -> None:

@@ -22,6 +22,7 @@ import json
 import time
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
+from contextvars import ContextVar, Token
 from typing import TYPE_CHECKING, Any
 
 from app.telemetry.base import (
@@ -189,12 +190,25 @@ class TurnTrace:
             input_tokens=run.input_tokens,
             output_tokens=run.output_tokens,
         )
+        started = time.monotonic()
         self.flush()
         if self.store is not None:
             try:
                 self.store.finish_turn(run)
             except Exception:  # noqa: BLE001
                 pass
+        # After the turn is closed, so only the log has it: the write itself
+        # cannot be a row of the batch it writes.
+        log_event(
+            TraceEvent(
+                run_id=run.run_id,
+                seq=self._seq + 1,
+                type="telemetry_written",
+                timestamp=stamp(),
+                duration_ms=int((time.monotonic() - started) * 1000),
+                data={},
+            )
+        )
 
     @contextmanager
     def step(self, name: str, **data: Any) -> Iterator[None]:
@@ -397,6 +411,43 @@ class NullTrace(TurnTrace):
 
 
 NO_TRACE = NullTrace()
+
+# The trace of the turn the current task belongs to. Set by the interface
+# around a turn and inherited by every task and thread the turn starts, so a
+# client, a saver or a runner deep below can name the seconds it spends
+# without a trace being threaded through every signature (roadmap 18,
+# 2026-09-08: the harness's own seconds were unnamed because nothing that
+# spent them could reach the recorder).
+_ACTIVE: ContextVar["TurnTrace"] = ContextVar("active_trace", default=NO_TRACE)
+
+
+def active_trace() -> "TurnTrace":
+    return _ACTIVE.get()
+
+
+def set_active(trace: "TurnTrace") -> Token:
+    return _ACTIVE.set(trace)
+
+
+def reset_active(token: Token) -> None:
+    _ACTIVE.reset(token)
+
+
+@contextmanager
+def spent(kind: str, **data: Any) -> Iterator[None]:
+    """Name one thing the harness does, with how long it took, on the active trace.
+
+    One event, not a bracket: a turn makes dozens of these and a started/
+    finished pair for each would double the trace for nothing a reader wants.
+    """
+
+    started = time.monotonic()
+    try:
+        yield
+    finally:
+        trace = _ACTIVE.get()
+        if trace is not NO_TRACE:
+            trace.event(kind, duration_ms=int((time.monotonic() - started) * 1000), **data)
 
 
 def resolve(current: "Callable[[], TurnTrace] | None") -> TurnTrace:
