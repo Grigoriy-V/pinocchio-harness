@@ -9,12 +9,19 @@ Function beside the renderer that holds no secret (`ModalRunner` in
 container). The tool, the result the model reads and the codes are the same
 in both.
 
-What a command gets: the workspace as its working directory, its home and its
-temp, an environment reduced to what a shell needs, and — when the workspace
-has a `.venv` — that as `python` and `pip`, the project's environment,
-activated, as it would be in a developer's own shell. Nothing from the process
-that started the agent — no `.env` value, no token — is passed on. The runner
-says in `where` what survives between turns, because that differs: on the
+What a command gets: the workspace as its working directory, the person's
+own home (the container's, deployed), a private temp directory that is not
+the workspace, and an environment reduced to what a shell needs. Nothing from
+the process that started the agent — no `.env` value, no token, not the
+agent's own virtual environment — is passed on. Nothing is activated for the
+model and no venv is made for it: `python` is the machine's (the image's,
+deployed), and a venv is used when a command names it, as in Claude Code,
+Codex, Hermes and DeepSeek Harness (roadmap 17, 2026-09-08). Home, temp and
+the workspace are three different places on purpose: home is what a tool
+reads as the person's, temp is what a tool writes for itself, and the
+workspace is the work (ISS-0053, ISS-0058: home and temp on the deployed
+Volume broke Chrome's socket path and npm's cache ownership). The runner says
+in `where` what survives between turns, because that differs: on the
 person's machine everything, in the deployed container only the workspace.
 
 What a command may change is, by the references' one shared property, the
@@ -41,7 +48,9 @@ import platform
 import signal
 import subprocess
 import sys
+import tempfile
 import time
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
@@ -64,25 +73,34 @@ MAX_TIMEOUT = 600
 MAX_OUTPUT_CHARS = 16_000
 TAIL_CHARS = 4_000
 
-# What a shell needs and nothing else. `HOME` and its Windows twin point into
-# the workspace so that what a command installs "for the user" lands where the
-# workspace keeps it. `SYSTEMROOT` and `COMSPEC` are what `cmd` itself needs to
-# start on Windows; `TEMP`/`TMP` so tools that write temporary files work.
-_PASSED = ("PATH", "SYSTEMROOT", "COMSPEC", "PATHEXT", "TEMP", "TMP", "TMPDIR", "LANG", "LC_ALL")
-
-# The workspace's own Python, and where a command's temp and profile files go.
-# Relative to the workspace, so the same layout is on a person's disk and on
-# the deployed Volume.
-VENV = ".venv"
-TMP = ".tmp"
+# What a shell needs and nothing else. `SYSTEMROOT` and `COMSPEC` are what
+# `cmd` itself needs to start on Windows. Home and temp are set by the runner,
+# never passed through.
+_PASSED = ("PATH", "SYSTEMROOT", "COMSPEC", "PATHEXT", "LANG", "LC_ALL")
 
 
-def venv_bin(workspace: Path) -> Path:
-    return workspace / VENV / ("Scripts" if sys.platform == "win32" else "bin")
+def own_venv_bin() -> Path | None:
+    """The scripts directory of the venv this agent runs in, or None.
+
+    Hermes strips its own venv's markers from the child's environment for the
+    same reason: an agent launched from its activated `.venv` would otherwise
+    hand that venv's `python` to the model as the machine's.
+    """
+
+    if sys.prefix == getattr(sys, "base_prefix", sys.prefix):
+        return None
+    return Path(sys.prefix) / ("Scripts" if sys.platform == "win32" else "bin")
 
 
-def venv_python(workspace: Path) -> Path:
-    return venv_bin(workspace) / ("python.exe" if sys.platform == "win32" else "python")
+def _without_own_venv(path: str) -> str:
+    own = own_venv_bin()
+    if own is None:
+        return path
+    mine = os.path.normcase(os.path.abspath(own))
+    return os.pathsep.join(
+        entry for entry in path.split(os.pathsep)
+        if entry and os.path.normcase(os.path.abspath(entry)) != mine
+    )
 
 
 # CPython on Windows gives a directory made with mode 0o700 — which is what
@@ -93,10 +111,11 @@ def venv_python(workspace: Path) -> Path:
 # giving up, which read as a hang (P, 2026-09-04: three `pip install` at 120 s
 # each). The token's owner cannot be changed to an identity the ACL admits,
 # and admitting OWNER RIGHTS to the restricting list opens every file the
-# person owns (measured). So the workspace's own Python, and only it, gets
-# this `sitecustomize`: a 0o700 directory is made like any other and inherits
-# the workspace's ACL. One interpreter behaviour, accommodated where that
-# interpreter lives; nothing else is patched.
+# person owns (measured). So every Python a command runs under the boundary
+# — the machine's, a venv the model made — gets this `sitecustomize` through
+# `PYTHONPATH`, from the private temp directory: a 0o700 directory is made
+# like any other and inherits the ACL of wherever it is. One interpreter
+# behaviour, accommodated once; nothing else is patched.
 SITECUSTOMIZE = """\
 # Written by the assistant's command runner (app/tools/shell.py): under the
 # write boundary a directory made with mode 0o700 would get an owner-only ACL
@@ -116,31 +135,16 @@ if _sys.platform == "win32":
 """
 
 
-def ensure_tmp(workspace: Path) -> None:
-    """Where a command's temporary and profile files go, inside the workspace."""
+def ensure_tmp(tmp: Path) -> None:
+    """A command's temp and profile directories, and the `sitecustomize` on Windows."""
 
-    (workspace / TMP / "appdata").mkdir(parents=True, exist_ok=True)
-    (workspace / TMP / "local").mkdir(parents=True, exist_ok=True)
-
-
-def ensure_venv(workspace: Path) -> bool:
-    """The workspace's virtual environment, made on first use. Returns whether it was made now."""
-
-    ensure_tmp(workspace)
-    made = False
-    if not venv_python(workspace).exists():
-        subprocess.run(
-            [sys.executable, "-m", "venv", str(workspace / VENV)],
-            check=True,
-            capture_output=True,
-            timeout=120,
-        )
-        made = True
+    (tmp / "appdata").mkdir(parents=True, exist_ok=True)
+    (tmp / "local").mkdir(parents=True, exist_ok=True)
     if sys.platform == "win32":
-        site = workspace / VENV / "Lib" / "site-packages" / "sitecustomize.py"
+        site = tmp / "python" / "sitecustomize.py"
+        site.parent.mkdir(parents=True, exist_ok=True)
         if not site.exists():
             site.write_text(SITECUSTOMIZE, encoding="utf-8")
-    return made
 
 
 @dataclass(frozen=True)
@@ -168,36 +172,32 @@ class Runner(Protocol):
 
 
 def command_environment(
-    workspace: Path, source: dict[str, str] | None = None, venv: bool = True
+    workspace: Path, source: dict[str, str] | None = None, *, home: Path, tmp: Path
 ) -> dict[str, str]:
-    """The environment a command gets: what a shell needs, home in the workspace.
+    """The environment a command gets: what a shell needs, home and temp as told.
 
-    `venv` says whether a `.venv` in the workspace goes first on `PATH`. On the
-    person's machine it does — the local runner made it, it is the project's
-    environment. In the deployed container it does not: the image carries the
-    libraries and the brief names them, and a venv left on the Volume by an
-    earlier session, first on `PATH`, made `python3` find fpdf 1.7 where the
-    brief said fpdf2 (run `a7d5c61c`, 2026-09-04). There, as in Claude Code
-    and Codex, nothing is activated for the developer: a venv is used when a
-    command names it.
+    `home` is the person's (the container's, deployed): what a tool reads as
+    the user's — a `.gitconfig`, an `.npmrc` — is theirs, and what it writes
+    there on Windows is refused by the boundary, so the profile directories
+    (`APPDATA`, `LOCALAPPDATA`) point under `tmp` instead, as DeepSeek's
+    Windows runner gives a private temp beside the workspace. Nothing is
+    activated: the agent's own venv is taken off `PATH`, and a `.venv` in the
+    workspace is used when a command names it (run `a7d5c61c`, 2026-09-04: a
+    venv left on the Volume, first on `PATH`, made `python3` find fpdf 1.7
+    where the brief said fpdf2).
     """
 
     source = os.environ if source is None else source
     env = {name: source[name] for name in _PASSED if name in source}
-    env["HOME"] = str(workspace)
-    env["USERPROFILE"] = str(workspace)
-    # A command's temp and profile directories inside the workspace, so what
-    # tools write "for the user" lands where a command may write.
-    tmp = workspace / TMP
+    if "PATH" in env:
+        env["PATH"] = _without_own_venv(env["PATH"])
+    env["HOME"] = str(home)
+    env["USERPROFILE"] = str(home)
     env["TEMP"] = env["TMP"] = env["TMPDIR"] = str(tmp)
     env["APPDATA"] = str(tmp / "appdata")
     env["LOCALAPPDATA"] = str(tmp / "local")
-    # The workspace's own Python first, when there is one: `python` and `pip`
-    # are the project's, as in a developer's activated shell. A workspace
-    # without a venv keeps the machine's `python`.
-    if venv and venv_bin(workspace).is_dir():
-        env["PATH"] = os.pathsep.join([str(venv_bin(workspace)), *filter(None, [env.get("PATH", "")])])
-        env["VIRTUAL_ENV"] = str(workspace / VENV)
+    if sys.platform == "win32":
+        env["PYTHONPATH"] = str(tmp / "python")
     env["PYTHONUTF8"] = "1"
     env["PYTHONIOENCODING"] = "utf-8"
     env["PYTHONDONTWRITEBYTECODE"] = "1"
@@ -260,11 +260,17 @@ class LocalRunner:
     withholds the agent's own environment. The shell is the platform's: `cmd`
     on Windows, `/bin/sh` elsewhere, which is what `shell=True` means.
 
+    Home is the person's; temp is a directory of this runner's own under the
+    machine's temp, made on first use and granted to the restricted identity
+    beside the workspace (DeepSeek's shape). Nothing is made in the workspace
+    but what a command makes there.
+
     The same class runs the command inside the deployed container, where the
-    container is the boundary and `prepare` makes no venv: what is installed
-    there must land in the workspace by the model's own choice, and the
-    `ModalRunner` says so in its `where`.
+    container is the boundary and home and temp are the container's
+    (`ContainerRunner`).
     """
+
+    home: Path = Path.home()
 
     def __init__(self) -> None:
         system = platform.system() or "this machine"
@@ -274,34 +280,49 @@ class LocalRunner:
         # the machine before it writes one.
         boundary = (
             "; a command can write only inside your workspace, the operating system "
-            "refuses everything else"
+            "refuses everything else, a `pip install` into this machine's Python "
+            "included"
             if self.bounded
             else "; there is no write boundary here, so keep every change inside your "
             "workspace"
         )
         self.where = (
-            f"on this machine ({system}), through {shell}{boundary}. `python` and `pip` "
-            "there are the workspace's own virtual environment, so `pip install` lands "
-            "in the workspace and nowhere else; node packages go in the workspace too. "
-            "Everything in the workspace survives between turns"
+            f"on this machine ({system}), through {shell}{boundary}. Your home directory "
+            f"is {self.home}. `python` and `pip` are this machine's own and nothing is "
+            "activated for you: to install a package, make a virtual environment in "
+            "the task's folder and run its python. Everything in the workspace "
+            "survives between turns"
         )
         self._runs = 0
+        self._tmp: Path | None = None
 
-    # Whether a `.venv` in the workspace is put first on `PATH`; see
-    # `command_environment`.
-    venv_on_path = True
+    @property
+    def tmp(self) -> Path:
+        """This runner's private temp, made on first use; never the workspace."""
+
+        if self._tmp is None:
+            # Made with the default mode, not `mkdtemp`'s 0o700, which on
+            # Windows would give it the owner-only ACL the boundary cannot use.
+            tmp = Path(tempfile.gettempdir()) / f"assistant-command-{os.getpid()}-{uuid.uuid4().hex[:8]}"
+            tmp.mkdir(parents=True, exist_ok=True)
+            self._tmp = tmp
+        return self._tmp
 
     def prepare(self, cwd: Path) -> None:
-        """What the workspace needs before a command runs here: its temp, its venv."""
+        """What a command needs before it runs here: its temp."""
 
-        ensure_venv(cwd)
+        ensure_tmp(self.tmp)
+
+    def environment(self, cwd: Path) -> dict[str, str]:
+        return command_environment(cwd, home=self.home, tmp=self.tmp)
 
     def _start(self, command: str, cwd: Path):
-        env = command_environment(cwd, venv=self.venv_on_path)
+        env = self.environment(cwd)
         if self.bounded:
             shell_windows.grant_workspace(cwd)
+            shell_windows.grant_workspace(self.tmp)
             self._runs += 1
-            output = cwd / TMP / f"run-{os.getpid()}-{self._runs}.out"
+            output = self.tmp / f"run-{os.getpid()}-{self._runs}.out"
             return shell_windows.RestrictedProcess(command, cwd, env, output)
         return subprocess.Popen(  # noqa: S602 - the command is the point
             command,
@@ -321,7 +342,7 @@ class LocalRunner:
             await asyncio.to_thread(self.prepare, cwd)
         except (OSError, subprocess.SubprocessError) as error:
             raise ToolError(
-                f"the workspace's Python environment could not be made: {error}",
+                f"the command's temp directory could not be made: {error}",
                 code=COMMAND_NOT_STARTED,
             ) from error
         try:
@@ -363,19 +384,22 @@ class LocalRunner:
 
 
 class ContainerRunner(LocalRunner):
-    """The command's side inside the deployed container: a plain process, no venv made.
+    """The command's side inside the deployed container: home and temp are the container's.
 
-    The container is the boundary, so nothing is restricted here, and nothing is
-    installed for the model either: a venv in the workspace is its own choice,
-    as it is for a developer, and the `ModalRunner` beside the worker tells it
-    so. `where` is never read here — the worker's runner is the one the brief
-    quotes.
+    OpenClaw's shape: the working directory is the mounted workspace, home is
+    the image's, temp is the container's own `/tmp`, gone with it. So a
+    socket a tool binds under `$TMPDIR` has a short path, and a cache a tool
+    keeps under `$HOME` has the container's uid (ISS-0058). Nothing is
+    installed for the model: a venv in the task's folder is its own choice,
+    and the `ModalRunner` beside the worker tells it so. `where` is never
+    read here — the worker's runner is the one the brief quotes.
     """
 
-    venv_on_path = False
+    home = Path.home()
 
-    def prepare(self, cwd: Path) -> None:
-        ensure_tmp(cwd)
+    @property
+    def tmp(self) -> Path:
+        return Path(tempfile.gettempdir())
 
 
 # What a non-zero exit carries with it, at the moment it happens: DeepSeek's
@@ -399,12 +423,10 @@ def describe(finished: Finished) -> str:
     2026-09-04 nothing said what it was.
     """
 
+    # `fresh` is not said: what the container does and does not keep is in
+    # the brief once (roadmap 17); a line per fresh container read as the
+    # model's own work being gone (ISS-0053).
     lines = [f"exit code: {finished.exit_code}   ({finished.seconds:.1f} s)"]
-    if finished.fresh:
-        lines.append(
-            "new environment: nothing installed by earlier commands is present; "
-            "what is in the workspace is."
-        )
     if finished.cut:
         lines.append("output (cut in the middle; the beginning and the end are kept):")
     else:

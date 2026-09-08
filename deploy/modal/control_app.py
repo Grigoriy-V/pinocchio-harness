@@ -247,9 +247,14 @@ async def run_command(workspace: str, command: str, timeout: float) -> dict[str,
     from app.tools.base import ToolError
     from app.tools.shell import ContainerRunner
 
-    root = Path(WORKSPACE_ROOT).resolve()
-    cwd = (root / workspace).resolve()
-    if cwd == root or root not in cwd.parents:
+    root = Path(WORKSPACE_ROOT)
+    # The mount path, not `resolve()`'s real one: the Volume is a symlink to
+    # `/__modal/volumes/vo-…`, and a socket a tool binds relative to a cwd
+    # that long is over the 108-byte limit (ISS-0058). The climb check alone
+    # looks at the real path.
+    cwd = root / workspace
+    real_root, real_cwd = root.resolve(), cwd.resolve()
+    if real_cwd == real_root or real_root not in real_cwd.parents:
         return {"failure": {"code": "shell.not_started", "message": "the workspace is not inside the volume", "detail": None}}
     fresh = _commands_run == 0
     _commands_run += 1
@@ -293,12 +298,12 @@ class ModalRunner:
         "Pillow, pypdf, markdown; node and npm; git, curl, zip, unzip, tar, jq, "
         "ffmpeg, imagemagick, poppler (pdftotext, pdftoppm), pandoc; TrueType fonts "
         "with Cyrillic under /usr/share/fonts/truetype (DejaVu, Liberation). The "
-        "container is disposable: what a command installs into it is gone by the "
-        "next turn, and what it writes in the workspace stays. `python3` and `pip` "
-        "are the container's; nothing in the workspace is activated for you, so a "
-        "venv there is used only when a command names its own python. Node "
-        "packages in the workspace survive. The result says `new environment` "
-        "when the container is fresh"
+        "container is disposable and its home and /tmp are its own: what a command "
+        "installs into the container is gone by the next turn; a virtual "
+        "environment and node packages made in the task's folder in your workspace "
+        "stay, like every file there. `python3` and `pip` are the container's and "
+        "nothing in the workspace is activated for you: to install a package, "
+        "make a venv in the task's folder and run its python"
     )
 
     async def run(self, command: str, cwd: Path, timeout: float):

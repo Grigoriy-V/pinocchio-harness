@@ -421,7 +421,9 @@ def test_a_command_cannot_be_pointed_outside_the_volume() -> None:
     function = ast.get_source_segment(source(), _function("run_command"))
 
     assert function is not None
-    assert "root not in cwd.parents" in function
+    # The climb check reads the real path; the command gets the mount path (ISS-0058).
+    assert "real_root not in real_cwd.parents" in function
+    assert "cwd = root / workspace" in function
     assert "shell.not_started" in function
 
 
@@ -431,7 +433,10 @@ def test_the_deployed_runner_tells_the_model_what_survives() -> None:
 
     assert "no secret" in where
     assert "disposable" in where
-    assert "venv" in where and "workspace stays" in where
+    assert "venv" in where and "in your workspace" in where
+    # Roadmap 17: home and /tmp are the container's; no line per fresh container.
+    assert "home and /tmp are its own" in where
+    assert "new environment" not in where
     # Facts, not a recipe: a command line in the brief was run verbatim as the
     # first command of every turn (2026-09-04).
     assert "&&" not in where and "pip install" not in where

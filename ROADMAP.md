@@ -9,7 +9,7 @@ own, and what a tool tells the model it does. The order below was approved
 by the human on 2026-09-07; each item still gets its own start signal, and
 research before code where the item says so.
 
-**Current approved step:** 14, 15 and 20 are in Done (2026-09-07). 16 researched (`reports/2026-09-07_item16_research.md`), the page tool's shape approved; 17 absorbs the folder-per-task rule. 16 deployed and run on both sides, in Done. 21 added (one browser tool on the renderer; ISS-0060 is the breach it closes). 22 deployed and seen live (the worker outlives the turn, a heartbeat lease); it uncovered a `persist` that hangs for the worker's whole life (ISS-0064); 23 deployed and seen live (connection bounds, a sent file kept by name). Next: 17, then 21, on the human's word.
+**Current approved step:** 14, 15 and 20 are in Done (2026-09-07). 16 researched (`reports/2026-09-07_item16_research.md`), the page tool's shape approved; 17 absorbs the folder-per-task rule. 16 deployed and run on both sides, in Done. 21 added (one browser tool on the renderer; ISS-0060 is the breach it closes). 22 deployed and seen live (the worker outlives the turn, a heartbeat lease); it uncovered a `persist` that hangs for the worker's whole life (ISS-0064); 23 deployed and seen live (connection bounds, a sent file kept by name). 17 built (home, temp and the workspace are three places; a folder per task), local check, deploy and deployed check pending. Next: 21, on the human's word.
 
 Observed defects are in `ISSUES.md`, which is not a plan and authorizes
 nothing. `docs/PRODUCT.md` is the product contract (it carries the rule that
@@ -103,8 +103,15 @@ noted; the human's word starts each.
     Accepted by scenario C extended with an install, on both sides: the
     package landed under the task's folder and the root holds no venv.
     Whether the model follows the line is the suite's measurement, not a
-    rule. ISS-0053, ISS-0058. Researched 2026-09-08:
-    `reports/2026-09-08_item17_research.md`.
+    rule. ISS-0053, ISS-0058. Researched 2026-09-08
+    (`reports/2026-09-08_item17_research.md`; Hermes and DeepSeek for the
+    local shape, OpenClaw for the deployed one, the human's word) and built
+    the same day: home is the person's (the container's, deployed), temp is
+    the runner's own and never the workspace, the agent's venv is off the
+    command's `PATH`, no venv made, nothing activated, the "new
+    environment" line gone, cwd by the mount path; the folder-per-task line
+    in the brief; scenario C extended with a venv and an install. Offline
+    tests. Local C, deploy, deployed C and the Chrome probe: pending.
 
 18. **The harness's own seconds.** Name in the timeline what runs between
     steps and after persist (Telegram preview edits and status calls, the

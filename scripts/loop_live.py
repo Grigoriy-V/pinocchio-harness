@@ -395,20 +395,31 @@ async def run_scenarios(
             )
 
         if wanted("C"):
-            c = await Turn(agent, telemetry, 30).ask(
+            c = await Turn(agent, telemetry, 40).ask(
                 "chat-c",
-                "In my workspace, write primes.py that prints the prime numbers below "
-                "50 on one line, run it with run_command, and tell me exactly what it "
-                "printed.",
+                "In my workspace, in a folder for this task, make a virtual environment, "
+                "install the package tabulate into it, write primes.py that prints the "
+                "prime numbers below 50 as a one-column table with tabulate, run it, "
+                "and tell me exactly what it printed.",
             )
+            folders = [p for p in root.iterdir() if p.is_dir() and not p.name.startswith(".")]
+            with_venv = [
+                p for p in folders
+                if any(q.name == "pyvenv.cfg" for q in p.rglob("pyvenv.cfg"))
+            ]
             done(
-                "C", "C files and a command", c,
+                "C", "C files, a venv and a command, in a folder of the task's", c,
                 checks={
                     "write_file then run_command": "write_file" in c.tools and "run_command" in c.tools,
-                    "primes.py exists": (root / "primes.py").is_file(),
                     "the command exited 0": "exit code: 0" in c.read_from("run_command"),
                     "no tool failed": not c.failures,
                     "the output reached the answer": "47" in c.answer,
+                    # Roadmap 17: the root holds no venv, no temp, no primes.py;
+                    # one task folder holds the venv and the script.
+                    "the root holds no venv or temp": not (root / ".venv").exists() and not (root / ".tmp").exists(),
+                    "primes.py is in a folder, not the root": not (root / "primes.py").exists()
+                    and any((p / "primes.py").is_file() for p in folders),
+                    "one folder holds the venv": len(with_venv) == 1 and (with_venv[0] / "primes.py").is_file(),
                 },
             )
 

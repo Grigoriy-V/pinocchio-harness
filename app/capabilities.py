@@ -160,7 +160,16 @@ def _shell_lines(tools: Toolbox, where: str | None) -> list[str]:
     # what is installed. How to read a result is the tool's own description
     # (roadmap 16, 2026-09-07); it was here until then, and the brief carried
     # a second account of the tool beside the schema's.
-    return [f"- run_command runs a shell command {place}."]
+    return [
+        f"- run_command runs a shell command {place}.",
+        # One literal rule about where work lives, both profiles (roadmap 17,
+        # the human, 2026-09-07). Whether the model follows it is the suite's
+        # measurement, not a mechanism's.
+        "- Each piece of work gets its own folder in your workspace, named for the "
+        "task. Its files, its virtual environment and the packages it installs go "
+        "in that folder and nowhere else. When the person continues the same work, "
+        "use that folder again.",
+    ]
 
 
 def _mode_lines(tools: Toolbox) -> list[str]:

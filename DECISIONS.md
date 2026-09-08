@@ -510,6 +510,37 @@ Consequences: `Agent.unfinished`, `Agent.resume_interrupted_events`,
 `Tool.replay_safe`, `LEASE_SECONDS` derived from the Modal timeout.
 `reports/2026-09-04_v2_restart_resume_review.md`.
 
+## 2026-09-08 — Home, temp and the workspace are three places, and nothing is made or activated for the model
+
+Decision: a command's working directory is the workspace; its home is the
+person's real home (the container's, deployed); its temp is a directory of
+the runner's own, never the workspace — a private directory under the
+machine's temp on the person's machine, granted by the write boundary
+beside the workspace, and `/tmp` in the container. The runner passes on
+neither the agent's secrets nor the agent's own virtual environment. No
+venv is made for the model and nothing is activated: `python` is the
+machine's (the image's, deployed), and a venv is the model's, made in the
+task's folder and named by its commands. The brief carries one literal
+rule about where work lives: a folder per piece of work, its files, venv
+and packages inside it, reused when the same work continues. The result
+of a command no longer announces a fresh container; what the container
+keeps is said once in the brief.
+
+Why: with home and temp on the deployed Volume, Chrome could not bind a
+socket (the path is over 108 bytes) and npm refused its own cache (a
+foreign uid), and what the model put in `/tmp` to escape died with the
+container (ISS-0053, ISS-0058); locally the automatic root venv filled
+every workspace and hid the machine's packages. Hermes and DeepSeek keep
+the real home, strip their own venv, make none, and DeepSeek gives a
+private temp per session; OpenClaw's container has its own home and a
+tmpfs `/tmp` with the workspace mounted apart. Amends "what is installed
+goes into the workspace (`HOME` there, a venv there)" of 2026-09-04.
+
+Consequences: `app/tools/shell.py` (`command_environment(home, tmp)`,
+`LocalRunner.tmp`, `own_venv_bin`, no `ensure_venv`), `ContainerRunner`,
+`run_command` in `deploy/modal/control_app.py` (cwd by the mount path),
+the brief's folder line in `app/capabilities.py`, scenario C. Roadmap 17.
+
 ## 2026-09-08 — A store write that nobody answers ends; the history keeps a sent file by name
 
 Decision: every connection the store and the update inbox open carries

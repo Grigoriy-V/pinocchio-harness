@@ -32,6 +32,7 @@ from app.tools import (
 )
 from app.tools.shell import (
     COMMAND_TIMEOUT,
+    ContainerRunner,
     MAX_OUTPUT_CHARS,
     MAX_TIMEOUT,
     bounded,
@@ -86,17 +87,46 @@ def test_the_agents_own_environment_is_withheld(workspace: Path, monkeypatch) ->
     )
 
     assert finished.output.split()[:2] == ["None", "None"]
-    assert Path(finished.output.split()[-1]).resolve() == workspace.resolve()
+    # Home is the person's (roadmap 17), never the workspace.
+    assert Path(finished.output.split()[-1]).resolve() == Path.home().resolve()
 
 
-def test_the_environment_is_what_a_shell_needs_and_home_is_the_workspace(workspace: Path) -> None:
+def test_the_environment_is_what_a_shell_needs_with_home_and_temp_as_told(
+    workspace: Path, tmp_path: Path
+) -> None:
+    """Roadmap 17: home is the person's, temp is private and not the workspace."""
+
+    home, tmp = tmp_path / "home", tmp_path / "tmp"
     env = command_environment(
-        workspace, {"PATH": "/bin", "TELEGRAM_TOKEN": "x", "AGENT_DATABASE_URL": "y", "SYSTEMROOT": "C:\\W"}
+        workspace,
+        {"PATH": "/bin", "TELEGRAM_TOKEN": "x", "AGENT_DATABASE_URL": "y", "SYSTEMROOT": "C:\\W", "TEMP": "/elsewhere"},
+        home=home,
+        tmp=tmp,
     )
 
     assert env["PATH"].endswith("/bin") and env["SYSTEMROOT"] == "C:\\W"
     assert "TELEGRAM_TOKEN" not in env and "AGENT_DATABASE_URL" not in env
-    assert env["HOME"] == str(workspace) == env["USERPROFILE"]
+    assert env["HOME"] == str(home) == env["USERPROFILE"]
+    assert env["TEMP"] == env["TMP"] == env["TMPDIR"] == str(tmp)
+    assert env["APPDATA"].startswith(str(tmp)) and env["LOCALAPPDATA"].startswith(str(tmp))
+    assert not env["TEMP"].startswith(str(workspace))
+
+
+def test_the_agents_own_venv_is_not_handed_to_the_command(workspace: Path, tmp_path: Path) -> None:
+    """Hermes strips its venv's markers for the same reason: an agent launched
+    from its activated `.venv` must not make that venv the model's `python`."""
+
+    from app.tools.shell import own_venv_bin
+
+    own = own_venv_bin()
+    if own is None:
+        pytest.skip("the test process runs outside a venv")
+    path = os.pathsep.join([str(own), "/usr/bin"])
+
+    env = command_environment(workspace, {"PATH": path}, home=tmp_path, tmp=tmp_path)
+
+    assert env["PATH"] == "/usr/bin"
+    assert "VIRTUAL_ENV" not in env
 
 
 def test_a_command_past_its_timeout_is_killed_and_reported(workspace: Path) -> None:
@@ -191,13 +221,16 @@ def test_the_model_reads_the_exit_code_and_output(workspace: Path) -> None:
     assert runner.calls[0][2] == 120.0
 
 
-def test_a_fresh_environment_is_said_and_the_timeout_is_clamped(workspace: Path) -> None:
+def test_a_fresh_environment_is_not_said_and_the_timeout_is_clamped(workspace: Path) -> None:
+    """Roadmap 17: what a container keeps is in the brief once; the line per
+    fresh container read as the model's own work being gone (ISS-0053)."""
+
     runner = Scripted(Finished(exit_code=0, output="", cut=False, seconds=0.1, fresh=True))
     tools = Toolbox(shell_tools(workspace, runner))
 
     outcome, _ = executed(tools, "run_command", command="ls", timeout_seconds=10_000)
 
-    assert "new environment" in outcome.content[0].text
+    assert "new environment" not in outcome.content[0].text
     assert "(no output)" in outcome.content[0].text
     assert runner.calls[0][2] == float(MAX_TIMEOUT)
 
@@ -293,20 +326,20 @@ def test_the_agent_reads_the_mode_when_it_builds_a_toolbox(workspace: Path) -> N
         assert not agent.toolbox("t").requires_approval("list_files")
 
 
-def test_python_and_pip_are_the_workspaces_own_environment(workspace: Path) -> None:
-    """The human's rule, 2026-09-04: an install can never reach the machine's Python."""
+def test_python_is_the_machines_and_nothing_is_made_in_the_workspace(workspace: Path) -> None:
+    """Roadmap 17: no venv made, nothing activated; the workspace holds only
+    what a command puts there. The agent's own venv is not the answer either."""
 
-    from app.tools.shell import VENV, venv_python
-
-    finished = run(LocalRunner().run("python -c \"import sys; print(sys.prefix)\"", workspace, 120))
+    runner = LocalRunner()
+    finished = run(runner.run("python -c \"import sys; print(sys.prefix)\"", workspace, 120))
 
     assert finished.exit_code == 0, finished.output
-    assert Path(finished.output.strip()).resolve() == (workspace / VENV).resolve()
-    assert venv_python(workspace).exists()
-
-    env = command_environment(workspace, {"PATH": "/usr/bin"})
-    assert env["PATH"].split(os.pathsep)[0] == str(workspace / VENV / ("Scripts" if sys.platform == "win32" else "bin"))
-    assert env["TEMP"] == str(workspace / ".tmp") and env["LOCALAPPDATA"].startswith(str(workspace))
+    prefix = Path(finished.output.strip()).resolve()
+    assert workspace.resolve() not in prefix.parents
+    assert prefix != Path(sys.prefix).resolve()
+    assert not (workspace / ".venv").exists() and not (workspace / ".tmp").exists()
+    assert runner.tmp.is_dir() and workspace.resolve() not in runner.tmp.resolve().parents
+    assert runner.environment(workspace)["HOME"] == str(Path.home())
 
 
 windows_only = pytest.mark.skipif(sys.platform != "win32", reason="the write boundary is Windows-only")
@@ -319,10 +352,10 @@ def test_a_command_can_write_inside_the_workspace_and_nowhere_else(workspace: Pa
     (workspace / "existing").mkdir()  # made before the grant: inheritance must reach it
     outside = tmp_path / "outside.txt"
     script = (
-        "import sys, pathlib\n"
+        "import os, sys, pathlib\n"
         "pathlib.Path('inside.txt').write_text('ok')\n"
         "pathlib.Path('existing/deeper.txt').write_text('ok')\n"
-        "pathlib.Path('.tmp/scratch.txt').write_text('ok')\n"
+        "pathlib.Path(os.environ['TEMP'], 'scratch.txt').write_text('ok')\n"
         "for label, target in [('outside', %r), ('base python', str(pathlib.Path(sys.base_prefix, 'agent-leak.txt'))), ('profile', %r)]:\n"
         "    try:\n"
         "        pathlib.Path(target).write_text('leak'); print(label, 'WRITTEN')\n"
@@ -355,13 +388,15 @@ def test_what_the_command_starts_still_reaches_the_output(workspace: Path) -> No
 
 @windows_only
 def test_a_temporary_directory_can_be_made_and_used_under_the_boundary(workspace: Path) -> None:
-    """CPython's owner-only 0o700 directories, accommodated in the workspace's venv (shell.py)."""
+    """CPython's owner-only 0o700 directories, accommodated by the `sitecustomize`
+    every Python gets through `PYTHONPATH` (shell.py); temp is the runner's own."""
 
     finished = run(
         LocalRunner().run(
-            "python -c \"import tempfile, pathlib; tempfile.TMP_MAX = 3; d = tempfile.mkdtemp(); "
+            "python -c \"import os, tempfile, pathlib; tempfile.TMP_MAX = 3; d = tempfile.mkdtemp(); "
             "pathlib.Path(d, 'f').write_text('x'); f = tempfile.NamedTemporaryFile(delete=False); "
-            "f.write(b'y'); f.close(); print('temp ok', d.startswith(str(pathlib.Path.cwd())))\"",
+            "f.write(b'y'); f.close(); print('temp ok', d.startswith(os.environ['TEMP']) "
+            "and not d.startswith(str(pathlib.Path.cwd())))\"",
             workspace,
             60,
         )
@@ -401,28 +436,34 @@ def test_what_cmd_says_in_russian_reaches_the_model_readable(workspace: Path) ->
 # --- the deployed shape's share of the local code ---------------------------------------
 
 
-def test_a_workspace_without_a_venv_keeps_the_machines_python(workspace: Path) -> None:
-    """The deployed container makes no venv; the model makes one when a project needs it."""
+def test_a_venv_in_the_workspace_is_used_only_when_a_command_names_it(
+    workspace: Path, tmp_path: Path
+) -> None:
+    """Neither profile activates anything: a venv is the model's, by name."""
 
-    env = command_environment(workspace, {"PATH": "/usr/bin"})
-
-    assert env["PATH"] == "/usr/bin"
-    assert "VIRTUAL_ENV" not in env
     (workspace / ".venv" / ("Scripts" if sys.platform == "win32" else "bin")).mkdir(parents=True)
-    env = command_environment(workspace, {"PATH": "/usr/bin"})
-    assert env["PATH"].split(os.pathsep)[0].startswith(str(workspace / ".venv"))
-    assert env["VIRTUAL_ENV"] == str(workspace / ".venv")
+
+    for runner in (LocalRunner(), ContainerRunner()):
+        env = command_environment(workspace, {"PATH": "/usr/bin"}, home=runner.home, tmp=runner.tmp)
+        assert env["PATH"] == "/usr/bin"
+        assert "VIRTUAL_ENV" not in env
 
 
-def test_the_container_runner_makes_the_temp_and_no_venv(workspace: Path) -> None:
-    from app.tools.shell import ContainerRunner
+def test_the_container_runners_home_and_temp_are_the_containers(workspace: Path) -> None:
+    """OpenClaw's shape (roadmap 17): cwd is the workspace, home and /tmp are
+    the container's own, so a socket path is short and a cache has its uid."""
 
-    finished = run(ContainerRunner().run(f"{PY} -c \"print('container ok')\"", workspace, 60))
+    import tempfile
+
+    runner = ContainerRunner()
+    finished = run(runner.run(f"{PY} -c \"print('container ok')\"", workspace, 60))
 
     assert finished.exit_code == 0, finished.output
     assert "container ok" in finished.output
-    assert (workspace / ".tmp" / "appdata").is_dir()
-    assert not (workspace / ".venv").exists()
+    assert not (workspace / ".tmp").exists() and not (workspace / ".venv").exists()
+    env = runner.environment(workspace)
+    assert env["TMPDIR"] == tempfile.gettempdir()
+    assert env["HOME"] == str(Path.home())
 
 
 def test_create_agent_hands_the_runner_to_the_registry(tmp_path: Path) -> None:
@@ -440,16 +481,14 @@ def test_create_agent_hands_the_runner_to_the_registry(tmp_path: Path) -> None:
         agent.store.close()
 
 
-def test_the_container_activates_nothing_from_the_workspace(workspace: Path) -> None:
-    """Run `a7d5c61c`, 2026-09-04: a `.venv` left on the Volume, first on
-    `PATH`, made `python3` find fpdf 1.7 where the brief said fpdf2."""
+def test_the_brief_carries_the_folder_per_task_rule(workspace: Path) -> None:
+    """Roadmap 17, the human's line, literal: one folder per piece of work."""
 
-    from app.tools.shell import ContainerRunner
+    tools = Toolbox(shell_tools(workspace, LocalRunner()))
+    brief = capability_brief(tools)
 
-    (workspace / ".venv" / ("Scripts" if sys.platform == "win32" else "bin")).mkdir(parents=True)
-
-    assert command_environment(workspace, {"PATH": "/usr/bin"}, venv=ContainerRunner.venv_on_path)["PATH"] == "/usr/bin"
-    assert command_environment(workspace, {"PATH": "/usr/bin"}, venv=LocalRunner.venv_on_path)["PATH"] != "/usr/bin"
+    assert "Each piece of work gets its own folder in your workspace" in brief
+    assert "use that folder again" in brief
 
 
 

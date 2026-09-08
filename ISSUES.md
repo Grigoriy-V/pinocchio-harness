@@ -29,12 +29,12 @@ authorizes nothing; `ROADMAP.md` alone orders work. Evidence lives in
 | ISS-0061 | fixed 2026-09-07 | a turn runs up to the worker's own timeout and is killed while persisting | 0057, 0056, 0064, roadmap 14, 22 |
 | ISS-0060 | open | deployed `use_page open url` renders a public page in the worker, beside the secrets | 0051, roadmap 21 |
 | ISS-0059 | open | a question sent mid-turn is answered and the task it interrupted stops to ask "continue?" | roadmap 15, 20 |
-| ISS-0058 | open | command temp files and caches on the Volume path: too long for a socket, wrong uid | 0053, 0057 |
+| ISS-0058 | open, fix built | command temp files and caches on the Volume path: too long for a socket, wrong uid | 0053, 0057, roadmap 17 |
 | ISS-0057 | fixed 2026-09-07 | the turn's seconds budget counts tool run time and provider queue | 0056, 0054 |
 | ISS-0056 | open | seconds between a turn's steps that no model, tool or store accounts for | roadmap 10 |
 | ISS-0055 | fixed 2026-09-06 | an output cap spent on reasoning delivered as an empty answer | 0031 |
 | ISS-0054 | open, GPU Apps only | the model endpoint sleeps mid-turn when a tool outlives the idle window | 0044 |
-| ISS-0053 | open | what a command installs outside the workspace is gone by the next command | 0058, 0043 |
+| ISS-0053 | open, fix built | what a command installs outside the workspace is gone by the next command | 0058, 0043, roadmap 17 |
 | ISS-0052 | fixed 2026-09-05 | a non-first system message refused by Qwen3.8's template | |
 | ISS-0051 | fixed 2026-09-05 | the renderer's first look in a cold container fails before the browser is up | |
 | ISS-0050 | worked around, GPU Apps only | vLLM AOT compile of the INT4 checkpoint dies on a renamed weight | 0049 |
@@ -274,7 +274,9 @@ in use since 2026-09-06; it is not seen on the hosted model.
 
 ### ISS-0058 — a command's temporary files and caches live on the Volume path, which is too long for a Unix socket and owned by the wrong user
 
-- **Status:** open
+- **Status:** open; fix built 2026-09-08 (roadmap 17: home and temp are
+  the container's, cwd is the workspace by its short mount path), offline
+  tests, deploy and a Chrome probe pending.
 - **Seen:** 2026-09-06, live, run `75c145f09f624ef5b311517c7e889058`
   (Telegram, GLM at Novita): `npm i puppeteer` failed twice on the
   workspace's `.npm` cache ("please run: sudo chown -R 0:0 …/.npm");
@@ -338,7 +340,11 @@ in use since 2026-09-06; it is not seen on the hosted model.
 
 ### ISS-0053 — what a command installs outside the workspace is gone by the next command
 
-- **Status:** open; not diagnosed further
+- **Status:** open; fix built 2026-09-08 (roadmap 17: the "new environment"
+  line is gone, the brief says once what the container keeps, and the
+  folder-per-task rule tells the model where a venv and packages live),
+  offline tests, deploy pending. Whether the model follows the rule is the
+  suite's measurement (scenario C).
 - **Seen:** 2026-09-05, scenario G on the INT4 App (`deployed-c0c0a622-70`):
   `npm install puppeteer` in `/tmp` and `apt-get install` of Chromium's
   libraries, then the script could not find what it had installed; each

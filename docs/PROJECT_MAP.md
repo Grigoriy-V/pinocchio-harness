@@ -170,9 +170,13 @@ with /plan on             todo_write
   chooses: locally a process in the workspace with the agent's environment
   withheld, on Windows under a write-restricted token; deployed the
   `run_command` Modal Function beside the renderer, no secret, the
-  workspaces Volume committed and reloaded on both sides of the call. What a
-  command installs lives in the workspace (`HOME`, a venv); a container is
-  disposable. Open defects of this environment: ISS-0053, ISS-0058.
+  workspaces Volume committed and reloaded on both sides of the call. Three
+  places, on purpose: the workspace is the working directory and the work;
+  home is the person's (the container's, deployed); temp is the runner's
+  own, never the workspace. Nothing is activated or made for the model: a
+  venv is the model's, in the task's folder, by name; the brief carries the
+  one rule about a folder per piece of work. A container is disposable and
+  the brief says so once (roadmap 17, 2026-09-08).
 - **Modes:** `full` (default) runs everything inside the workspace without
   asking; `careful` makes `write_file`, `edit_file` and `run_command` ask
   (`app/agent/mode.py`, `Toolbox.ask_for_changes`).
