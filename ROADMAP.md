@@ -115,9 +115,12 @@ noted; the human's word starts each.
     context load, the interjections read, the history write, the Volume
     trips around a command, the turn's preparation and closing, the
     telemetry write, the inbox completion). Offline test. Deployed
-    2026-09-10; the measured run: pending. One part of the start-of-turn
-    cost is already named with its cause known, ISS-0066.
-    `reports/2026-09-08_item18_harness_seconds.md`.
+    2026-09-10; the mini set the same day passed 8/8 and named nothing:
+    only the Telegram adapter set the active trace, and `scenarios` does
+    not pass it. Fixed (a trace is active from its own start to its own
+    finish), offline test; redeploy and the measured run again: pending.
+    One part of the start-of-turn cost is already named with its cause
+    known, ISS-0066. `reports/2026-09-08_item18_harness_seconds.md`.
 
 19. **The scenario suite, reconsidered.** After 16: checks on events rather
     than routes, time split into model, tool and wait, a batch that survives

@@ -134,6 +134,11 @@ class TurnTrace:
     # --- the turn ------------------------------------------------------------
 
     def start(self) -> None:
+        # The started trace is the active one of the task that started it,
+        # whichever interface that is: the Telegram worker, the scenario
+        # runner, the local app. Found on 2026-09-10 when the deployed mini
+        # set named nothing — only the Telegram adapter had set it.
+        _ACTIVE.set(self)
         self.event(
             "turn_started",
             user_id=self.run.user_id or None,
@@ -174,6 +179,9 @@ class TurnTrace:
         if self._finished:
             return
         self._finished = True
+        # Nothing after this point belongs to the turn.
+        if _ACTIVE.get() is self:
+            _ACTIVE.set(NO_TRACE)
         run = self.run
         run.outcome = outcome
         run.status = status or ("failed" if outcome == "failed" else "completed")
@@ -412,8 +420,9 @@ class NullTrace(TurnTrace):
 
 NO_TRACE = NullTrace()
 
-# The trace of the turn the current task belongs to. Set by the interface
-# around a turn and inherited by every task and thread the turn starts, so a
+# The trace of the turn the current task belongs to. Set by the trace's own
+# `start`, and by an interface around what it does before the trace starts;
+# inherited by every task and thread the turn starts, so a
 # client, a saver or a runner deep below can name the seconds it spends
 # without a trace being threaded through every signature (roadmap 18,
 # 2026-09-08: the harness's own seconds were unnamed because nothing that

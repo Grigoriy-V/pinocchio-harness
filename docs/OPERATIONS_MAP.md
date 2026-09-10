@@ -258,7 +258,10 @@ For the seconds a deployed turn spends outside the model and its tools
 per turn model/tools/persist/the rest) or
 `python tools/log_named_seconds.py <dump>` (per turn, the seconds the
 harness named with `spent(kind)` against the remainder). Both read the file
-and start nothing.
+and start nothing. `python tools/run_named_seconds.py --last 20` makes the
+second table from the store instead, since the named events are trace
+events; only the log-only ones after a turn (inbox completion, the Volume
+trips around the worker) need the dump.
 
 ## Other tools
 

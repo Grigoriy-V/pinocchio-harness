@@ -353,6 +353,31 @@ async def test_the_harness_names_its_own_seconds(tmp_path: Path, telemetry: Tele
     )
 
 
+def test_a_started_trace_is_the_active_one_without_an_interface(telemetry: Telemetry) -> None:
+    """2026-09-10: the deployed mini set named none of its seconds, because only
+    the Telegram adapter set the active trace and the scenario runner starts
+    its traces itself. A trace is active from its own start to its own finish,
+    whoever started it."""
+
+    from app.telemetry.trace import NO_TRACE, active_trace, spent
+
+    run = TurnRun(run_id="abc123", source="test", user_id="u")
+    trace = telemetry.start(run)
+    assert active_trace() is trace
+    with spent("something", what="x"):
+        pass
+    trace.finish("answer_delivered")
+    assert active_trace() is NO_TRACE
+    with spent("after"):
+        pass
+
+    events = stored_events(telemetry, "abc123")
+    named = [event for event in events if event.type == "something"]
+    assert len(named) == 1 and named[0].duration_ms is not None
+    assert named[0].data.get("what") == "x"
+    assert not [event for event in events if event.type == "after"]
+
+
 async def test_a_tool_trace_keeps_the_path_but_not_argument_content(
     tmp_path: Path, telemetry: Telemetry
 ) -> None:
