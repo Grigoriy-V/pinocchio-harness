@@ -141,10 +141,62 @@ webhook container after the deploy — and the worker's first event came
 it was a command or a non-turn update; the queue wait on a cold image is
 the number to keep.
 
-## 5. Next: measure, then remove
+## 5. The second measured run, 2026-09-10: the seconds named, without Telegram
 
-Deploy (gate), then the mini set and one real Telegram turn with tools
-(gate: a model call each), then `gaps2.py` over the log dump: per turn the
-named seconds by kind against the unnamed rest. What is needless is
-decided from that table, item by item, and each removal is its own line
-here before it is built.
+Redeployed with the fix, the mini set again on the human's word: 8/8,
+runs `deployed-4b4c7f59-*`. `tools/run_named_seconds.py --user
+loop-live-check --last 11`, seconds:
+
+| run | total | model | tools | checkpoint_write | volume trips | rest named |
+|---|---:|---:|---:|---:|---:|---:|
+| -10 (A) | 11.4 | 10.5 | 0.0 | ×9 = 0.79 | — | graph_built 0.36 (cold), history 0.11, read ×2 0.10 |
+| -20 (B) | 9.4 | 8.8 | 0.0 | ×13 = 0.89 | — | 0.25 |
+| -40 (C) | 48.8 | 22.1 | 25.9 | ×21 = 1.97 | commit ×2 = 1.87, reload ×2 = 0.52; remote ×2 = 23.5 | 0.29 |
+| -60 (F) | 24.1 | 22.1 | 1.5 | ×25 = 1.50 | — | 0.25 |
+| -65 (W) | 10.6 | 9.1 | 1.0 | ×13 = 0.88 | — | 0.25 |
+| -80/81/82 (H) | 10.9 / 4.9 / 11.3 | 10.2 / 4.5 / 10.8 | 0.1 / 0 / 0.1 | ×13 = 1.39 / ×9 = 0.70 / ×13 = 1.25 | — | 0.6 / 0.2 / 0.3 |
+| -50 (E) | 14.5 | 14.0 | 0.0 | ×13 = 0.91 | — | 0.25 |
+| -180/190 (M) | 31.5 / 12.5 | 30.8 / 12.0 | 0.1 / 0 | ×33 = 2.30 / ×19 = 1.36 | — | 0.3 / 0.25 |
+
+Read with the timeline of C (`tools/show_run.py deployed-4b4c7f59-40`):
+
+- **The checkpoint writes overlap the model call.** LangGraph writes them
+  in its own tasks: the four `aput`/`aput_writes` of a step land 0.02–0.1 s
+  after `model_started` and finish while the model is still answering. Their
+  sum (0.7–2.3 s a turn, 9–33 writes) is not wall-clock cost, which is why
+  the table's "unnamed" column goes negative: named seconds that ran under
+  the model's. Only the tail after `persist` is serial: four writes of
+  0.14–0.43 s each, 0.36 s from `persist_finished` to `turn_finished`.
+- **A command pays its Volume trips on the clock:** commit before 0.76 and
+  1.11 s, reload after 0.36 and 0.16 s — 1.1–1.3 s per command around the
+  remote call, and the remote call's own overhead over the command's run
+  (22.3 s for `venv` + `pip install tabulate` + the script, 1.26 s for a
+  bare `python primes.py`) is inside `command_remote`.
+- **Everything else is small and warm:** `graph_built` 22 ms (360 ms the
+  first time in a container), `checkpoint_read` 16–24 ms, `context_loaded`
+  14 ms on an empty history, `history_written` 90–110 ms, `persist` 90–250
+  ms, `interjections_read` 0 ms (a memory lane here, not the inbox).
+- **Turn start to first step: 0.12 s** (0.62 s in §4's run, on the colder
+  container). Without Telegram the harness's own wall-clock is under a
+  second a turn.
+
+So the 2–17 s a one-step Telegram turn spends (§1) is not in what the
+scenario path shares with it. What the Telegram path adds and the scenario
+path never runs: the inbox claim and heartbeat, `delivered_before` and the
+summary read (`turn_prepared`), the status message and the preview edits
+(`telegram_call`), the inbox read for interjections on every batch (a fresh
+connection each: 1.5 s where seen), the history load with its media
+(ISS-0066), the fold notice and pending-calls check (`turn_closed`), and
+outside the trace the inbox `complete`, the Volume commit for the turn and
+the telemetry close. All of these are named now and none has been measured
+named. The next number comes from one real Telegram turn with tools.
+
+## 6. Next: the Telegram turn, then remove
+
+One real Telegram turn with tools (the human's, from their own device),
+then `tools/run_named_seconds.py` on it and `tools/log_named_seconds.py`
+on the log for the events after the trace. What is needless is decided
+from that table, item by item, and each removal is its own line here
+before it is built. Already visible without it, as candidates and not
+decisions: the four serial checkpoint writes after `persist` (0.36 s), the
+Volume commit before every command (0.8–1.1 s), and ISS-0066.

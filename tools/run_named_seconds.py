@@ -9,6 +9,12 @@ store the runs were written to (the local SQLite by default, the deployed
 database when `AGENT_DATABASE_URL` is set), so it needs no dump. The
 log-only events after a turn (inbox completion, the Volume trips around the
 worker) are not here; they never reach the store. Read-only; starts nothing.
+
+"unnamed" is the total less the model's, the tools' and the named seconds;
+it goes negative when named seconds ran under the model's — the checkpoint
+writes do, LangGraph makes them in their own tasks — so a negative number
+says how much of the named work cost no wall-clock, not that a clock is
+wrong.
 """
 
 import argparse
