@@ -191,12 +191,98 @@ outside the trace the inbox `complete`, the Volume commit for the turn and
 the telemetry close. All of these are named now and none has been measured
 named. The next number comes from one real Telegram turn with tools.
 
-## 6. Next: the Telegram turn, then remove
+## 6. Two real Telegram turns, 2026-09-10 15:44 and 15:48 UTC, named
 
-One real Telegram turn with tools (the human's, from their own device),
-then `tools/run_named_seconds.py` on it and `tools/log_named_seconds.py`
-on the log for the events after the trace. What is needless is decided
-from that table, item by item, and each removal is its own line here
-before it is built. Already visible without it, as candidates and not
-decisions: the four serial checkpoint writes after `persist` (0.36 s), the
-Volume commit before every command (0.8–1.1 s), and ISS-0066.
+The human's own turns from their phone, same thread (history 2.5–3.3k
+tokens, 7–8 results stubbed, so the media of ISS-0066 is in the load).
+`tools/run_named_seconds.py 0e1146b2… 1d94a7af…` and the two timelines:
+
+| | turn 1 `0e1146b2` | turn 2 `1d94a7af` |
+|---|---:|---:|
+| total from enqueue / model / tools | 32.1 / 14.4 / 7.3 | 50.5 / 28.1 / 3.9 |
+| **queue wait** (enqueue → `turn_started`) | **6.69** | **5.67** |
+| `turn_started` → first step | 1.57 | 3.76 |
+| … `sendChatAction` first, serial | 0.30 | 0.48 |
+| … `graph_built` | 0.36 | 0.80 |
+| … `checkpoint_read` ×3 (delivered_before, the graph, the pending check) | 0.33 | 1.06 |
+| … `turn_prepared` (summary read) | 0.11 | 0.45 |
+| … `context_loaded` | 0.54 | 0.53 |
+| per step boundary (status send/edit + checkpoint write + `interjections_read`) | 0.3–0.5 | 0.5–0.9 |
+| … `interjections_read`, a fresh connection each | 0.11 ×2 | 0.49 ×3 |
+| per command: `volume_commit` / `command_remote` / `volume_reload` | 0.87 / 6.16 / 0.24 | — |
+| `telegram_call` ×n, total (mostly `sendChatAction` under the model) | ×12 = 1.82 | ×21 = 4.38 |
+| tail: last `model_finished` → `turn_finished` | 1.09 | 4.13 |
+| … `history_written` | 0.24 | 1.35 |
+| … `checkpoint_write` ×4 after persist, serial-ish | 0.5 + 0.15 + 0.03 | 2.56 ∥ 2.56, 0.60, 0.15 |
+| … `checkpoint_read` + `turn_closed` | 0.11 + 0.18 | 0.51 + 0.88 |
+| after the trace: `telemetry_written` + `inbox_completed` + Volume commit | (log tail lost) | 0.71 + 0.53 + 0.007 |
+
+Read:
+
+- **Every second the person waits is named now.** Turn 1 outside the queue:
+  25.4 s, of which model 14.4, tools 7.3, and the named harness ≈ 3.6 — the
+  remainder is within the rounding of overlapping events. The queue wait is
+  the one unnamed block left, and it is the largest single cost on both
+  turns.
+- **Both turns paid a cold worker.** 6.7 and 5.7 s from the enqueue to
+  `turn_started`, four minutes apart: `process_telegram_update` scales to
+  zero after 60 s, and every update spawns a worker (item 22), so a person
+  who thinks between messages pays a container boot per message. Inside
+  that boot the graph is built again (0.36–0.80 s) because the container is
+  new. What of the 5.7–6.7 s is Modal's boot and what is our import and
+  claim is not split in the log tail that survived; the earlier update
+  (§4) showed the worker's first event 18 s after the enqueue on a cold
+  image.
+- **Postgres round trip decides the rest.** Turn 1's checkpoint reads take
+  41–50 ms warm, turn 2's 155 ms; every store-bound event in turn 2 is 2–5×
+  turn 1's (`graph_built` 0.80, `history_written` 1.35, `turn_closed`
+  0.88, a checkpoint write up to 2.56 s). Same code, same database: the
+  container landed farther from Neon. With 21 checkpoint writes and 4
+  reads a turn, a 100 ms difference in round trip is 2–3 s on the serial
+  path.
+- **The serial parts of the store work, by count:** three checkpoint reads
+  of the same tuple before the first step; four checkpoint writes after
+  `persist` before the turn can end; one fresh inbox connection per tools
+  batch for `interjections_read`; a summary read in `turn_prepared` and a
+  second read of the store in `turn_closed` for the fold notice.
+- **Telegram calls are small and serial where they matter:** the first
+  `sendChatAction` runs before the graph is built (0.3–0.5 s in front of
+  everything), then `sendMessage` / `editMessageText` / `deleteMessage`
+  at 0.1–0.3 s each on every boundary; the typing indicator every 4 s
+  runs under the model and costs nothing visible.
+
+## 7. Candidates, from the table — not decisions
+
+Each is a line for the human to approve or strike; none is built. Ordered by
+the seconds on the person's clock.
+
+1. **The cold worker per message: 5.7–6.7 s.** Split the boot first
+   (Modal's start vs ours), then choose: a longer `scaledown_window` on
+   `process_telegram_update` (idle CPU minutes for a warm second message),
+   or a faster start (imports, the graph built once per container is
+   already so — it is the container that is new).
+2. **Three checkpoint reads before the first step → one: 0.3–1.0 s.**
+   `delivered_before`, the graph's own `aget_tuple` and the pending check
+   read the same tuple.
+3. **The tail after `persist`: 1.1–4.1 s.** Four checkpoint writes the
+   graph makes for its last node and its end, then a read and the fold
+   notice's store read (`turn_closed`). Which of the four writes the turn
+   needs before it can answer "done" is the question; the answer was
+   already sent.
+4. **`interjections_read` on a fresh connection: 0.1–0.5 s per batch.**
+   Reuse the store's connection.
+5. **The first `sendChatAction` in front of the graph build: 0.3–0.5 s.**
+   Send it concurrently, not before.
+6. **`volume_commit` before every command: 0.8–1.1 s.** Commit only when
+   the workspace was written since the last commit.
+7. **ISS-0066: `context_loaded` 0.53 s on a 3k-token history** that carries
+   the bytes of every image ever seen.
+8. **Container placement vs Neon: 40 vs 150 ms a round trip.** Not ours to
+   remove, but a region pin on the App (Modal `region=`) would make turn 2
+   look like turn 1; a cost and a platform choice, the human's.
+
+## 8. Next: the human's word on §7, one line at a time
+
+Nothing is removed until the human names which of §7's lines to build.
+Each one built gets its own before/after pair here, measured on the same
+kind of turn.

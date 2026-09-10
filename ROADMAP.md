@@ -121,9 +121,12 @@ noted; the human's word starts each.
     finish), redeployed, the mini set again 8/8 with every second named:
     without Telegram the harness's own wall-clock is under a second a turn
     (checkpoint writes overlap the model; a command pays 1.1–1.3 s of
-    Volume trips). Pending: one real Telegram turn with tools, named, and
-    then the removals, each its own line. One part of the start-of-turn
-    cost is already named with its cause known, ISS-0066.
+    Volume trips). Two real Telegram turns named the same day (report §6):
+    every second the person waits is named; the largest is the cold worker
+    per message (5.7–6.7 s), then the store's serial round trips, whose
+    cost varies 3× with where the container lands. Pending: the human's
+    word on the report's §7 candidates, one line at a time; nothing
+    removed yet. ISS-0066 is one of them.
     `reports/2026-09-08_item18_harness_seconds.md`.
 
 19. **The scenario suite, reconsidered.** After 16: checks on events rather
