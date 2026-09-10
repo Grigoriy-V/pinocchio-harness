@@ -22,6 +22,7 @@ authorizes nothing; `ROADMAP.md` alone orders work. Evidence lives in
 
 | Id | Status | Defect | Related |
 |---|---|---|---|
+| ISS-0066 | open | every turn's context load carries the bytes of every image still in history, and then shows the model a stub | 0065, roadmap 18 |
 | ISS-0065 | fixed 2026-09-08 | a `send_file` result carries the file's bytes into the thread's history | 0064, roadmap 23 |
 | ISS-0064 | open, fix built | `persist` hangs on the store's write and the worker sits in it until the platform kills it | 0061, 0048, 0065, roadmap 23 |
 | ISS-0063 | fixed 2026-09-07 | a dead worker's lease holds the conversation; nothing wakes the queue when it expires | 0061, 0062, roadmap 22 |
@@ -94,6 +95,36 @@ in use since 2026-09-06; it is not seen on the hosted model.
 ---
 
 ## Open
+
+### ISS-0066 — every turn's context load carries the bytes of every image still in history, and then shows the model a stub
+
+- **Status:** open.
+- **Seen:** 2026-09-08, deployed, thread `dee4ba72` (the first person on
+  this system besides its owner). Two `use_page screenshot` results hold
+  35,615 and 36,621 bytes of PNG: 72,236 of the thread's 114,083 bytes.
+  `PostgresStore.turn_context` selects the whole unsummarized history in
+  one round trip, media parts included, and `Context.surface` then replaces
+  every tool result but the newest two with a stub. The third turn
+  (`57201a1e`, 18:04:59 UTC) reported `stubbed=14`: it fetched both images
+  across the network and showed the model neither.
+- **Costs:** the fixed cost at the start of every turn grows with each
+  picture the conversation has ever contained, and it is paid on the
+  person's clock — 2.15 s of queue wait and 3.5 s more before the first
+  step in that turn. The store keeps and re-reads bytes no request will
+  carry. It grows without bound until a fold summarizes those positions
+  away.
+- **Reproduce:** deployed, take a screenshot in one turn, send a message in
+  the next, and read `context_prepared`: `stubbed` counts what was fetched
+  and then hidden.
+- **Cause:** known. History is loaded whole and shortened afterwards
+  (`app/context/window.py`): shortening is a property of the request's
+  surface, and the store is never told which positions the surface will
+  stub. Nothing yet asks for history without its media.
+- **Evidence:** the run rows and the thread are in the database; the
+  numbers above are from `tools/show_run.py 57201a1e37ca4ec7a2f213978229bb6e`.
+- **Related:** ISS-0065 (the same bytes on the outbound side, fixed by
+  roadmap 23); roadmap 18, whose second half decides what the harness
+  stops spending.
 
 ### ISS-0065 — a `send_file` result carries the file's bytes into the thread's history
 
@@ -325,7 +356,8 @@ in use since 2026-09-06; it is not seen on the hosted model.
   Blender, 350 MB). The timeline does not name them, which is the first
   thing to fix.
 - **Evidence:** `tools/show_run.py 42cebe2d531c4a1199b8b663c6f8832c`.
-- **Related:** roadmap item 10; the direction of 2026-09-06.
+- **Related:** roadmap item 10; the direction of 2026-09-06; ISS-0066, one
+  named part of the start-of-turn cost with its cause known.
 
 ### ISS-0054 — the model endpoint is put to sleep in the middle of a turn whenever a tool outlives the idle window
 
