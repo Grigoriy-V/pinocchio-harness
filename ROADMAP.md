@@ -114,8 +114,10 @@ noted; the human's word starts each.
     (Telegram calls, checkpoint reads and writes, the graph build, the
     context load, the interjections read, the history write, the Volume
     trips around a command, the turn's preparation and closing, the
-    telemetry write, the inbox completion). Offline test. Deploy and the
-    measured run: pending. `reports/2026-09-08_item18_harness_seconds.md`.
+    telemetry write, the inbox completion). Offline test. Deployed
+    2026-09-10; the measured run: pending. One part of the start-of-turn
+    cost is already named with its cause known, ISS-0066.
+    `reports/2026-09-08_item18_harness_seconds.md`.
 
 19. **The scenario suite, reconsidered.** After 16: checks on events rather
     than routes, time split into model, tool and wait, a batch that survives

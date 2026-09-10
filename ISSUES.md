@@ -335,8 +335,9 @@ in use since 2026-09-06; it is not seen on the hosted model.
 
 - **Status:** open; the first half of roadmap 18 built 2026-09-08: every
   thing the harness spends time on names itself on the trace with a
-  duration (`reports/2026-09-08_item18_harness_seconds.md` §3). Deploy and
-  the measured run pending; what to remove is decided from it.
+  duration (`reports/2026-09-08_item18_harness_seconds.md` §3). Deployed
+  2026-09-10; the measured run pending, and what to remove is decided from
+  it.
 - **Seen:** 2026-09-06, live, run `42cebe2d531c4a1199b8b663c6f8832c`
   (Telegram, GLM at Novita): 71.8 s in all, model 46.6 s, tools 1.9 s,
   persist 2.7 s, queue 4.9 s, **18.3 s unattributed**: 1.8 s between every
