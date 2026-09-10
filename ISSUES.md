@@ -32,7 +32,7 @@ authorizes nothing; `ROADMAP.md` alone orders work. Evidence lives in
 | ISS-0059 | open | a question sent mid-turn is answered and the task it interrupted stops to ask "continue?" | roadmap 15, 20 |
 | ISS-0058 | fixed 2026-09-08 | command temp files and caches on the Volume path: too long for a socket, wrong uid | 0053, 0057, roadmap 17 |
 | ISS-0057 | fixed 2026-09-07 | the turn's seconds budget counts tool run time and provider queue | 0056, 0054 |
-| ISS-0056 | open, the seconds named | seconds between a turn's steps that no model, tool or store accounts for | roadmap 18 |
+| ISS-0056 | fixed 2026-09-10, as named | seconds between a turn's steps that no model, tool or store accounts for | 0066, roadmap 18 |
 | ISS-0055 | fixed 2026-09-06 | an output cap spent on reasoning delivered as an empty answer | 0031 |
 | ISS-0054 | open, GPU Apps only | the model endpoint sleeps mid-turn when a tool outlives the idle window | 0044 |
 | ISS-0053 | fixed 2026-09-08 | what a command installs outside the workspace is gone by the next command | 0058, 0043, roadmap 17 |
@@ -331,37 +331,6 @@ in use since 2026-09-06; it is not seen on the hosted model.
   `tools/show_run.py 75c145f09f624ef5b311517c7e889058`.
 - **Related:** ISS-0053, ISS-0057.
 
-### ISS-0056 — a turn spends seconds between its own steps that no model, tool or store accounts for
-
-- **Status:** open; the first half of roadmap 18 built 2026-09-08: every
-  thing the harness spends time on names itself on the trace with a
-  duration (`reports/2026-09-08_item18_harness_seconds.md` §3). Deployed
-  2026-09-10 and measured on the mini set the same day (§5): without
-  Telegram the harness's wall-clock is under a second a turn, so the
-  seconds of this defect live on the Telegram path, whose named turn is
-  pending; what to remove is decided from it.
-- **Seen:** 2026-09-06, live, run `42cebe2d531c4a1199b8b663c6f8832c`
-  (Telegram, GLM at Novita): 71.8 s in all, model 46.6 s, tools 1.9 s,
-  persist 2.7 s, queue 4.9 s, **18.3 s unattributed**: 1.8 s between every
-  `model_finished` and the next `tool_started`, 5.3 s from the last
-  `persist_finished` to `turn_finished`. Same evening, run
-  `489357808c644569b787da03ac500663` (12 calls, 10 tools): 0.7–1.2 s per
-  step and **12.7 s** in the tail.
-- **Costs:** on a model that answers in 2–6 s, a quarter of the turn is
-  the harness's own gaps; the first visible word came at 51 s in a turn
-  whose model produced it by 36 s.
-- **Reproduce:** any deployed turn with tools; read the timeline's gaps.
-- **Cause:** unknown. Candidates by the code, not findings: Telegram
-  preview edits and status calls between steps, the checkpoint write after
-  each node, the telemetry flush, and around every `run_command` the
-  worker commits and reloads the workspaces Volume twice (`ModalRunner.run`,
-  `run_command`), a cost that grows with the workspace (this one held
-  Blender, 350 MB). The timeline does not name them, which is the first
-  thing to fix.
-- **Evidence:** `tools/show_run.py 42cebe2d531c4a1199b8b663c6f8832c`.
-- **Related:** roadmap item 10; the direction of 2026-09-06; ISS-0066, one
-  named part of the start-of-turn cost with its cause known.
-
 ### ISS-0054 — the model endpoint is put to sleep in the middle of a turn whenever a tool outlives the idle window
 
 - **Status:** open, GPU Apps only; not scheduled
@@ -648,6 +617,22 @@ in use since 2026-09-06; it is not seen on the hosted model.
 ## Closed
 
 Shortened to what a later reader needs; the linked report has the rest.
+
+### ISS-0056 — a turn spends seconds between its own steps that no model, tool or store accounts for
+
+- **Status:** fixed 2026-09-10 as named (roadmap 18): every thing the
+  harness spends time on names itself on the turn's active trace with a
+  duration; measured on the mini set and on two real Telegram turns. On a
+  normal turn the harness's own cost is 2–4 s in half-seconds, half of it
+  the database round trip that varies 3× with where the container lands;
+  the block a person feels is the cold worker per message (5.7–6.7 s, the
+  worker's 60 s scaledown), a platform choice set aside on the human's
+  word. The 12–18 s first seen were a 350 MB workspace's Volume commits on
+  a far container. Nothing removed.
+- **Seen:** 2026-09-06, run `42cebe2d531c4a1199b8b663c6f8832c`: 18.3 s
+  unattributed of 71.8.
+- **Evidence:** `reports/2026-09-08_item18_harness_seconds.md`.
+- **Related:** ISS-0066 (one named part, open), ISS-0057, ISS-0054.
 
 ### ISS-0057 — a turn that is working is ended by a clock that counts its tools' run time
 

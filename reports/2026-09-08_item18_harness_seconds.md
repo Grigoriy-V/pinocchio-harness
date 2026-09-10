@@ -281,8 +281,18 @@ the seconds on the person's clock.
    remove, but a region pin on the App (Modal `region=`) would make turn 2
    look like turn 1; a cost and a platform choice, the human's.
 
-## 8. Next: the human's word on §7, one line at a time
+## 8. Closed 2026-09-10: measured, and not worth the work
 
-Nothing is removed until the human names which of §7's lines to build.
-Each one built gets its own before/after pair here, measured on the same
-kind of turn.
+The human's decision, in their words: the report is closed, the Telegram
+worker's cold start is to be thought about in the future, optimizing it
+now does not matter, the item can be closed.
+
+What the item established: every second of a turn is named now (§3, §5,
+§6). On a normal turn the harness's own cost is 2–4 s spread in
+half-seconds, half of it the database round trip that depends on where
+the container lands; the one block a person feels is the cold worker per
+message, 5.7–6.7 s, which is `scaledown_window=60` on
+`process_telegram_update` — a platform choice, not a defect. The 12–18 s
+of ISS-0056's first sighting were a 350 MB workspace's Volume commits on
+a far container. §7's lines 2–8 stay here as measured and not built: each
+is worth 0.3–1.5 s. Nothing was removed.

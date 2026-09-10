@@ -98,36 +98,20 @@ Items of the 2026-09-07 order, closed:
   outbound part stored as its delivery in words. Seen live: a sent file's
   row is 313 characters, `persist` 3.5 s (ISS-0065 fixed; ISS-0064 stays
   open in `ISSUES.md` until a hang is seen ending).
+- **18, the harness's own seconds** (2026-09-10): every thing the harness
+  spends time on names itself on the turn's active trace with a duration;
+  measured on the mini set and on two real Telegram turns. On a normal
+  turn the harness costs 2–4 s in half-seconds; the one block a person
+  feels is the cold worker per message (5.7–6.7 s, the worker's 60 s
+  scaledown), a platform choice set aside for later on the human's word.
+  Nothing removed; the candidates stay measured in the report. ISS-0056
+  fixed as named; ISS-0066 recorded.
+  `reports/2026-09-08_item18_harness_seconds.md`.
 
 ## Queue
 
 The order approved 2026-09-07. One item at a time; research first where
 noted; the human's word starts each.
-
-18. **The harness's own seconds.** Name in the timeline what runs between
-    steps and after persist (Telegram preview edits and status calls, the
-    checkpoint write, the telemetry flush, the two Volume commits around
-    every command), then remove what is needless. ISS-0056. Started
-    2026-09-08 (the human, 21 set aside for its research). First half
-    built the same day: the turn's trace is the task's active trace and
-    every thing the harness spends time on names itself with a duration
-    (Telegram calls, checkpoint reads and writes, the graph build, the
-    context load, the interjections read, the history write, the Volume
-    trips around a command, the turn's preparation and closing, the
-    telemetry write, the inbox completion). Offline test. Deployed
-    2026-09-10; the mini set the same day passed 8/8 and named nothing:
-    only the Telegram adapter set the active trace, and `scenarios` does
-    not pass it. Fixed (a trace is active from its own start to its own
-    finish), redeployed, the mini set again 8/8 with every second named:
-    without Telegram the harness's own wall-clock is under a second a turn
-    (checkpoint writes overlap the model; a command pays 1.1–1.3 s of
-    Volume trips). Two real Telegram turns named the same day (report §6):
-    every second the person waits is named; the largest is the cold worker
-    per message (5.7–6.7 s), then the store's serial round trips, whose
-    cost varies 3× with where the container lands. Pending: the human's
-    word on the report's §7 candidates, one line at a time; nothing
-    removed yet. ISS-0066 is one of them.
-    `reports/2026-09-08_item18_harness_seconds.md`.
 
 19. **The scenario suite, reconsidered.** After 16: checks on events rather
     than routes, time split into model, tool and wait, a batch that survives
