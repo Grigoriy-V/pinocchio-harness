@@ -50,6 +50,8 @@ are not reachable by following imports from `app/`.
 | Take up a turn a dead worker left | `app/agent/runtime.py`, `ui/telegram/adapter.py`, `ui/telegram/webhook.py` | `Agent.unfinished`, `resume_interrupted_events`, `Tool.replay_safe`, `same_request`, `LEASE_SECONDS`, `MAX_ATTEMPTS` |
 | Measure a turn | `app/telemetry/` | `TurnTrace`, `Telemetry`, `TurnRun`, `TraceEvent`, `NO_TRACE`, `RUN_ID` |
 | Read a turn back | `tools/show_run.py`, `app/telemetry/inspect.py` | `render_run`, `steps`, `--last`, `--failed`, `--summary` |
+| Read a thread's rows, sizes and media parts | `tools/show_thread.py` | read-only, prints no connection string |
+| Where a deployed turn's seconds go, from a log dump | `tools/log_gaps.py`, `tools/log_named_seconds.py` | gaps between events; named harness seconds by kind (roadmap 18) |
 | GPU cost derivation (GPU Apps only) | `app/telemetry/cost.py` | `gpu_cost`, `IDLE_WINDOW_SECONDS` |
 | Add/change a tool primitive or the execution path | `app/tools/base.py`, `app/tools/execution.py` | `Tool`, `ToolError`, `Toolbox`, `handover`, `ToolExecutor`, `pre_execute`, `execute`, `post_execute`, `tests/test_tool_outcomes.py` |
 | Add a failure code | `app/models/base.py`, `app/tools/base.py`, the family module | `ToolFailure`, `Message.failure`, `fs.*`, `browser.*`, … |

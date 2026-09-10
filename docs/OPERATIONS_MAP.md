@@ -248,6 +248,18 @@ meaningful only for a GPU App; on a hosted model the provider's own
 without an outcome is closed `failed/incomplete`; one whose container vanished
 stays `running`, which `--failed` lists.
 
+`python tools/show_thread.py <thread_id> [head_chars]` prints one thread's
+rows the same way: role, tool calls, each part's kind and byte count, the
+head of the text. Same store as above, read-only.
+
+For the seconds a deployed turn spends outside the model and its tools
+(ISS-0056, roadmap 18), save the control app's log to a file and run
+`python tools/log_gaps.py <dump>` (the gap between consecutive events, and
+per turn model/tools/persist/the rest) or
+`python tools/log_named_seconds.py <dump>` (per turn, the seconds the
+harness named with `spent(kind)` against the remainder). Both read the file
+and start nothing.
+
 ## Other tools
 
 - `tools/prompt_scenarios.py --dry-run` composes the brief and contacts
