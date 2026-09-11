@@ -117,3 +117,10 @@ def test_a_check_passes_only_on_the_outcome(tmp_path: Path) -> None:
 def test_number_in_matches_whole_numbers_only() -> None:
     assert number_in("the total is 56", 56) and number_in("56.0 exactly", 56)
     assert not number_in("156 or 560", 56) and not number_in("5.6", 56)
+
+
+def test_a_bare_no_is_a_no() -> None:
+    from scripts.training_scenarios import says_no
+
+    assert says_no("no") and says_no("No.") and says_no("It is not there.") and says_no("The run failed.")
+    assert not says_no("yes") and not says_no("nothing to report, all good")

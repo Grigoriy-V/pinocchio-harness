@@ -152,9 +152,13 @@ time; research first where noted; the human's word starts each.
     offline tests; deployed and run on GLM the same day: 21/21, judge 9.95
     (one point: a `pip install` into the machine's python on D2, a
     standing-rule miss only the judge sees). 32 trajectory files on the
-    Volume. Pending: Gemma on the same letters (gate), the sampling
-    temperature checked and parameterized seeds before `--repeat`.
-    Then GLM run
+    Volume. Gemma on the same letters the same day: 18/21 (19 after a
+    check fix), 151 model calls to GLM's 79, judge 9.0 to 9.7 — the gap has
+    one shape, re-running the same command when a result surprises it,
+    until the repeat guard ends the turn (report §3b). `--temperature`
+    built for the data runs (the product samples at 0). Pending: the first
+    `--repeat` run to see whether repeats differ; parameterized seeds if
+    not. Then GLM run
     many times over the scenario prompts, keeping the turns that pass
     their checks, plus the real turns that did — this is where 19's new
     scenarios are written, as prompts for data as well as checks (gate:

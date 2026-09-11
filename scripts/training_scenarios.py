@@ -151,8 +151,14 @@ def number_in(text: str, value: int | float) -> bool:
 
 
 def says_no(text: str) -> bool:
+    """A negative answer: "no", "not there", "it failed" — a bare "no" included
+    (Gemma answered T3 with exactly that, 2026-09-11, and the first version
+    of this looked for "no " with a space)."""
+
     lowered = text.lower()
-    return any(word in lowered for word in ("not ", "no ", "no.", "does not", "doesn't", "isn't", "cannot", "missing", "fail"))
+    if re.search(r"\bno\b", lowered) or re.search(r"\bnot\b", lowered):
+        return True
+    return any(word in lowered for word in ("doesn't", "isn't", "cannot", "missing", "fail"))
 
 
 def files_under(root: Path, folder: str) -> set[str]:

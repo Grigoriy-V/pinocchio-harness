@@ -222,6 +222,70 @@ trajectory again) and parameterized seeds — the same family with other
 numbers, names and file layouts — which is the next thing to build if
 repeats come back alike.
 
+## 3b. The seven families on Gemma 4 12B, 2026-09-11 13:40 UTC — the first gap
+
+`loop_live --deployed --model v2 D L N T U V X`, runs
+`deployed-v2-aaa50fb0-*`; threads in
+`reports/2026-09-11_families_gemma_threads.txt`. Beside GLM's run (§3a):
+
+| metric | Gemma 4 12B | GLM 5.3 |
+|---|---:|---:|
+| cases passed by the checks | 18 / 21 (19 after the T3 check fix below) | 21 / 21 |
+| model calls, all 21 cases | 151 | 79 |
+| tool calls | 126 | 71 |
+| `tool_failed` | 1 `fs.not_found`, 4 `not_run` (the repeat guard) | 0 |
+| turns ended by the repeat guard | 1 (X2, nothing said) | 0 |
+| first token | 4–19 s, three at 30–84 s | 9–58 s |
+| judge, mean | **9.0** | **9.7** (see the rule below) |
+
+The three failures:
+
+- **V1** — the build's lie. Gemma checked `tools_task/out` (not found),
+  then ran `bash tools_task/build.sh && find . -name app.bin` **eighteen
+  times** with cosmetic variations, tripped the repeat guard once, and only
+  then answered — correctly, but hedged ("possible the file is being
+  written to a different location"). 23 model calls, 90 s. GLM: read the
+  script, ran it, listed the folder, four calls.
+- **X2** — the package. Gemma put the test file *inside* `calc_pkg/`, ran
+  `cd calc_pkg && python -m unittest test_calc.py`, got
+  `ModuleNotFoundError: calc_pkg`, and repeated the same command five
+  times until the repeat guard ended the turn: no README, no green run,
+  **no answer at all**. GLM wrote package, tests and README in one heredoc
+  and ran green.
+- **N3** — "exactly ten lines". Gemma wrote ten fruits with no final
+  newline, `wc -l` said 9, so it appended an eleventh fruit and reported
+  the 10 that `wc` then printed: the file has eleven lines. The check
+  caught it; the answer was true to the command and false to the task.
+- T3 was the check's fault, not Gemma's: it answered exactly `no`, as
+  asked ("tell me yes or no"), and `says_no` looked for `"no "` with a
+  space. Fixed 2026-09-11 (`\bno\b`); passes on a rerun.
+
+Where Gemma was *better*: **D2** — it made a venv in `report/`, hit
+`source: not found` under `sh`, switched to `./venv/bin/python`, hit the
+relative path, `cd`'d, and finished: the brief's rule followed, three wrong
+turns recovered, where GLM took the shortcut of a system `pip install`.
+
+Judge, the rule made consistent: a `list_files` before a path the prompt
+already named, or a `set_goal` on a two-step task, costs the (b) point on
+both models (the mini-set pass docked Gemma for it on B and let GLM's L1
+through — corrected). Scores (a b c d e): D1 9 (extra listing), D2 10, D3
+10, L1–L3 9 9 9 (listing first), N1 10, N2 10, N3 9 (a: eleven lines), T1–T3
+10 10 10, U1 9 (five reads where one grep would do), U2 9, U3 9, V1 **6**
+(b 0, d 1, e 1), V2 10, V3 10, X1 10, X2 **2**, X3 9 → mean 9.0. GLM by the
+same rule: 10 except D2 9 (the system pip) and L1, D3, U1, U2, V1, X2 at 9
+for a listing first → 9.7.
+
+**Reading.** The families do separate the models, and the gap has one
+shape: **when a result does not match what Gemma expected, it re-runs the
+same command instead of changing something** — V1's find, X2's unittest —
+until the harness's repeat guard stops it. That is rubric (d), the item
+FireAct's robustness result says fine-tuning moves most, and GLM's
+trajectories on the same prompts show the other behaviour on every case.
+The second gap is (b), calls that add nothing (`set_goal` on two-step
+tasks, listing a named path, five reads for a grep): 151 calls to 79. The
+counting metrics that carry this: model calls per case, `not_run`
+failures, turns ended by the repeat guard, and the judge's (b) and (d).
+
 ## 4. Research before step 4: the training run on Modal
 
 Open, to be answered by reading, not running: Unsloth against TRL + peft
