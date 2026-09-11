@@ -381,6 +381,46 @@ ten trajectory files. Turns 31–93 s each at 0.7 — the D family is the
 slow one (a wrong turn costs a few calls). Nothing shared but the
 database.
 
+## 3f. The volume run and the v1 set, 2026-09-11 14:25–14:55 UTC
+
+`loop_live --deployed --temperature 0.7 --parallel 8 D L N T U V X`: eight
+calls at once under `loop-live-p1…p8`, 304 turns, about 30 minutes of
+wall clock — one container was preempted by Modal partway and its call
+restarted with the same input, which is why one probe holds 74 runs and
+the run took twice one call's time. Median turn 13.7 s, longest 113 s.
+**292 / 304 by the checks.** The twelve: V7 8/8 on a check that could
+not tell the model quoting the script's "All 5 checks passed" from
+claiming it — every answer gave 3 and was right; the check dropped. L2
+3/8 wrong arithmetic (55.25, 55.0, 55.5 for 56: summed in the head instead
+of in code) — real, and what the filter is for. N1 1/8: the last text was
+"The CSV is attached too" after a `send_file`; the city was in the text
+before it.
+
+The export after it (`tools/export_trajectories.py --out data/export`):
+**447 runs**, 351 with a verdict (the rest predate the `scenario_checked`
+event or are the owner's Telegram turns), 446 `answer_delivered`, one
+`failed` (the preempted call's cut turn). Of them:
+
+| | runs | model calls (= SFT samples) |
+|---|---:|---:|
+| GLM, training-eligible (not held out), passed | 251 + 9 V7 = **260** | **814** |
+| … by family | D 22, L 42, N 44, T 54, U 45, V 36, X 17 | |
+| GLM, held out (D1–3, V1–3, X1–3), all passed | 87 | pass^k on the measuring set |
+| Gemma, the baseline | 21 | not data |
+
+260 trajectories, 814 request/answer pairs: the necessary minimum of §1
+(FireAct's 500 samples were single calls; SWE-Gym's 491 trajectories
+averaged more calls each). The judge has not read them; for v1 the filter
+is the checks and the outcome, the judge comes after the loop has closed
+once (the human's rule). What is thin: D and X, the families that carry
+(d) and (a) — 39 trajectories; a second parallel run of D and X alone
+would double them at a few dollars, after v1 has trained once.
+
+What the training side gets: `data/export/runs/*.json` and
+`index.jsonl`; filter `model` contains `glm`, `held_out` false,
+`scenario.passed` true, `outcome` `answer_delivered`; a sample is one
+element of `calls` (`messages` + `tools` → `completion`).
+
 ## 4. Research before step 4: the training run on Modal
 
 Open, to be answered by reading, not running: Unsloth against TRL + peft

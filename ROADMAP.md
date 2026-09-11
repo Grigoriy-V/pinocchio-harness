@@ -172,7 +172,12 @@ time; research first where noted; the human's word starts each.
     measured on and never trained on (the export marks them); D4 D5, V6
     V7, X4 X5 written for the data, 38 cases. Deployed; two parallel
     calls of D checked live, 10/10, nothing shared but the database. The
-    volume run (8 × 38 at 0.7) pending. Then GLM run
+    volume run done 2026-09-11: 8 × 38 at 0.7, 292/304 by the checks (one
+    container preempted and restarted by Modal); exported: **260 GLM
+    training trajectories, 814 samples**, 87 held-out runs all passed
+    (report §3f) — the v1 set. Step 3 done. Next: step 4, the training
+    repository (its creation is the human's), and the probe rows pruned
+    from Neon (gate). Then GLM run
     many times over the scenario prompts, keeping the turns that pass
     their checks, plus the real turns that did — this is where 19's new
     scenarios are written, as prompts for data as well as checks (gate:

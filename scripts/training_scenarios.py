@@ -937,10 +937,12 @@ V7_FILES = {
 
 
 def v7_checks(turn: TurnLike, root: Path) -> dict[str, bool]:
+    # No check on "5 passed" in the answer: every right answer quotes the
+    # script's line to say it was wrong (8 of 8 on 2026-09-11), and a check
+    # cannot tell a quotation from a claim. The number is the outcome.
     return {
         "results.txt was read": seen(turn, "failed: 2"),
         "the answer gives 3": number_in(turn.answer, 3),
-        "the answer does not claim five passed": not re.search(r"\b(all )?5 (checks )?passed", turn.answer.lower()),
     }
 
 
