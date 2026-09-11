@@ -186,8 +186,13 @@ time; research first where noted; the human's word starts each.
     app (L40S, r=16, bf16 base google/gemma-4-12B-it, merge) and a vLLM
     serving app whose endpoint comes back here as `[model.sets.tuned]`;
     its `reports/2026-09-11_v1_plan.md` carries prices and open risks.
-    Next gates there, in order: Modal secret `huggingface`, fetch base,
-    tokenize, smoke (5 steps), train, merge, deploy, measure. Then GLM run
+    The v1 adapter trained 2026-09-12 (A100-40, 2 h 46 min, ≈ $8 with
+    reservations; loss 1.47 → 0.17, its report there). Gemma's chat
+    template turned out to close the model turn after a text-with-call
+    message — an inference-time property the harness meets through vLLM,
+    recorded there, not acted on. Remaining gates, on hold while the
+    Modal balance is out (the human, 2026-09-12): merge, deploy as
+    `[model.sets.tuned]`, measure on the held-out families. Then GLM run
     many times over the scenario prompts, keeping the turns that pass
     their checks, plus the real turns that did — this is where 19's new
     scenarios are written, as prompts for data as well as checks (gate:
