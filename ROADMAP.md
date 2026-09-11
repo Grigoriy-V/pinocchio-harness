@@ -156,9 +156,11 @@ time; research first where noted; the human's word starts each.
     check fix), 151 model calls to GLM's 79, judge 9.0 to 9.7 — the gap has
     one shape, re-running the same command when a result surprises it,
     until the repeat guard ends the turn (report §3b). `--temperature`
-    built for the data runs (the product samples at 0). Pending: the first
-    `--repeat` run to see whether repeats differ; parameterized seeds if
-    not. Then GLM run
+    built for the data runs (the product samples at 0); two sampled
+    repeats the same day: sequences differ on 12 of 21 cases (every wrong
+    turn and long task), the same on the nine one-move cases; GLM 39/42
+    (report §3c). Pending: parameterized seeds for the one-move cases, the
+    export tool. Then GLM run
     many times over the scenario prompts, keeping the turns that pass
     their checks, plus the real turns that did — this is where 19's new
     scenarios are written, as prompts for data as well as checks (gate:

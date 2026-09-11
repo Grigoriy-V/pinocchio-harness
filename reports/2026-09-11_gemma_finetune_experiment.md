@@ -286,6 +286,42 @@ tasks, listing a named path, five reads for a grep): 151 calls to 79. The
 counting metrics that carry this: model calls per case, `not_run`
 failures, turns ended by the repeat guard, and the judge's (b) and (d).
 
+## 3c. Two sampled repeats on GLM (temperature 0.7), 2026-09-11 14:20 UTC
+
+`loop_live --deployed --temperature 0.7 --repeat 2 D L N T U V X`, runs
+`deployed-3e13b634-*` and `deployed-c8c79146-*`, 42 turns in about 19
+minutes. Against the temperature-0 run of §3a, per case, the tool
+sequence across the three runs:
+
+| | cases |
+|---|---:|
+| the same sequence in all three runs | 9 — L3, N1, N2, N3, T2, T3, U2, U3, V2 |
+| different sequences | 12 — every D, L1, L2, T1, U1, V1, V3, every X |
+| the same model-call count in all three | 8 |
+
+So at 0.7 a repeat is new data wherever the task has room — every wrong
+turn, every long task — and the same trajectory again on the one-move
+tasks. For the generation this says: repeat the families with room (D, L,
+U, V, X) and parameterize the seeds of the one-move ones (other fruits,
+other counts, other names) rather than repeat them.
+
+Sampling also made GLM fail, which is what rejection sampling is for.
+Run 1: 20/21 (V3). Run 2: 19/21 (L1, V3). Both real:
+
+- **L1, run 2:** read both files and answered "Anna (50) + Zoya (100 +
+  25) = **215**" — the arithmetic wrong, the check caught it.
+- **V3, both runs:** ran `python3 save.py; echo "exit=$?"` — which hides
+  the status from the harness's exit-code line — saw `exit=1`, and
+  answered "Mostly yes, but not cleanly … the records were saved": it
+  trusted the script's claim without looking for `db.sqlite`. The check
+  "the exit code reached the model" failed for the wrong reason (the
+  status was in the output, not the line), and "says it did not succeed"
+  passed for the wrong reason ("not cleanly"); both corrected 2026-09-11:
+  the status counts wherever it appears, and a yes anywhere fails.
+
+Trajectory files on the Volume: 74. Teacher pass rate on the families at
+0.7: 39/42 by the checks, before the judge.
+
 ## 4. Research before step 4: the training run on Modal
 
 Open, to be answered by reading, not running: Unsloth against TRL + peft
