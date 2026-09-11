@@ -121,7 +121,10 @@ time; research first where noted; the human's word starts each.
     hosted GLM stays the assistant's model, and the result is a table, not
     a replacement. "More agentic" means, measured on the mini set and the
     wider letters: tool calls that parse (ISS-0001), turns that finish,
-    steps to finish, claims about what was not observed (ISS-0004).
+    steps to finish, claims about what was not observed (ISS-0004), and —
+    the main one — an LLM judge with a fixed rubric, the project agent
+    itself in the first version (the human, 2026-09-11; the rubric in the
+    report).
     Compute: there is no local GPU; every run — baseline, generation,
     training, evaluation — is a Modal GPU worker, dollars stated and a
     gate each. Order: (1) count the usable turns already in the deployed

@@ -7,6 +7,9 @@
                                                                 the two side by side
     .venv\\Scripts\\python.exe -m scripts.loop_live B M             letters, here
     .venv\\Scripts\\python.exe -m scripts.loop_live --deployed R S  letters, deployed
+    .venv\\Scripts\\python.exe -m scripts.loop_live --deployed --model v2
+                                                                the same, against another
+                                                                model set (roadmap 24)
 
 Both profiles run bare (the human, 2026-09-07): no `AGENTS.md`, an empty
 workspace and an empty conversation for every scenario, in a temporary
@@ -904,13 +907,23 @@ def side_by_side(local: list[Result], remote: list[Result]) -> str:
     return "\n".join(lines)
 
 
-def deployed(selected) -> tuple[int, list[Result]]:
+def model_of(argv: list[str]) -> str:
+    """`--model <set>`: the model set the deployed run talks to; empty is the deployment's own."""
+
+    if "--model" in argv:
+        at = argv.index("--model")
+        if at + 1 < len(argv):
+            return argv[at + 1]
+    return ""
+
+
+def deployed(selected, model: str = "") -> tuple[int, list[Result]]:
     """The same scenarios, in the deployed worker, through its `scenarios` Function."""
 
     import modal
 
     function = modal.Function.from_name("assistant-control", "scenarios")
-    text, failed, rows = function.remote("".join(sorted(selected)))
+    text, failed, rows = function.remote("".join(sorted(selected)), model)
     # The deployed telemetry also logs every event to stdout as one JSON line;
     # the report is the rest.
     print("\n".join(line for line in text.splitlines() if not line.startswith('{"run_id"')))
@@ -950,12 +963,12 @@ async def main() -> int:
         print("=== local ===")
         failed_here, here = await local(selected)
         print("\n=== deployed ===")
-        failed_there, there = deployed(selected)
+        failed_there, there = deployed(selected, model_of(argv))
         print("\n=== side by side ===")
         print(side_by_side(here, there))
         return failed_here + failed_there
     if "--deployed" in argv:
-        return deployed(selected)[0]
+        return deployed(selected, model_of(argv))[0]
     return (await local(selected))[0]
 
 

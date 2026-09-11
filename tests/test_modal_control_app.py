@@ -471,3 +471,21 @@ def test_the_scenarios_run_in_the_workers_own_environment() -> None:
     assert "from scripts.loop_live import run_scenarios" in body
     assert '.add_local_dir("scripts", "/root/project/scripts", copy=True)' in source()
 
+
+def test_the_scenarios_can_be_pointed_at_another_model_set() -> None:
+    """Roadmap 24: a model that is not the deployment's own — Gemma on its GPU
+    App, a fine-tuned one — is measured on the same scenarios by naming its
+    set for one run; the run ids carry the name, since a run row does not."""
+
+    body = ast.get_source_segment(source(), _function("scenarios"))
+    assert body is not None
+    assert 'model: str = ""' in body
+    assert 'os.environ["MODEL"] = model' in body
+    assert body.index('os.environ["MODEL"] = model') < body.index("_settings()")
+    assert "model + '-' if model else ''" in body
+
+    from scripts.loop_live import model_of
+
+    assert model_of(["--deployed", "--model", "v2"]) == "v2"
+    assert model_of(["--deployed"]) == ""
+

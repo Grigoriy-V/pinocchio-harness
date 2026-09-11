@@ -48,10 +48,26 @@ check on the trace:
    shape ("the answer uses the result", "nothing was written or
    retried"), counted.
 
+5. **An LLM judge — the main one** (the human, 2026-09-11). In the first
+   version the judge is the project agent (Claude) reading each turn's
+   thread (`tools/show_thread.py`) and trace (`tools/show_run.py`) against
+   a fixed rubric, the same for every model and run, written here before
+   the first turn is judged. Rubric, 0–2 each, summed to 0–10: (a) did
+   what was asked, not something near it; (b) used a tool where the task
+   needed one and not where it did not; (c) every claim in the answer
+   matches something observed in a tool result; (d) recovered from a
+   failed call instead of repeating it or giving up; (e) the answer a
+   person could act on — complete, no filler, no leaked internals. The
+   judge sees the model's name only after scoring a batch. Later versions
+   can hand the rubric to a model call with the same text.
+
+Approved 2026-09-11 (the human): metrics 1–5 as above.
+
 Baseline: Gemma 4 12B through `assistant-llm-v2` (deployed, scaled to
 zero) as `MODEL=v2`, the mini set once (≈ 11 turns) and the wider letters
 once. Cost: the GPU App's A10 minutes for the runs plus its cold start; a
-gate.
+gate. Needed first: `scenarios` takes the set's name, so a run can be
+pointed at Gemma without changing the deployment's own model.
 
 ## 3. Options for the data — for the human
 

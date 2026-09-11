@@ -270,7 +270,9 @@ trips around the worker) need the dump.
   `--prompt-file`; output under `reports/prompt_runs/`.
 - `tools/showcase.py` renders a stored conversation with its media, read-only.
 - `scripts/loop_live.py` runs the mini set (A B C F W H E M) or wider letters
-  (G I J K O P Q R S) locally, deployed, or both side by side.
+  (G I J K O P Q R S) locally, deployed, or both side by side;
+  `--deployed --model <set>` runs them against another model set for that
+  run only (its GPU App wakes: a gate), run ids `deployed-<set>-…`.
 - `scripts/measure_command_cold_start.py` starts a command container.
 - `scripts/doctor.py` diagnoses a local install. `scripts/smoke_test.py`,
   `stage3_live.py`, `v1_live.py` are earlier-stage runners.

@@ -565,7 +565,7 @@ async def self_test(include_model: bool = False, include_credit: bool = False) -
     timeout=1800,
     include_source=False,
 )
-async def scenarios(letters: str = "ABCFWHEM") -> tuple[str, int, list[dict]]:
+async def scenarios(letters: str = "ABCFWHEM", model: str = "") -> tuple[str, int, list[dict]]:
     """Run `scripts/loop_live.py`'s scenarios here, in the worker's own environment.
 
     The same image, secrets, Volume and command runner the worker has, so what
@@ -575,12 +575,21 @@ async def scenarios(letters: str = "ABCFWHEM") -> tuple[str, int, list[dict]]:
     the printed report, the number of failed checks and one row per scenario
     for the side-by-side table. Every turn is a paid model call: a
     product-runtime worker, permission each time.
+
+    `model` names a model set for this run only (`MODEL=<set>`), so a set that
+    is not the deployment's own — Gemma on its GPU App, a fine-tuned one —
+    can be measured on the same scenarios (roadmap 24). The run ids carry
+    the set's name, because a run row does not.
     """
 
     import contextlib
     import io
+    import os
     import uuid
     from dataclasses import asdict
+
+    if model:
+        os.environ["MODEL"] = model
 
     from app.agent.interjections import MemoryInterjections
     from app.agent.runtime import create_agent
@@ -616,7 +625,7 @@ async def scenarios(letters: str = "ABCFWHEM") -> tuple[str, int, list[dict]]:
                 factory(),
                 telemetry,
                 factory,
-                prefix=f"deployed-{uuid.uuid4().hex[:8]}-",
+                prefix=f"deployed-{model + '-' if model else ''}{uuid.uuid4().hex[:8]}-",
             )
     finally:
         await workspaces.commit.aio()
