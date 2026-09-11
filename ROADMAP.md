@@ -149,7 +149,11 @@ time; research first where noted; the human's word starts each.
     seven scenario families — built the same day on the human's word
     ("давай все"): D L N T U V X, 21 prompts with seeds and outcome checks
     in `scripts/training_scenarios.py`, `--repeat N` in `loop_live`;
-    offline tests; the first live run of them (deploy, then GLM) pending.
+    offline tests; deployed and run on GLM the same day: 21/21, judge 9.95
+    (one point: a `pip install` into the machine's python on D2, a
+    standing-rule miss only the judge sees). 32 trajectory files on the
+    Volume. Pending: Gemma on the same letters (gate), the sampling
+    temperature checked and parameterized seeds before `--repeat`.
     Then GLM run
     many times over the scenario prompts, keeping the turns that pass
     their checks, plus the real turns that did — this is where 19's new

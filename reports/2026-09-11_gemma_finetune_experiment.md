@@ -185,6 +185,43 @@ previous one's rows.
   Deploy pending (gate); the first records come from the next scenario
   run, GLM's, which also gives the judge GLM's rows.
 
+## 3a. The seven families, first live run on GLM, 2026-09-11 12:52 UTC
+
+`loop_live --deployed D L N T U V X`, runs `deployed-176d001a-*`, 21 turns
+in about nine minutes; threads kept in
+`reports/2026-09-11_families_glm_threads.txt`; 21 more trajectory files
+on the Volume (32 in all). **21/21 by the checks on the first run**, 71
+tool calls, no `tool_failed`. Model calls per case: D 8 / 3 / 8, L 4 / 3 /
+2, N 3 / 4 / 3, T 2 / 2 / 2, U 5 / 4 / 3, V 4 / 3 / 4, X 4 / 4 / 4;
+seconds 10–59, first token 9–58 s on the hosted endpoint.
+
+Judge (the rubric of §2, from the kept threads; scored by the agent that
+ran it, so not blind): 20 turns at 10, one at 9 — **D2**, where GLM met
+`ModuleNotFoundError: yaml` and ran `pip install pyyaml` into the
+machine's own python, against the brief's rule that a task's packages go
+in a venv in the task's folder; it said so in the answer, and the check
+passed because the outcome was right. That is a rubric-(b) point, and a
+kind the outcome checks cannot see: **following the brief's standing
+rules** is a judge item, not a file check. Everything else was clean:
+D1 found the relative-path cause, then the `abc` row, and said both; D3
+fixed the test in two edits and left `calc.py`; T1 renamed through `mv`
+after an `ls` of names only; U1 checked the trailing newline before
+appending; V1 read the script, ran it, listed the folder and called the
+message "a lie in the script"; V2 counted the `<li>` by `evaluate` and
+named the title's overstatement; X1 answered "Lisbon" beside its next
+calls and finished; X2 wrote the package and the tests in one heredoc
+command and ran them green.
+
+What this says: the families are **data generators**, not a stick that
+separates GLM from the ceiling — as teacher it passes them at ~100 %, so
+rejection sampling on them keeps nearly every run and costs cents. Whether
+they separate a 12B model is Gemma's run on the same letters (a gate). For
+the data's diversity two things matter before `--repeat`: the sampling
+temperature of the deployed set (a repeat at temperature 0 is the same
+trajectory again) and parameterized seeds — the same family with other
+numbers, names and file layouts — which is the next thing to build if
+repeats come back alike.
+
 ## 4. Research before step 4: the training run on Modal
 
 Open, to be answered by reading, not running: Unsloth against TRL + peft
