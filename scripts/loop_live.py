@@ -46,7 +46,9 @@ accepted when all eight pass deployed in one run.
 seeded and checked on outcomes: `scripts/training_scenarios.py`.
 `--repeat N` runs the chosen letters N times, each run its own ids, for
 pass^k and for data; `--temperature 0.7` (deployed) samples instead of
-running at the product's 0, without which a repeat is the same trajectory.
+running at the product's 0, without which a repeat is the same trajectory;
+`--parallel N` (deployed) runs N calls at once, each under its own probe
+user, so N runs' data arrives in one run's time.
 
 **The wider set** (item 19), by letter only: G the person's own request, I a
 shortened result read back, J a worker killed mid-turn, K a fold inside a
@@ -82,7 +84,21 @@ from app.telemetry.base import stamp
 from app.telemetry.open import open_telemetry
 from scripts.training_scenarios import FAMILIES, TRAINING, plant
 
-USER = "loop-live-check"
+# The probe user. Set per call by the deployed `scenarios` (roadmap 24: runs
+# in parallel, each with a probe of its own — its own workspace, thread names
+# and run rows); the default is the one the maps and reports name.
+DEFAULT_USER = "loop-live-check"
+USER = DEFAULT_USER
+
+
+def qualified(thread_id: str) -> str:
+    """A thread name of the probe's own, so two probes never share a thread.
+
+    The default probe keeps the plain names (`chat-a`), which the reports and
+    `show_thread` know; another probe gets `<probe>:chat-a`.
+    """
+
+    return thread_id if USER == DEFAULT_USER else f"{USER}:{thread_id}"
 
 MINI = "ABCFWHEM"
 WIDER = "GIJKOPQRS"
@@ -149,6 +165,7 @@ class Turn:
         self.seconds = 0.0
 
     async def ask(self, thread_id: str, prompt: str) -> "Turn":
+        thread_id = qualified(thread_id)
         run = TurnRun(run_id=self.run_id, source="loop-live", user_id=USER)
         run.thread_id = thread_id
         trace = self.telemetry.start(run)
@@ -179,6 +196,7 @@ class Turn:
 
     async def take_up(self, thread_id: str) -> "Turn":
         """Continue the turn a killed worker left in `thread_id`, as a new run."""
+        thread_id = qualified(thread_id)
 
         run = TurnRun(run_id=self.run_id, source="loop-live", user_id=USER)
         run.thread_id = thread_id
@@ -315,8 +333,8 @@ def threads_of(letter: str) -> list[str]:
     """The conversations a scenario uses; a second one where a scenario has two."""
 
     if letter in FAMILIES:
-        return FAMILIES[letter].threads()
-    return [f"chat-{letter.lower()}", f"chat-{letter.lower()}2"]
+        return [qualified(thread) for thread in FAMILIES[letter].threads()]
+    return [qualified(f"chat-{letter.lower()}"), qualified(f"chat-{letter.lower()}2")]
 
 
 async def start_clean(agent, selected, root: Path) -> None:
@@ -556,7 +574,7 @@ async def run_scenarios(
                 ],
                 USER,
             )
-            stored = len(agent.store.messages("chat-h"))
+            stored = len(agent.store.messages(qualified("chat-h")))
             agent.store.set_summary(
                 "chat-h",
                 "Goal: remember the favourite apple variety; then create "
@@ -629,7 +647,7 @@ async def run_scenarios(
             await lane.offer(USER, 181, text_message("By the way, what is 12 times 12? Answer, then continue."))
             print("\n  (a message was sent while the turn was running)")
             await work
-            positions = [message.role for message in agent.store.messages("chat-m")]
+            positions = [message.role for message in agent.store.messages(qualified("chat-m"))]
             mid = [index for index, role in enumerate(positions) if role == "user" and index > 0]
             # A stop recorded while a second turn is running.
             stopped = Turn(agent, telemetry, 190)
@@ -684,7 +702,7 @@ async def run_scenarios(
                 "G", "G the person's request, plan off", g,
                 checks={
                     "no plan tool was offered or called": "todo_write" not in g.tools
-                    and "todo_write" not in agent.toolbox("chat-g").names,
+                    and "todo_write" not in agent.toolbox(qualified("chat-g")).names,
                     "write_file then use_page": "write_file" in g.tools and "use_page" in g.tools,
                     "the files were sent": any(name.endswith(".html") for name in sent),
                     "the screenshot was sent": any(name.endswith(".png") for name in sent),
@@ -754,7 +772,7 @@ async def run_scenarios(
                         content=[ContentPart(kind="text", text=f"Noted batch {batch + 1}.")],
                     )
                 )
-            agent.store.append("chat-k", seeded, USER)
+            agent.store.append(qualified("chat-k"), seeded, USER)
             agent.context_tokens = 7600
             agent.rewire()
             k = await Turn(agent, telemetry, 100).ask(
@@ -799,7 +817,7 @@ async def run_scenarios(
             print("\n  (the turn was killed once the model asked for its first tool)")
             await agent.aclose()
             agent = agent_factory()
-            left = await agent.unfinished("chat-j")
+            left = await agent.unfinished(qualified("chat-j"))
             j = await Turn(agent, telemetry, 111).take_up("chat-j")
             resumed = j.events("turn_resumed")
             first_write = j.tools.index("write_file") if "write_file" in j.tools else None
@@ -1011,18 +1029,55 @@ def temperature_of(argv: list[str]) -> str:
     return ""
 
 
-def deployed(selected, model: str = "", temperature: str = "") -> tuple[int, list[Result]]:
-    """The same scenarios, in the deployed worker, through its `scenarios` Function."""
+def parallel_of(argv: list[str]) -> int:
+    """`--parallel N`: N deployed calls at once, each with a probe user of its own."""
+
+    if "--parallel" in argv:
+        at = argv.index("--parallel")
+        if at + 1 < len(argv) and argv[at + 1].isdigit():
+            return max(1, int(argv[at + 1]))
+    return 1
+
+
+def _printed(text: str) -> None:
+    # The deployed telemetry also logs every event to stdout as one JSON line;
+    # the report is the rest.
+    print("\n".join(line for line in text.splitlines() if not line.startswith('{"run_id"')))
+
+
+def deployed(
+    selected, model: str = "", temperature: str = "", parallel: int = 1
+) -> tuple[int, list[Result]]:
+    """The same scenarios, in the deployed worker, through its `scenarios` Function.
+
+    `parallel` > 1 spawns that many calls at once, each under a probe user of
+    its own (`loop-live-p1`, …), and waits for all: N runs' worth of data in
+    one run's time (roadmap 24, the human's rule of 2026-09-11).
+    """
 
     import modal
 
     function = modal.Function.from_name("assistant-control", "scenarios")
-    text, failed, rows = function.remote("".join(sorted(selected)), model, temperature)
-    # The deployed telemetry also logs every event to stdout as one JSON line;
-    # the report is the rest.
-    print("\n".join(line for line in text.splitlines() if not line.startswith('{"run_id"')))
-    print("Read any of them back with:  python tools/show_run.py --last 20   (the deployed database)")
-    return failed, [Result(**row) for row in rows]
+    letters = "".join(sorted(selected))
+    if parallel <= 1:
+        text, failed, rows = function.remote(letters, model, temperature)
+        _printed(text)
+        print("Read any of them back with:  python tools/show_run.py --last 20   (the deployed database)")
+        return failed, [Result(**row) for row in rows]
+    calls = [
+        function.spawn(letters, model, temperature, f"loop-live-p{index}")
+        for index in range(1, parallel + 1)
+    ]
+    failed_all = 0
+    rows_all: list[Result] = []
+    for index, call in enumerate(calls, start=1):
+        text, failed, rows = call.get()
+        print(f"\n=== parallel call {index} of {parallel} (probe loop-live-p{index}) ===")
+        _printed(text)
+        failed_all += failed
+        rows_all.extend(Result(**row) for row in rows)
+    print("Read any of them back with:  python tools/show_run.py --last 50   (the deployed database)")
+    return failed_all, rows_all
 
 
 async def local(selected) -> tuple[int, list[Result]]:
@@ -1066,7 +1121,7 @@ async def main() -> int:
         if repeat_of(argv) > 1:
             print(f"\n=== run {run + 1} of {repeat_of(argv)} ===")
         if "--deployed" in argv:
-            failed += deployed(selected, model_of(argv), temperature_of(argv))[0]
+            failed += deployed(selected, model_of(argv), temperature_of(argv), parallel_of(argv))[0]
         else:
             failed += (await local(selected))[0]
     return failed

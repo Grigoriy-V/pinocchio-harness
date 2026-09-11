@@ -564,7 +564,10 @@ async def self_test(include_model: bool = False, include_credit: bool = False) -
     cpu=1.0,
     memory=2048,
     min_containers=0,
-    max_containers=1,
+    # Eight, so data runs can go in parallel (roadmap 24, the human's rule of
+    # 2026-09-11): each call names its own probe user, so eight at once share
+    # nothing but the database.
+    max_containers=8,
     scaledown_window=2,
     # The mini set is eight scenarios of well under a minute each; the wider
     # letters a few minutes. Half an hour holds either.
@@ -572,7 +575,7 @@ async def self_test(include_model: bool = False, include_credit: bool = False) -
     include_source=False,
 )
 async def scenarios(
-    letters: str = "ABCFWHEM", model: str = "", temperature: str = ""
+    letters: str = "ABCFWHEM", model: str = "", temperature: str = "", probe: str = ""
 ) -> tuple[str, int, list[dict]]:
     """Run `scripts/loop_live.py`'s scenarios here, in the worker's own environment.
 
@@ -590,6 +593,9 @@ async def scenarios(
     the set's name, because a run row does not. `temperature` overrides the
     set's sampling temperature for this run only: the product runs at 0,
     and a repeated run at 0 is the same trajectory again, which is no data.
+    `probe` names the probe user for this call — its own workspace on the
+    Volume, its own thread names, its own run rows — so calls can run at
+    once; empty is the usual `loop-live-check`.
     """
 
     import contextlib
@@ -612,6 +618,7 @@ async def scenarios(
     from app.agent.stop import MemoryStopRequests
     from app.config import AgentSettings
     from app.telemetry import open_telemetry
+    from scripts import loop_live
     from scripts.loop_live import run_scenarios
     from ui.telegram.adapter import DELIVERY
 
@@ -620,11 +627,12 @@ async def scenarios(
     telemetry = open_telemetry(agent_settings)
     stops = MemoryStopRequests()
     lane = MemoryInterjections()
+    loop_live.USER = probe or loop_live.DEFAULT_USER
 
     def factory():
         return create_agent(
             agent_settings=agent_settings,
-            user_id="loop-live-check",
+            user_id=loop_live.USER,
             delivery=DELIVERY,
             telemetry=telemetry,
             stops=stops,

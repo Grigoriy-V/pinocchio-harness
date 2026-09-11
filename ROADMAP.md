@@ -164,8 +164,12 @@ time; research first where noted; the human's word starts each.
     one-move cases (32 cases now). The human's rule for the rest
     (2026-09-11): generation runs in parallel, the first training version
     from the necessary minimum, the loop closed once before any polish.
-    Pending: a probe user per `scenarios` call so runs can go in parallel;
-    then the volume run. Then GLM run
+    Neon: 368 of 394 MB were old checkpoint versions, pruned to 35 MB
+    (ISS-0067; SQLite on the Volume for the data runs dropped as needless,
+    the human's call). Parallel runs built: a probe user per `scenarios`
+    call (own workspace, `<probe>:chat-…` threads), eight containers,
+    `loop_live --parallel N`; deploy and the first parallel run pending.
+    Then GLM run
     many times over the scenario prompts, keeping the turns that pass
     their checks, plus the real turns that did — this is where 19's new
     scenarios are written, as prompts for data as well as checks (gate:

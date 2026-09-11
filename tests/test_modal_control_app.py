@@ -469,7 +469,8 @@ def test_the_scenarios_run_in_the_workers_own_environment() -> None:
     assert keywords["secrets"] == "[control_secret]"
     assert keywords["volumes"] == "{WORKSPACE_ROOT: workspaces}"
     assert body is not None and "runner=ModalRunner()" in body
-    assert 'user_id="loop-live-check"' in body
+    # The probe user, `loop-live-check` unless the call names one (roadmap 24).
+    assert "user_id=loop_live.USER" in body
     assert "from scripts.loop_live import run_scenarios" in body
     assert '.add_local_dir("scripts", "/root/project/scripts", copy=True)' in source()
 
@@ -496,4 +497,29 @@ def test_the_scenarios_can_be_pointed_at_another_model_set() -> None:
     assert 'os.environ[f"{prefix}TEMPERATURE"] = temperature' in body
     assert temperature_of(["--deployed", "--temperature", "0.7"]) == "0.7"
     assert temperature_of([]) == ""
+
+
+def test_the_scenarios_run_in_parallel_under_probes_of_their_own() -> None:
+    """Roadmap 24, the human's rule of 2026-09-11: data runs go in parallel.
+    Each call names a probe user — its own workspace, thread names and run
+    rows — and the function allows eight containers."""
+
+    import scripts.loop_live as loop_live
+    from scripts.loop_live import parallel_of, qualified
+
+    body = ast.get_source_segment(source(), _function("scenarios"))
+    assert body is not None
+    assert 'probe: str = ""' in body
+    assert "loop_live.USER = probe or loop_live.DEFAULT_USER" in body
+    assert "user_id=loop_live.USER" in body
+    assert _keywords_of("scenarios")["max_containers"] == "8"
+    assert parallel_of(["--deployed", "--parallel", "4"]) == 4 and parallel_of([]) == 1
+
+    assert qualified("chat-a") == "chat-a"
+    loop_live.USER = "loop-live-p2"
+    try:
+        assert qualified("chat-a") == "loop-live-p2:chat-a"
+        assert loop_live.threads_of("D")[0] == "loop-live-p2:chat-d1"
+    finally:
+        loop_live.USER = loop_live.DEFAULT_USER
 

@@ -156,7 +156,7 @@ Pillow, pypdf, markdown). Heavy layers sit below the copied source.
 | `process_telegram_update` | 1 / 2 GiB | 8 | 60 s | 4 h | secrets, the Volume; `retries=1`; lease 60 s extended every 20 s; drains 3 h then hands over |
 | `render_web_page` | 1 / 2 GiB | 4 | 20 s | 180 s | no secret, no database, no Volume; proxy auth |
 | `run_command` | 1 / 2 GiB | 8 | 180 s | 660 s | no secret; the Volume; cwd is the workspace by its mount path, home and `/tmp` are the container's |
-| `scenarios` | 1 / 2 GiB | 1 | 2 s | 1800 s | `loop_live --deployed`, probe user `loop-live-check` |
+| `scenarios` | 1 / 2 GiB | 8 | 2 s | 1800 s | `loop_live --deployed`, probe user `loop-live-check` or one named per call (`--parallel`) |
 | `self_test` | 0.25 / 512 MiB | 1 | 2 s | 300 s | `include_model`, `include_credit` opt in |
 
 A deploy is not an invocation; an invocation starts a container (a gate,
@@ -296,7 +296,10 @@ trips around the worker) need the dump.
   `--deployed --model <set>` runs them against another model set for that
   run only (its GPU App wakes: a gate), run ids `deployed-<set>-…`;
   `--repeat N` runs the chosen letters N times; `--temperature 0.7`
-  samples for that deployed run (the product runs at 0). The training families
+  samples for that deployed run (the product runs at 0); `--parallel N`
+  spawns N deployed calls at once, each under a probe user of its own
+  (`loop-live-p1`…, threads `<probe>:chat-…`), N runs' data in one run's
+  time. The training families
   D L N T U V X (roadmap 24; seeds, prompts and outcome checks in
   `scripts/training_scenarios.py`) run the same way, several turns a letter.
 - `scripts/measure_command_cold_start.py` starts a command container.
