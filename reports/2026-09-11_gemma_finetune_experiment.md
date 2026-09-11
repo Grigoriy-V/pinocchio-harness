@@ -372,6 +372,15 @@ so the loop is closed once end to end before any stage is polished.
   earlier runs about 300 training trajectories before the judge, which is
   the necessary minimum (§1).
 
+**Parallel, checked live 2026-09-11 15:40 UTC:** `--temperature 0.7
+--parallel 2 D`, calls `deployed-4c19d300-*` (probe `loop-live-p1`) and
+`deployed-47d67b0d-*` (`loop-live-p2`): 10/10 by the checks, two
+workspaces on the Volume (`/workspaces/loop-live-p1`, `-p2`), run rows
+under each probe's user id, threads `loop-live-p2:chat-d5` in the store,
+ten trajectory files. Turns 31–93 s each at 0.7 — the D family is the
+slow one (a wrong turn costs a few calls). Nothing shared but the
+database.
+
 ## 4. Research before step 4: the training run on Modal
 
 Open, to be answered by reading, not running: Unsloth against TRL + peft

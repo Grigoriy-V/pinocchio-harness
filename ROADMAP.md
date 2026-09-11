@@ -170,8 +170,9 @@ time; research first where noted; the human's word starts each.
     call (own workspace, `<probe>:chat-…` threads), eight containers,
     `loop_live --parallel N`. The held-out split: D1–3, V1–3, X1–3 are
     measured on and never trained on (the export marks them); D4 D5, V6
-    V7, X4 X5 written for the data, 38 cases. Deploy and the first
-    parallel run pending. Then GLM run
+    V7, X4 X5 written for the data, 38 cases. Deployed; two parallel
+    calls of D checked live, 10/10, nothing shared but the database. The
+    volume run (8 × 38 at 0.7) pending. Then GLM run
     many times over the scenario prompts, keeping the turns that pass
     their checks, plus the real turns that did — this is where 19's new
     scenarios are written, as prompts for data as well as checks (gate:
