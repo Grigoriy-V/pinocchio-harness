@@ -268,7 +268,9 @@ those fields and nothing of this database.
 **Checkpoint growth** (ISS-0067): every checkpoint version is kept; when the
 database fills, `python tools/prune_checkpoints.py` shows what would go and
 `--apply` (a gate, not during a turn) keeps only each thread's latest
-checkpoint and vacuums — 394 MB to 35 MB on 2026-09-11.
+checkpoint and vacuums — 394 MB to 35 MB on 2026-09-11. After a data run
+is exported, `python tools/prune_probes.py --apply` (a gate) deletes the
+probe users' conversations and checkpoints; their telemetry rows stay.
 
 `python tools/show_thread.py <thread_id> [head_chars]` prints one thread's
 rows the same way: role, tool calls, each part's kind and byte count, the
