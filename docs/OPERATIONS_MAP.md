@@ -198,6 +198,7 @@ start a GPU container.
 ```text
 local     AGENT_DATABASE (SQLite)  AGENT_CHECKPOINTS  AGENT_TELEMETRY_DATABASE  AGENT_WORKSPACE
 deployed  Neon: store, checkpoints, inbox, turn_stops, turn_runs/trace_events
+          Volume assistant-workspaces: /workspaces/<user>/…, /workspaces/.trajectories/<run_id>.jsonl
           Volume assistant-workspaces: /workspaces/<user>/ (files, .agent/ switches, AGENTS.md, .dumps)
           Volumes assistant-hf-cache, assistant-vllm-cache (GPU Apps)
 ```
@@ -247,6 +248,16 @@ meaningful only for a GPU App; on a hosted model the provider's own
 `usage.cost` per call is the price, and the dumps carry it. A turn that ends
 without an outcome is closed `failed/incomplete`; one whose container vanished
 stays `running`, which `--failed` lists.
+
+**Trajectories** (roadmap 24): with `AGENT_TRAJECTORIES` set — the deployed
+image sets it to `/workspaces/.trajectories` — every model call of every
+turn is one JSON line in `<dir>/<run_id>.jsonl`: the request as the model
+saw it (`messages`, `tools`), the `completion` (text, tool calls, finish
+reason, usage), the run and thread ids and the served model's name; media
+parts as kind and size, never bytes. Nothing resets the folder. Read them
+with `python -m modal volume ls assistant-workspaces .trajectories` and
+`python -m modal volume get assistant-workspaces .trajectories/<run_id>.jsonl <local path>`
+(reads, not workers). Locally, set `AGENT_TRAJECTORIES=data/trajectories`.
 
 `python tools/show_thread.py <thread_id> [head_chars]` prints one thread's
 rows the same way: role, tool calls, each part's kind and byte count, the

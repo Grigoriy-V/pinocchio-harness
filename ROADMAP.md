@@ -133,7 +133,9 @@ time; research first where noted; the human's word starts each.
     (2) the metrics fixed and Gemma 4 12B's baseline on the suite through
     `assistant-llm-v2` (gate) — mini set done 2026-09-11: 8/8, judge 9.7,
     at the ceiling; the wider letters and 19's new scenarios are where a
-    difference can show (report §2a); (3) the data: GLM run
+    difference can show (report §2a); (3) the data — the capture built
+    2026-09-11: every model call kept as the model saw it, one file per
+    run on the Volume (`AGENT_TRAJECTORIES`), deploy pending; then GLM run
     many times over the scenario prompts, keeping the turns that pass
     their checks, plus the real turns that did — this is where 19's new
     scenarios are written, as prompts for data as well as checks (gate:

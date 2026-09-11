@@ -92,7 +92,13 @@ control_image = _with_source(_dependencies)
 # `render_web_page` below. If that renderer is not configured, viewing fails and
 # says so instead of silently running someone's JavaScript next to the secrets.
 agent_image = _with_source(_with_browser).env(
-    {"AGENT_WORKSPACE": WORKSPACE_ROOT, "WEB_LOCAL_BROWSER": "0"}
+    {
+        "AGENT_WORKSPACE": WORKSPACE_ROOT,
+        "WEB_LOCAL_BROWSER": "0",
+        # Every model call as the model saw it, one file per run, on the
+        # Volume the worker already commits after each turn (roadmap 24).
+        "AGENT_TRAJECTORIES": f"{WORKSPACE_ROOT}/.trajectories",
+    }
 )
 
 # The renderer runs the same code from the same layers and is a different image

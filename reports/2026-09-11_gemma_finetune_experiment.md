@@ -135,11 +135,23 @@ previous one's rows.
   prices — cents; a hundred runs is a few dollars.
 - **The real turns** of the owner that passed (no `tool_failed`, answer
   delivered): kept as they are, marked as real.
-- **Where it lands:** a JSONL of trajectories written by the runner at
-  the end of each turn, one record per turn with the request as the model
-  saw it (the surface: prelude, history, turn) and the model's outputs,
-  under a path that nothing resets (`reports/finetune/` or a Volume
-  folder); the schema in the report before the first record.
+- **Where it lands — built 2026-09-11 (the human: "давай второе").**
+  `app/trajectories.py` and `TurnTrace.trajectory`: every model call, on
+  every path that has a trace (Telegram worker, `scenarios`, the local
+  app), is one JSON line in `<AGENT_TRAJECTORIES>/<run_id>.jsonl` — one
+  file per run so parallel workers never share a file on the Volume.
+  Record: `run_id`, `thread_id`, `call_index`, `model`, `messages` (the
+  request as sent: roles, text parts, media as kind and size, tool calls,
+  tool results with their failure codes), `tools` (the schemas offered),
+  `completion` (text, tool calls, finish reason, usage). Deployed the
+  folder is `/workspaces/.trajectories` on the workspaces Volume, which
+  the worker and `scenarios` already commit after each turn; nothing
+  resets it. Off when the setting is empty. Offline test:
+  `tests/test_turn_telemetry.py::test_every_model_call_is_kept_as_the_model_saw_it`.
+  A training sample is one line: prompt = `messages` + `tools`,
+  completion = `completion`; a turn is its lines in `call_index` order.
+  Deploy pending (gate); the first records come from the next scenario
+  run, GLM's, which also gives the judge GLM's rows.
 
 ## 4. Research before step 4: the training run on Modal
 

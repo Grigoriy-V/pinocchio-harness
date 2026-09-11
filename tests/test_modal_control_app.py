@@ -224,6 +224,8 @@ def test_the_workspace_outlives_the_container() -> None:
     assert _volumes_of("process_telegram_update") == "{WORKSPACE_ROOT: workspaces}"
     assert _volumes_of("self_test") == "{WORKSPACE_ROOT: workspaces}"
     assert '"AGENT_WORKSPACE": WORKSPACE_ROOT' in source()
+    # Roadmap 24: every model call kept on the Volume the worker commits.
+    assert '"AGENT_TRAJECTORIES": f"{WORKSPACE_ROOT}/.trajectories"' in source()
 
 
 def test_the_webhook_has_no_workspace_because_it_runs_no_tools() -> None:

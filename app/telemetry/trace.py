@@ -20,10 +20,12 @@ from __future__ import annotations
 
 import json
 import time
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from typing import TYPE_CHECKING, Any
+
+from app.trajectories import NO_TRAJECTORIES, Trajectories, call_record
 
 from app.telemetry.base import (
     Outcome,
@@ -37,7 +39,7 @@ from app.telemetry.base import (
 if TYPE_CHECKING:  # The webhook imports this module on its cold path, and the
     # model layer is deliberately not on it. Nothing here needs a `Completion`
     # at runtime — only the one call site that hands one over does.
-    from app.models import Completion
+    from app.models import Completion, Message
 
 # How many events may wait in memory. An ordinary conversational turn produces
 # fewer than this and is one write; a long task crosses it and does not lose
@@ -241,6 +243,40 @@ class TurnTrace:
         )
 
     # --- model calls ---------------------------------------------------------
+
+    # Where the turn's model calls are written as the model saw them (roadmap
+    # 24). On the trace because the trace is what every call passes through
+    # with the run's ids; off by default, and a null trace never writes.
+    trajectories: Trajectories = NO_TRAJECTORIES
+
+    def trajectory(
+        self,
+        call_index: int,
+        prompt: Sequence[Message],
+        tools: Sequence[dict[str, Any]] | None,
+        completion: Completion,
+        *,
+        model: str | None = None,
+    ) -> None:
+        """Keep one model call — request and answer — as a training sample."""
+
+        if not self.trajectories.enabled or not self.run.run_id:
+            return
+        try:
+            self.trajectories.write(
+                self.run.run_id,
+                call_record(
+                    run_id=self.run.run_id,
+                    thread_id=self.run.thread_id,
+                    call_index=call_index,
+                    model=model,
+                    prompt=prompt,
+                    tools=tools,
+                    completion=completion,
+                ),
+            )
+        except Exception:  # noqa: BLE001 - a record lost, never a turn failed
+            pass
 
     @contextmanager
     def model(self, purpose: str) -> Iterator["ModelCall"]:
@@ -489,8 +525,14 @@ class Telemetry:
     tests, a turn started before this existed — keeps working unchanged.
     """
 
-    def __init__(self, store: TelemetryStore | None = None) -> None:
+    def __init__(
+        self,
+        store: TelemetryStore | None = None,
+        *,
+        trajectories: Trajectories = NO_TRAJECTORIES,
+    ) -> None:
         self.store = store
+        self.trajectories = trajectories
         self._active: dict[str, TurnTrace] = {}
 
     @property
@@ -498,9 +540,10 @@ class Telemetry:
         return self.store is not None
 
     def start(self, run: TurnRun, *, offset_ms: int = 0) -> TurnTrace:
-        if self.store is None or not run.run_id:
+        if not run.run_id or (self.store is None and not self.trajectories.enabled):
             return NO_TRACE
         trace = TurnTrace(run, self.store, offset_ms=offset_ms)
+        trace.trajectories = self.trajectories
         self._active[run.run_id] = trace
         trace.start()
         return trace

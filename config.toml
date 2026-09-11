@@ -77,6 +77,10 @@ keep_results = 2
 retrieved_facts = 5
 stream_answers = true
 telemetry = true
+# Every model call written as the model saw it, one file per run, for a
+# fine-tune's data (roadmap 24). Empty is off; the deployed image sets
+# `AGENT_TRAJECTORIES` to a folder on the workspaces Volume.
+trajectories = ""
 
 [telegram]
 api_base = "https://api.telegram.org"

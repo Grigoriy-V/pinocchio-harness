@@ -549,6 +549,10 @@ def build_agent(
         with timed("context_loaded"):
             return {"context": assemble_context(state)}
 
+    # The served model's name, for the trajectory record; a backend without
+    # settings (a scripted one) has none.
+    model_name = getattr(getattr(backend, "settings", None), "name", None)
+
     async def complete(
         prompt: list[Message],
         writer: StreamWriter,
@@ -569,6 +573,7 @@ def build_agent(
                 # would report a TTFT equal to the whole call.
                 completion = await backend.invoke(prompt, tools=tools)
                 measured.done(completion)
+                trace.trajectory(measured.index, prompt, tools, completion, model=model_name)
                 return completion
             completion = None
             seen_text = False
@@ -584,6 +589,7 @@ def build_agent(
             if completion is None:
                 raise BackendError("the model stream ended without a completion")
             measured.done(completion)
+            trace.trajectory(measured.index, prompt, tools, completion, model=model_name)
             return completion
 
     async def call_model(

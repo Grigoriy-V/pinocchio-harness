@@ -475,6 +475,11 @@ class AgentSettings(Configured):
     # deleting it has to cost nothing. The deployed profile uses `database_url`
     # instead, in tables of its own.
     telemetry_database: str = "data/telemetry.sqlite3"
+    # A directory where every model call of every turn is written as the model
+    # saw it — request and answer, one JSON line, one file per run — for a
+    # fine-tune's data (roadmap 24). Empty is off. Deployed, a folder on the
+    # workspaces Volume; locally a folder under `data/` when wanted.
+    trajectories: str = ""
     # Ask the model for its answer as it is written, so an interface can show it
     # growing. Off, the conversational turn is one complete request again. It is
     # a switch rather than a constant because the visible half of a turn is the

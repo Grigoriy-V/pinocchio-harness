@@ -353,6 +353,46 @@ async def test_the_harness_names_its_own_seconds(tmp_path: Path, telemetry: Tele
     )
 
 
+async def test_every_model_call_is_kept_as_the_model_saw_it(tmp_path: Path) -> None:
+    """Roadmap 24: a fine-tune needs each request as it was sent and what came
+    back. One JSON line per model call, one file per run, no bytes; the tool
+    result of the first call is in the second call's request."""
+
+    from app.trajectories import Trajectories
+
+    folder = tmp_path / "trajectories"
+    telemetry = Telemetry(
+        SqliteTelemetry(tmp_path / "telemetry.sqlite3"), trajectories=Trajectories(folder)
+    )
+    telegram, inbox = FakeTelegram(), FakeInbox()
+    tool = Tool(
+        name="ping",
+        description="answer",
+        parameters={"type": "object", "properties": {}},
+        run=lambda: "pong",
+    )
+    backend = ScriptedBackend(calls("ping"), says("It said pong."))
+    adapter = build(telegram, tmp_path, backend, telemetry, tools=[tool])
+    try:
+        await deliver(adapter, inbox, telemetry, text_update("Ping it"))
+    finally:
+        telemetry.close()
+
+    run_id = the_run_id(inbox)
+    lines = (folder / f"{run_id}.jsonl").read_text(encoding="utf-8").splitlines()
+    records = [json.loads(line) for line in lines]
+    assert [r["call_index"] for r in records] == [1, 2]
+    first, second = records
+    assert first["run_id"] == run_id and first["thread_id"]
+    assert [m["role"] for m in first["messages"]][0] == "system"
+    assert any(m["role"] == "user" for m in first["messages"])
+    assert [t["function"]["name"] if "function" in t else t.get("name") for t in first["tools"]] == ["ping"]
+    assert first["completion"]["tool_calls"][0]["name"] == "ping"
+    assert any(m["role"] == "tool" for m in second["messages"])
+    assert second["completion"]["text"] == "It said pong."
+    assert "data" not in json.dumps(records)  # never bytes, only kinds and sizes
+
+
 def test_a_started_trace_is_the_active_one_without_an_interface(telemetry: Telemetry) -> None:
     """2026-09-10: the deployed mini set named none of its seconds, because only
     the Telegram adapter set the active trace and the scenario runner starts

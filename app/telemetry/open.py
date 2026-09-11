@@ -13,14 +13,19 @@ from __future__ import annotations
 
 from app.config import AgentSettings
 from app.telemetry.trace import Telemetry
+from app.trajectories import Trajectories
 
 
 def open_telemetry(
     settings: AgentSettings | None = None, *, migrate_schema: bool = False
 ) -> Telemetry:
     settings = settings or AgentSettings()
+    # The trajectories ride on the trace because the trace is what every model
+    # call already passes through with the run's ids; they are written even
+    # when the telemetry store is off, since they are data, not measurement.
+    trajectories = Trajectories.at(settings.trajectories)
     if not settings.telemetry:
-        return Telemetry(None)
+        return Telemetry(None, trajectories=trajectories)
     if settings.database_url:
         from app.telemetry.postgres import PostgresTelemetry
 
@@ -29,8 +34,9 @@ def open_telemetry(
                 settings.database_url,
                 settings.database_schema,
                 migrate_schema=migrate_schema,
-            )
+            ),
+            trajectories=trajectories,
         )
     from app.telemetry.sqlite import SqliteTelemetry
 
-    return Telemetry(SqliteTelemetry(settings.telemetry_database))
+    return Telemetry(SqliteTelemetry(settings.telemetry_database), trajectories=trajectories)
