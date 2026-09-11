@@ -135,7 +135,12 @@ time; research first where noted; the human's word starts each.
     at the ceiling; the wider letters and 19's new scenarios are where a
     difference can show (report §2a); (3) the data — the capture built
     2026-09-11: every model call kept as the model saw it, one file per
-    run on the Volume (`AGENT_TRAJECTORIES`), deploy pending; then GLM run
+    run on the Volume (`AGENT_TRAJECTORIES`); the training loop itself —
+    export to SFT format, Unsloth/TRL on Modal, merge, publish — lives in
+    a separate repository, made when step 4 starts (the human,
+    2026-09-11; DECISIONS). This repository hands over trajectories with
+    their outcome and check results attached (an export tool, to build)
+    and takes back a model set; then GLM run
     many times over the scenario prompts, keeping the turns that pass
     their checks, plus the real turns that did — this is where 19's new
     scenarios are written, as prompts for data as well as checks (gate:

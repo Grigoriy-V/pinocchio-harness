@@ -758,3 +758,26 @@ local card that does not exist.
 Consequences: 19's new scenarios are written inside 24 as the data's
 prompts; the fine-tuned model arrives as one more model set, switched by
 `MODEL=<name>`, never the default.
+
+## 2026-09-11 — The training loop lives outside the harness
+
+Decision: the fine-tune of roadmap 24 is built in a separate repository.
+The harness keeps what is a property of the system — the trajectory
+capture (`app/trajectories.py`), the scenario suite and its checks, the
+judge's rubric, and model sets in `config.toml`. The other repository
+takes the trajectories, filters them, makes SFT samples, trains
+(Unsloth or TRL on a Modal GPU), merges and publishes weights, and keeps
+its own experiment reports. The contract between them is three things
+already defined: the trajectory line, the model set, and
+`loop_live --deployed --model <set>` as the measuring stick. The harness
+hands trajectories over with their outcome and check results attached, so
+the training side never reads the harness's database or settings.
+
+Why: the human, 2026-09-11. Training dependencies must not enter the
+worker's image; an experiment's failed runs must not fill this
+repository's records; and the fine-tune is its own portfolio artefact.
+
+Consequences: an export tool here (Volume → JSONL with outcomes and
+checks); the new repository is created when step 4 starts, on the human's
+word; a fine-tuned model arrives as `[model.sets.<name>]` and is never the
+default.
