@@ -178,8 +178,16 @@ time; research first where noted; the human's word starts each.
     (report §3f) — the v1 set; probe rows pruned after. Step 3 done. The
     judge is blind Sonnet subagents since 2026-09-11 (the human;
     `tools/judge_pack.py`, three votes, calibrated: GLM 9.90, Gemma 8.65
-    on the families, agreement within a point on 40/42). Next: step 4,
-    the training repository (its creation is the human's). Then GLM run
+    on the families, agreement within a point on 40/42). Step 4 started
+    2026-09-11 on the human's word: the training repository
+    `Grigoriy-V/pinocchio-finetune` (private, D:/ML/pinocchio-finetune)
+    holds the export-to-SFT converter (814 samples from the v1 export,
+    4.37M teacher tokens, 33k of them completion tokens), the Modal QLoRA
+    app (L40S, r=16, bf16 base google/gemma-4-12B-it, merge) and a vLLM
+    serving app whose endpoint comes back here as `[model.sets.tuned]`;
+    its `reports/2026-09-11_v1_plan.md` carries prices and open risks.
+    Next gates there, in order: Modal secret `huggingface`, fetch base,
+    tokenize, smoke (5 steps), train, merge, deploy, measure. Then GLM run
     many times over the scenario prompts, keeping the turns that pass
     their checks, plus the real turns that did — this is where 19's new
     scenarios are written, as prompts for data as well as checks (gate:
