@@ -413,7 +413,11 @@ async def run_scenarios(
             done(
                 "C", "C files, a venv and a command, in a folder of the task's", c,
                 checks={
-                    "write_file then run_command": "write_file" in c.tools and "run_command" in c.tools,
+                    # The prompt asks for the script to be run; it does not say
+                    # which tool writes it (the human, 2026-09-11: a check may
+                    # not expect what the prompt did not ask for — GLM wrote
+                    # the file through the shell and was right to).
+                    "the script was run": "run_command" in c.tools,
                     "the command exited 0": "exit code: 0" in c.read_from("run_command"),
                     "no tool failed": not c.failures,
                     "the output reached the answer": "47" in c.answer,
@@ -777,7 +781,10 @@ async def run_scenarios(
             done(
                 "O", "O a script written and run", o,
                 checks={
-                    "write_file then run_command": "write_file" in o.tools and "run_command" in o.tools,
+                    # `run_command` is asked for by name; how the file is
+                    # written is not, so the check is that it exists.
+                    "run_command ran": "run_command" in o.tools,
+                    "primes.py exists": any(root.rglob("primes.py")),
                     "no tool failed": not o.failures,
                     "the output reached the answer": "47" in o.answer,
                 },
