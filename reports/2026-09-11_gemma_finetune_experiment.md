@@ -69,6 +69,62 @@ once. Cost: the GPU App's A10 minutes for the runs plus its cold start; a
 gate. Needed first: `scenarios` takes the set's name, so a run can be
 pointed at Gemma without changing the deployment's own model.
 
+## 2a. Step 2 done: Gemma 4 12B's baseline on the mini set, 2026-09-11
+
+`loop_live --deployed --model v2`, runs `deployed-v2-bb1f9594-*`, the
+GPU App woken from its snapshot; 8/8 scenarios passed, 11 turns in about
+2.5 minutes of wall clock. GLM's last mini set (`deployed-4b4c7f59-*`,
+2026-09-10) beside it. The threads are kept whole in
+`reports/2026-09-11_gemma_baseline_threads.txt`, because the next scenario
+run resets them (§1).
+
+| metric | Gemma 4 12B (A10) | GLM 5.3 Flash |
+|---|---:|---:|
+| 1. parse rate: tool calls executed / emitted | 28 / 28, no parse failure (the one `tool_failed` is E's intended `fs.ambiguous_edit`) | 28 / 28 |
+| 2. finish rate, mini set | 8 / 8 | 8 / 8 |
+| 3. model calls over the 11 turns (A B C F W H×3 E M×2) | 39: 1 3 8 6 2 2 2 2 2 8 3 | 31: 1 2 4 5 2 2 1 2 2 7 3 |
+| 4. unobserved-claim checks failed | 0 | 0 |
+| 5. judge (below) | 9.7 / 10 mean | not judged: its rows were reset by this run |
+| first model token, ms, per turn | 1.7–4.0 s; 8.3, 10.4, 11.9 on the first three; 52.6 s on C's 8th call | 4–8 s (hosted) |
+| input tokens, all turns | 204k | 172k |
+
+Where Gemma's extra calls went: `set_goal` first on C, F and both M turns
+(4 calls GLM did not make), `list_files` before `read_file` on B when the
+path was given, `search_memory` on H-81 where the fact was already in the
+context, and on C one failed run of `primes.py` (`tabulate` handed a flat
+list) fixed on the next call. It chose `view_web_page` on W where the
+routing line says `use_page`; the check accepts either.
+
+**Judge, first pass** — the rubric of §2, scored by the project agent
+(Claude) from the kept threads. Blind scoring was not possible for this
+batch: the agent ran it. Scores (a b c d e = total):
+
+| scenario | a | b | c | d | e | total | note |
+|---|:-:|:-:|:-:|:-:|:-:|---:|---|
+| A greeting | 2 | 2 | 2 | 2 | 2 | 10 | |
+| B one tool | 2 | 1 | 2 | 2 | 2 | 9 | `list_files` before a named file |
+| C venv, package, script | 2 | 2 | 2 | 2 | 2 | 10 | the traceback read and the fix right; output quoted verbatim |
+| F browser | 2 | 2 | 2 | 2 | 2 | 10 | |
+| W web | 2 | 1 | 2 | 2 | 2 | 9 | the reading tool for a read, not the page tool the line names |
+| H-80 remember | 2 | 2 | 2 | 2 | 2 | 10 | |
+| H-81 recall | 2 | 1 | 2 | 2 | 2 | 9 | a search for a fact already in the context |
+| H-82 quote the error | 2 | 2 | 2 | 2 | 2 | 10 | quoted the stored line as stored, doubled text included |
+| E failing tool | 2 | 2 | 2 | 2 | 2 | 10 | said what happened, did not rewrite |
+| M-180 mid-turn message | 2 | 2 | 2 | 2 | 2 | 10 | "12 times 12 is 144" beside the next call, then finished |
+| M-190 stop | 2 | 2 | 2 | 2 | 2 | 10 | |
+
+Mean 9.7. **Reading:** on this mini set Gemma 4 12B is already at the
+ceiling of every counting metric and one point under it on the judge, and
+the point it loses is one extra tool call. The mini set was written to
+catch a harness that lies, not to separate two capable models: it cannot
+show a fine-tune's effect. What can: the wider letters (G I J K O P Q R S,
+longer tasks, one that kills the agent, one that needs a plan), and the
+new scenarios of 19 written with room at the top — multi-step tasks with
+a wrong turn in them, where steps-to-finish and the judge's (b), (c), (d)
+spread. The baseline on the wider letters is the next gate; GLM's judged
+run needs step 3's capture first, since a scenario run erases the
+previous one's rows.
+
 ## 3. Options for the data — for the human
 
 - **Rejection sampling with GLM over the scenario prompts:** `loop_live`

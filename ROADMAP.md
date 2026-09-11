@@ -128,8 +128,12 @@ time; research first where noted; the human's word starts each.
     Compute: there is no local GPU; every run — baseline, generation,
     training, evaluation — is a Modal GPU worker, dollars stated and a
     gate each. Order: (1) count the usable turns already in the deployed
-    store, read-only; (2) the metrics fixed and Gemma 4 12B's baseline on
-    the suite through `assistant-llm-v2` (gate); (3) the data: GLM run
+    store, read-only — done 2026-09-11: ~40 trajectories survive, the
+    scenario runner resets its threads, so data is collected at run time;
+    (2) the metrics fixed and Gemma 4 12B's baseline on the suite through
+    `assistant-llm-v2` (gate) — mini set done 2026-09-11: 8/8, judge 9.7,
+    at the ceiling; the wider letters and 19's new scenarios are where a
+    difference can show (report §2a); (3) the data: GLM run
     many times over the scenario prompts, keeping the turns that pass
     their checks, plus the real turns that did — this is where 19's new
     scenarios are written, as prompts for data as well as checks (gate:
