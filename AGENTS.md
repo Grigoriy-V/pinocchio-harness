@@ -34,7 +34,11 @@ not scripted.
 Whichever application runs the agent, it is the project agent: it owns
 analysis, planning, implementation, tests, review, the canonical documents
 and the final report, and takes its authorization from the human in the
-chat. Do not spawn other agents or delegate to another process.
+chat. Do not spawn other agents or delegate to another process, with one
+exception the human made on 2026-09-11: trajectories are judged by blind
+subagents given the fixed rubric and an anonymized transcript
+(`tools/judge_pack.py`), several at once, because the project agent that
+ran a turn cannot judge it blind.
 
 Before selecting or changing work, read `ROADMAP.md`. It is the only current
 plan. Work on one approved step at a time and do not create a competing plan.
