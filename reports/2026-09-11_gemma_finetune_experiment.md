@@ -58,8 +58,12 @@ check on the trace:
    matches something observed in a tool result; (d) recovered from a
    failed call instead of repeating it or giving up; (e) the answer a
    person could act on — complete, no filler, no leaked internals. The
-   judge sees the model's name only after scoring a batch. Later versions
-   can hand the rubric to a model call with the same text.
+   judge sees the model's name only after scoring a batch. In v1 the judge
+   is the project agent, and only for the before/after on the held-out
+   set (9 scenarios a model a run: one batch, like the four scored on
+   2026-09-11); the training data is filtered by the checks and the
+   outcome, not by the judge (the human, 2026-09-11). A model call with
+   the same rubric is a later version, if the judged volume ever needs it.
 
 Approved 2026-09-11 (the human): metrics 1–5 as above.
 
