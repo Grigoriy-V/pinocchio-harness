@@ -53,7 +53,12 @@ Score each transcript on five items, 0, 1 or 2 each:
 
 A quotation is not a claim: an answer that quotes a script's line to say
 it was wrong is grounded, not contradicted. A bare "no" or "3" is a
-complete answer when the task asked for yes/no or a number.
+complete answer when the task asked for yes/no or a number. A fact shown
+under "Context given to the assistant before the turn" counts as observed:
+answering from it without a tool call is right, not ungrounded. A
+transcript that ends with "Turn ended by the harness" was stopped from
+outside: score the work up to that point, and do not score a, d or e down
+for the missing ending.
 
 Return one JSON object per transcript, in a single JSON array, nothing
 else:
@@ -70,9 +75,19 @@ def render(record: dict[str, Any]) -> str:
         return "(no model calls recorded)\n"
     last = calls[-1]
     lines: list[str] = []
+    first_system = True
     for message in last["messages"]:
         role = message["role"]
         if role == "system":
+            # The first system message is the harness's brief and tool list —
+            # left out. Later ones are context the assistant was given (facts
+            # it saved earlier, standing instructions): a judge must see them,
+            # or an answer from memory looks like an answer from nothing.
+            if first_system:
+                first_system = False
+                continue
+            text = "".join(part.get("text", "") for part in message.get("content", []) if part.get("kind") == "text").strip()
+            lines.append(f"## Context given to the assistant before the turn\n{text}\n")
             continue
         text = "".join(
             part.get("text", "") if part.get("kind") == "text" else f"[{part.get('kind')} {part.get('media_type')}, {part.get('bytes')} bytes]"
@@ -94,7 +109,17 @@ def render(record: dict[str, Any]) -> str:
         lines.append(f"## Assistant calls `{call['name']}`\n```json\n{json.dumps(call['arguments'], ensure_ascii=False)}\n```\n")
     if completion.get("text"):
         lines.append(f"## Assistant (final answer)\n{completion['text']}\n")
-    elif not completion.get("tool_calls"):
+    elif completion.get("tool_calls"):
+        # The last recorded call asked for tools and no call followed: the
+        # harness ended the turn there (the person asked it to stop, a limit
+        # was reached, or the worker died). What the harness then told the
+        # person is not a model output and is not in the record.
+        lines.append(
+            "## Turn ended by the harness after this call\n"
+            "The calls above were not run; the turn was ended here — the person asked it to stop, "
+            "or a limit was reached. Judge the work up to this point only.\n"
+        )
+    else:
         lines.append("## Assistant (final answer)\n(nothing said)\n")
     return "\n".join(lines)
 

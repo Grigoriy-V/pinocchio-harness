@@ -58,12 +58,36 @@ check on the trace:
    matches something observed in a tool result; (d) recovered from a
    failed call instead of repeating it or giving up; (e) the answer a
    person could act on — complete, no filler, no leaked internals. The
-   judge sees the model's name only after scoring a batch. In v1 the judge
-   is the project agent, and only for the before/after on the held-out
-   set (9 scenarios a model a run: one batch, like the four scored on
-   2026-09-11); the training data is filtered by the checks and the
-   outcome, not by the judge (the human, 2026-09-11). A model call with
-   the same rubric is a later version, if the judged volume ever needs it.
+   judge sees the model's name only after scoring a batch. **Since
+   2026-09-11 evening the judges are blind Sonnet subagents** (the human's
+   rule; `AGENTS.md`): `tools/judge_pack.py` renders exported runs as
+   anonymized transcripts in a shuffled order with the model, the run id
+   and the harness's brief left out, and the rubric above as
+   `INSTRUCTIONS.md`; three subagents read a batch and return JSON
+   scores; the key unblinds afterwards. The training data is still
+   filtered by the checks and the outcome; the judges measure.
+
+   **Calibration, 2026-09-11** (`reports/judge/2026-09-11_calibration/`):
+   the families batch — GLM's and Gemma's 21 transcripts each, mixed —
+   three judges: **GLM 9.90, Gemma 8.65**; the three agreed within one
+   point on 40 of 42 (spread 2 on Gemma's X2, 2/1/0, and N3, 9/7/8).
+   Against my own hand scores (9.7 / 9.0): the same order, the judges
+   harsher on Gemma's repeats — V1 4–5 against my 6, X2 0–2 against my 2
+   — and they found a repeat on N1 (an identical failing command re-run
+   once before the path was fixed) that I had scored 10 without reading
+   it; kinder on GLM, whose listing-first calls they let pass. All three
+   docked `set_goal` on short tasks and the system-wide `pip install` on
+   GLM's D2, as the rubric says. The GLM mini set (11, GLM only, since
+   Gemma's predates the capture): 11 × 10 from two judges.
+
+   The first pass also found two things the pack hid from a judge, both
+   fixed the same evening: the facts the assistant was given before the
+   turn were dropped with the system messages, so an answer from memory
+   scored as ungrounded (H-81: 1/0/0); and a turn the harness ended (M's
+   stop) showed no ending, so it scored as abandoned (0 on a, d, e). The
+   transcript now carries "Context given to the assistant" and "Turn
+   ended by the harness", and the rubric says how to read both; the
+   re-run scored both 10.
 
 Approved 2026-09-11 (the human): metrics 1–5 as above.
 

@@ -1,0 +1,296 @@
+[
+ {
+  "transcript": "t01",
+  "run_id": "deployed-176d001a-520",
+  "model": "z-ai/glm-5.3-flash",
+  "case": null,
+  "passed": null
+ },
+ {
+  "transcript": "t02",
+  "run_id": "deployed-v2-aaa50fb0-520",
+  "model": "gemma-4-12b-it",
+  "case": null,
+  "passed": null
+ },
+ {
+  "transcript": "t03",
+  "run_id": "deployed-176d001a-710",
+  "model": "z-ai/glm-5.3-flash",
+  "case": null,
+  "passed": null
+ },
+ {
+  "transcript": "t04",
+  "run_id": "deployed-176d001a-430",
+  "model": "z-ai/glm-5.3-flash",
+  "case": null,
+  "passed": null
+ },
+ {
+  "transcript": "t05",
+  "run_id": "deployed-v2-aaa50fb0-310",
+  "model": "gemma-4-12b-it",
+  "case": null,
+  "passed": null
+ },
+ {
+  "transcript": "t06",
+  "run_id": "deployed-v2-aaa50fb0-730",
+  "model": "gemma-4-12b-it",
+  "case": null,
+  "passed": null
+ },
+ {
+  "transcript": "t07",
+  "run_id": "deployed-v2-aaa50fb0-620",
+  "model": "gemma-4-12b-it",
+  "case": null,
+  "passed": null
+ },
+ {
+  "transcript": "t08",
+  "run_id": "deployed-176d001a-810",
+  "model": "z-ai/glm-5.3-flash",
+  "case": null,
+  "passed": null
+ },
+ {
+  "transcript": "t09",
+  "run_id": "deployed-176d001a-420",
+  "model": "z-ai/glm-5.3-flash",
+  "case": null,
+  "passed": null
+ },
+ {
+  "transcript": "t10",
+  "run_id": "deployed-176d001a-620",
+  "model": "z-ai/glm-5.3-flash",
+  "case": null,
+  "passed": null
+ },
+ {
+  "transcript": "t11",
+  "run_id": "deployed-v2-aaa50fb0-810",
+  "model": "gemma-4-12b-it",
+  "case": null,
+  "passed": null
+ },
+ {
+  "transcript": "t12",
+  "run_id": "deployed-v2-aaa50fb0-230",
+  "model": "gemma-4-12b-it",
+  "case": null,
+  "passed": null
+ },
+ {
+  "transcript": "t13",
+  "run_id": "deployed-176d001a-310",
+  "model": "z-ai/glm-5.3-flash",
+  "case": null,
+  "passed": null
+ },
+ {
+  "transcript": "t14",
+  "run_id": "deployed-v2-aaa50fb0-210",
+  "model": "gemma-4-12b-it",
+  "case": null,
+  "passed": null
+ },
+ {
+  "transcript": "t15",
+  "run_id": "deployed-v2-aaa50fb0-330",
+  "model": "gemma-4-12b-it",
+  "case": null,
+  "passed": null
+ },
+ {
+  "transcript": "t16",
+  "run_id": "deployed-v2-aaa50fb0-410",
+  "model": "gemma-4-12b-it",
+  "case": null,
+  "passed": null
+ },
+ {
+  "transcript": "t17",
+  "run_id": "deployed-176d001a-720",
+  "model": "z-ai/glm-5.3-flash",
+  "case": null,
+  "passed": null
+ },
+ {
+  "transcript": "t18",
+  "run_id": "deployed-176d001a-210",
+  "model": "z-ai/glm-5.3-flash",
+  "case": null,
+  "passed": null
+ },
+ {
+  "transcript": "t19",
+  "run_id": "deployed-176d001a-330",
+  "model": "z-ai/glm-5.3-flash",
+  "case": null,
+  "passed": null
+ },
+ {
+  "transcript": "t20",
+  "run_id": "deployed-v2-aaa50fb0-610",
+  "model": "gemma-4-12b-it",
+  "case": null,
+  "passed": null
+ },
+ {
+  "transcript": "t21",
+  "run_id": "deployed-v2-aaa50fb0-710",
+  "model": "gemma-4-12b-it",
+  "case": null,
+  "passed": null
+ },
+ {
+  "transcript": "t22",
+  "run_id": "deployed-176d001a-820",
+  "model": "z-ai/glm-5.3-flash",
+  "case": null,
+  "passed": null
+ },
+ {
+  "transcript": "t23",
+  "run_id": "deployed-176d001a-220",
+  "model": "z-ai/glm-5.3-flash",
+  "case": null,
+  "passed": null
+ },
+ {
+  "transcript": "t24",
+  "run_id": "deployed-176d001a-830",
+  "model": "z-ai/glm-5.3-flash",
+  "case": null,
+  "passed": null
+ },
+ {
+  "transcript": "t25",
+  "run_id": "deployed-v2-aaa50fb0-220",
+  "model": "gemma-4-12b-it",
+  "case": null,
+  "passed": null
+ },
+ {
+  "transcript": "t26",
+  "run_id": "deployed-v2-aaa50fb0-320",
+  "model": "gemma-4-12b-it",
+  "case": null,
+  "passed": null
+ },
+ {
+  "transcript": "t27",
+  "run_id": "deployed-176d001a-730",
+  "model": "z-ai/glm-5.3-flash",
+  "case": null,
+  "passed": null
+ },
+ {
+  "transcript": "t28",
+  "run_id": "deployed-176d001a-230",
+  "model": "z-ai/glm-5.3-flash",
+  "case": null,
+  "passed": null
+ },
+ {
+  "transcript": "t29",
+  "run_id": "deployed-176d001a-320",
+  "model": "z-ai/glm-5.3-flash",
+  "case": null,
+  "passed": null
+ },
+ {
+  "transcript": "t30",
+  "run_id": "deployed-176d001a-510",
+  "model": "z-ai/glm-5.3-flash",
+  "case": null,
+  "passed": null
+ },
+ {
+  "transcript": "t31",
+  "run_id": "deployed-176d001a-630",
+  "model": "z-ai/glm-5.3-flash",
+  "case": null,
+  "passed": null
+ },
+ {
+  "transcript": "t32",
+  "run_id": "deployed-176d001a-410",
+  "model": "z-ai/glm-5.3-flash",
+  "case": null,
+  "passed": null
+ },
+ {
+  "transcript": "t33",
+  "run_id": "deployed-v2-aaa50fb0-820",
+  "model": "gemma-4-12b-it",
+  "case": null,
+  "passed": null
+ },
+ {
+  "transcript": "t34",
+  "run_id": "deployed-v2-aaa50fb0-510",
+  "model": "gemma-4-12b-it",
+  "case": null,
+  "passed": null
+ },
+ {
+  "transcript": "t35",
+  "run_id": "deployed-v2-aaa50fb0-720",
+  "model": "gemma-4-12b-it",
+  "case": null,
+  "passed": null
+ },
+ {
+  "transcript": "t36",
+  "run_id": "deployed-176d001a-530",
+  "model": "z-ai/glm-5.3-flash",
+  "case": null,
+  "passed": null
+ },
+ {
+  "transcript": "t37",
+  "run_id": "deployed-176d001a-610",
+  "model": "z-ai/glm-5.3-flash",
+  "case": null,
+  "passed": null
+ },
+ {
+  "transcript": "t38",
+  "run_id": "deployed-v2-aaa50fb0-530",
+  "model": "gemma-4-12b-it",
+  "case": null,
+  "passed": null
+ },
+ {
+  "transcript": "t39",
+  "run_id": "deployed-v2-aaa50fb0-830",
+  "model": "gemma-4-12b-it",
+  "case": null,
+  "passed": null
+ },
+ {
+  "transcript": "t40",
+  "run_id": "deployed-v2-aaa50fb0-430",
+  "model": "gemma-4-12b-it",
+  "case": null,
+  "passed": null
+ },
+ {
+  "transcript": "t41",
+  "run_id": "deployed-v2-aaa50fb0-630",
+  "model": "gemma-4-12b-it",
+  "case": null,
+  "passed": null
+ },
+ {
+  "transcript": "t42",
+  "run_id": "deployed-v2-aaa50fb0-420",
+  "model": "gemma-4-12b-it",
+  "case": null,
+  "passed": null
+ }
+]

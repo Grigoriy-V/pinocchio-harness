@@ -1,0 +1,13 @@
+[
+{"transcript": "t01", "a": 2, "b": 2, "c": 2, "d": 2, "e": 2, "note": ""},
+{"transcript": "t02", "a": 2, "b": 2, "c": 2, "d": 2, "e": 2, "note": ""},
+{"transcript": "t03", "a": 2, "b": 2, "c": 2, "d": 2, "e": 2, "note": ""},
+{"transcript": "t04", "a": 1, "b": 0, "c": 0, "d": 2, "e": 1, "note": "answered from nothing: no tool was called to look up the favourite variety, so the claim is unsupported by any result"},
+{"transcript": "t05", "a": 2, "b": 2, "c": 2, "d": 2, "e": 2, "note": ""},
+{"transcript": "t06", "a": 2, "b": 2, "c": 2, "d": 2, "e": 2, "note": ""},
+{"transcript": "t07", "a": 2, "b": 2, "c": 2, "d": 2, "e": 2, "note": ""},
+{"transcript": "t08", "a": 2, "b": 2, "c": 2, "d": 2, "e": 2, "note": ""},
+{"transcript": "t09", "a": 2, "b": 2, "c": 2, "d": 2, "e": 2, "note": ""},
+{"transcript": "t10", "a": 0, "b": 2, "c": 2, "d": 0, "e": 0, "note": "stops after 2 of 5 files with no final answer and no stated reason"},
+{"transcript": "t11", "a": 2, "b": 2, "c": 2, "d": 2, "e": 2, "note": ""}
+]

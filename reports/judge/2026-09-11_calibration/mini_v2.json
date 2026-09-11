@@ -1,0 +1,11 @@
+[{"transcript": "t01", "a": 2, "b": 2, "c": 2, "d": 2, "e": 2, "note": ""},
+{"transcript": "t02", "a": 2, "b": 2, "c": 2, "d": 2, "e": 2, "note": ""},
+{"transcript": "t03", "a": 2, "b": 2, "c": 2, "d": 2, "e": 2, "note": ""},
+{"transcript": "t04", "a": 1, "b": 0, "c": 0, "d": 2, "e": 2, "note": "answered from an unretrieved claim without calling any memory/history tool to check it"},
+{"transcript": "t05", "a": 2, "b": 2, "c": 2, "d": 2, "e": 2, "note": ""},
+{"transcript": "t06", "a": 2, "b": 2, "c": 2, "d": 2, "e": 2, "note": ""},
+{"transcript": "t07", "a": 2, "b": 2, "c": 2, "d": 2, "e": 2, "note": ""},
+{"transcript": "t08", "a": 2, "b": 2, "c": 2, "d": 2, "e": 2, "note": ""},
+{"transcript": "t09", "a": 2, "b": 2, "c": 2, "d": 2, "e": 2, "note": ""},
+{"transcript": "t10", "a": 0, "b": 2, "c": 2, "d": 2, "e": 0, "note": "cuts off after only 2 of 5 files, no final answer given"},
+{"transcript": "t11", "a": 2, "b": 2, "c": 2, "d": 2, "e": 2, "note": ""}]

@@ -52,7 +52,8 @@ are not reachable by following imports from `app/`.
 | Read a turn back | `tools/show_run.py`, `app/telemetry/inspect.py` | `render_run`, `steps`, `--last`, `--failed`, `--summary` |
 | Keep every model call as the model saw it (fine-tune data) | `app/trajectories.py`, `TurnTrace.trajectory` | `Trajectories`, `call_record`, `AGENT_TRAJECTORIES`, one file per run |
 | Add or change a training scenario family | `scripts/training_scenarios.py`, `scripts/loop_live.py` | `Family`, `Case`, `FAMILIES`, `plant`, checks read outcomes only |
-| Hand trajectories to the training side | `tools/export_trajectories.py` | `export`, `read_volume`, `read_local`, the `scenario_checked` event |
+| Hand trajectories to the training side | `tools/export_trajectories.py` | `export`, `read_volume`, `read_local`, the `scenario_checked` event, `held_out` |
+| Judge trajectories blind | `tools/judge_pack.py`, Sonnet subagents | `render`, `RUBRIC`, `key.json` for the unblinding only |
 | Read a thread's rows, sizes and media parts | `tools/show_thread.py` | read-only, prints no connection string |
 | Where a deployed turn's seconds go, from a log dump | `tools/log_gaps.py`, `tools/log_named_seconds.py` | gaps between events; named harness seconds by kind (roadmap 18) |
 | The same named-seconds table from the store | `tools/run_named_seconds.py` | `--last`, `--user`, run ids; no dump needed |

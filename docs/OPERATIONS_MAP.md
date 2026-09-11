@@ -263,7 +263,10 @@ them all from the Volume (a client read) and writes one JSON per run with
 the run's outcome, failed-tool codes, repeat-guard count and the scenario's
 checks (the `scenario_checked` event `loop_live` writes) plus
 `index.jsonl` — the hand-over to the training repository, which reads
-those fields and nothing of this database.
+those fields and nothing of this database. `python tools/judge_pack.py
+--out data/judge/<batch> --prefix <run prefix> …` renders exported runs as
+anonymized, shuffled transcripts plus the rubric; three Sonnet subagents
+score them blind (`AGENTS.md`), and `key.json` unblinds afterwards.
 
 **Checkpoint growth** (ISS-0067): every checkpoint version is kept; when the
 database fills, `python tools/prune_checkpoints.py` shows what would go and

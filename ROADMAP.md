@@ -175,9 +175,11 @@ time; research first where noted; the human's word starts each.
     volume run done 2026-09-11: 8 × 38 at 0.7, 292/304 by the checks (one
     container preempted and restarted by Modal); exported: **260 GLM
     training trajectories, 814 samples**, 87 held-out runs all passed
-    (report §3f) — the v1 set. Step 3 done. Next: step 4, the training
-    repository (its creation is the human's), and the probe rows pruned
-    from Neon (gate). Then GLM run
+    (report §3f) — the v1 set; probe rows pruned after. Step 3 done. The
+    judge is blind Sonnet subagents since 2026-09-11 (the human;
+    `tools/judge_pack.py`, three votes, calibrated: GLM 9.90, Gemma 8.65
+    on the families, agreement within a point on 40/42). Next: step 4,
+    the training repository (its creation is the human's). Then GLM run
     many times over the scenario prompts, keeping the turns that pass
     their checks, plus the real turns that did — this is where 19's new
     scenarios are written, as prompts for data as well as checks (gate:
