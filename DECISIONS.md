@@ -741,3 +741,20 @@ in `app/agent/`; `summarize_after` gone from `ContextPolicy`;
 `ModelSettings.providers` and `_next_host` in the client. Draft, not
 decided: a deadline per tool (ISS-0033).
 
+
+## 2026-09-11 — A fine-tune of an open model is an experiment for experience, not a product step
+
+Decision: roadmap 24 fine-tunes Gemma 4 12B (LoRA/QLoRA) on turns
+collected from this harness with GLM 5.3 Flash as the teacher. Its goal,
+in the human's words, is experience and a portfolio piece; the assistant's
+model stays the hosted GLM, and the experiment's result is a before/after
+table on the scenario suite, whatever it shows. Every run of it is a Modal
+GPU worker — there is no local GPU — priced and gated each time.
+
+Why: the human, 2026-09-11. Written down so a later session does not
+measure the item by product value, or start a GPU run on the memory of a
+local card that does not exist.
+
+Consequences: 19's new scenarios are written inside 24 as the data's
+prompts; the fine-tuned model arrives as one more model set, switched by
+`MODEL=<name>`, never the default.

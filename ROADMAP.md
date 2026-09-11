@@ -110,12 +110,38 @@ Items of the 2026-09-07 order, closed:
 
 ## Queue
 
-The order approved 2026-09-07. One item at a time; research first where
-noted; the human's word starts each.
+The order approved 2026-09-07; 24 put first 2026-09-11. One item at a
+time; research first where noted; the human's word starts each.
+
+24. **An experiment: Gemma 4 12B fine-tuned on this harness's own turns.**
+    Approved 2026-09-11 (the human). The goal, in the human's words, is
+    experience and a portfolio piece — a LoRA/QLoRA of an open model on
+    trajectories collected from one's own agent harness, measured before
+    and after on the same scenario suite. It is not a product step: the
+    hosted GLM stays the assistant's model, and the result is a table, not
+    a replacement. "More agentic" means, measured on the mini set and the
+    wider letters: tool calls that parse (ISS-0001), turns that finish,
+    steps to finish, claims about what was not observed (ISS-0004).
+    Compute: there is no local GPU; every run — baseline, generation,
+    training, evaluation — is a Modal GPU worker, dollars stated and a
+    gate each. Order: (1) count the usable turns already in the deployed
+    store, read-only; (2) the metrics fixed and Gemma 4 12B's baseline on
+    the suite through `assistant-llm-v2` (gate); (3) the data: GLM run
+    many times over the scenario prompts, keeping the turns that pass
+    their checks, plus the real turns that did — this is where 19's new
+    scenarios are written, as prompts for data as well as checks (gate:
+    model calls, priced); (4) training on Modal, LoRA on A100 or QLoRA on
+    A10, assistant tokens only, the tool schemas kept in the context
+    (gate); (5) the fine-tuned model deployed as one more model set and
+    the same suite run before/after (gate). Research first: which of
+    Unsloth or TRL+peft runs Gemma 4 on Modal, and the sequence length the
+    turns need. Report: `reports/2026-09-11_gemma_finetune_experiment.md`
+    (to be written with step 1).
 
 19. **The scenario suite, reconsidered.** After 16: checks on events rather
     than routes, time split into model, tool and wait, a batch that survives
-    its container. Was item 10.
+    its container. Was item 10. Its new scenarios are written inside 24's
+    step 3, where they double as the data's prompts; the rest waits.
 
 21. **One browser tool, and the page rendered apart from the secrets.**
     Approved 2026-09-07 (the human). Deployed, `use_page open url` runs a
