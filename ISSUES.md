@@ -22,6 +22,7 @@ authorizes nothing; `ROADMAP.md` alone orders work. Evidence lives in
 
 | Id | Status | Defect | Related |
 |---|---|---|---|
+| ISS-0067 | open, pruned once 2026-09-11 | every checkpoint version of every thread is kept forever; 368 of Neon's 394 MB were old versions | 0066 |
 | ISS-0066 | open | every turn's context load carries the bytes of every image still in history, and then shows the model a stub | 0065, roadmap 18 |
 | ISS-0065 | fixed 2026-09-08 | a `send_file` result carries the file's bytes into the thread's history | 0064, roadmap 23 |
 | ISS-0064 | open, fix built | `persist` hangs on the store's write and the worker sits in it until the platform kills it | 0061, 0048, 0065, roadmap 23 |
@@ -95,6 +96,34 @@ in use since 2026-09-06; it is not seen on the hosted model.
 ---
 
 ## Open
+
+### ISS-0067 — every checkpoint version of every thread is kept forever
+
+- **Status:** open; pruned once by hand 2026-09-11 on the human's word
+  (the latest checkpoint of each of 93 threads kept with the blobs it
+  references, 5,569 older checkpoints, 8,749 blobs and 26,332 writes
+  deleted, `VACUUM FULL`). No mechanism prunes; the human, 2026-09-11:
+  not needed now — data generation will write its checkpoints to SQLite
+  on the Volume, and the product's own growth has headroom again.
+- **Seen:** 2026-09-11, the deployed database at 394 MB of a 500 MB plan:
+  `public.checkpoint_blobs` 254 MB and `checkpoint_writes` 114 MB against
+  14 MB of conversation and 5 MB of telemetry. One thread held 152 MB in
+  199 checkpoint versions; the `messages` channel alone 156 MB, `context`
+  97 MB — the whole message list and the assembled context, image bytes
+  included (ISS-0066), written again after every node of every turn, and
+  never removed. The probe user's threads were 36 MB of it; the owner's
+  own, 332 MB.
+- **Costs:** the database fills at the rate of the owner's own use — a
+  long turn with pictures adds tens of megabytes — until writes fail;
+  nothing in the product reads a version older than the latest.
+- **Reproduce:** run any turn; count `public.checkpoints` rows for the
+  thread before and after.
+- **Cause:** known. LangGraph's Postgres saver keeps every checkpoint so a
+  thread can be replayed from any point; the harness uses only the latest
+  (`Agent.unfinished`, `delivered_before`) and never asks it to forget.
+- **Evidence:** the numbers above; the prune is `tools/prune_checkpoints.py`
+  (dry run by default, `--apply` is a gate).
+- **Related:** ISS-0066 (what makes each version large).
 
 ### ISS-0066 — every turn's context load carries the bytes of every image still in history, and then shows the model a stub
 
