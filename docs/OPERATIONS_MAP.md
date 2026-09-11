@@ -283,7 +283,10 @@ trips around the worker) need the dump.
 - `scripts/loop_live.py` runs the mini set (A B C F W H E M) or wider letters
   (G I J K O P Q R S) locally, deployed, or both side by side;
   `--deployed --model <set>` runs them against another model set for that
-  run only (its GPU App wakes: a gate), run ids `deployed-<set>-…`.
+  run only (its GPU App wakes: a gate), run ids `deployed-<set>-…`;
+  `--repeat N` runs the chosen letters N times. The training families
+  D L N T U V X (roadmap 24; seeds, prompts and outcome checks in
+  `scripts/training_scenarios.py`) run the same way, several turns a letter.
 - `scripts/measure_command_cold_start.py` starts a command container.
 - `scripts/doctor.py` diagnoses a local install. `scripts/smoke_test.py`,
   `stage3_live.py`, `v1_live.py` are earlier-stage runners.

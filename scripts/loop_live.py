@@ -42,6 +42,11 @@ accepted when all eight pass deployed in one run.
                                       next step and the task still finishes;
                                       a stop ends a turn at its next step
 
+**The training families** (roadmap 24), D L N T U V X, each several prompts
+seeded and checked on outcomes: `scripts/training_scenarios.py`.
+`--repeat N` runs the chosen letters N times, each run its own ids, for
+pass^k and for data.
+
 **The wider set** (item 19), by letter only: G the person's own request, I a
 shortened result read back, J a worker killed mid-turn, K a fold inside a
 turn, O a script run, P a PDF, Q a command past its timeout, R data into a
@@ -73,6 +78,7 @@ from app.config import AgentSettings
 from app.models import ContentPart, Message, ToolCall, ToolFailure
 from app.telemetry import TurnRun
 from app.telemetry.open import open_telemetry
+from scripts.training_scenarios import FAMILIES, TRAINING, plant
 
 USER = "loop-live-check"
 
@@ -281,8 +287,20 @@ class Turn:
 def chosen(argv: list[str]) -> frozenset[str]:
     """Which scenarios to run: letters, or the mini set."""
 
-    letters = {arg.upper() for arg in argv if len(arg) == 1 and arg.upper() in MINI + WIDER}
+    letters = {
+        arg.upper() for arg in argv if len(arg) == 1 and arg.upper() in MINI + WIDER + TRAINING
+    }
     return frozenset(letters) if letters else frozenset(MINI)
+
+
+def repeat_of(argv: list[str]) -> int:
+    """`--repeat N`: run the chosen letters N times, each run its own ids (pass^k, data)."""
+
+    if "--repeat" in argv:
+        at = argv.index("--repeat")
+        if at + 1 < len(argv) and argv[at + 1].isdigit():
+            return max(1, int(argv[at + 1]))
+    return 1
 
 
 # The run ids one invocation writes: `live-<sequence>` on this machine, in a
@@ -294,6 +312,8 @@ RUN_PREFIX = "live-"
 def threads_of(letter: str) -> list[str]:
     """The conversations a scenario uses; a second one where a scenario has two."""
 
+    if letter in FAMILIES:
+        return FAMILIES[letter].threads()
     return [f"chat-{letter.lower()}", f"chat-{letter.lower()}2"]
 
 
@@ -878,6 +898,35 @@ async def run_scenarios(
                 },
             )
 
+        # --- the training families (roadmap 24) ------------------------------
+        # Data, not code: `scripts/training_scenarios.py` holds each family's
+        # prompts, seeds and outcome checks; this loop owns the turn, and a
+        # case with an interjection gets it the way M does.
+
+        for letter, family in FAMILIES.items():
+            if not wanted(letter):
+                continue
+            for case in family.cases:
+                plant(root, case.files)
+                turn = Turn(agent, telemetry, family.sequence(case))
+                if case.interjection is None:
+                    await turn.ask(family.thread(case), case.prompt)
+                else:
+                    lane = agent.interjections
+                    assert isinstance(lane, MemoryInterjections), f"{letter} needs the memory lane"
+                    work = asyncio.create_task(turn.ask(family.thread(case), case.prompt))
+                    while not turn.tools and not work.done():
+                        await asyncio.sleep(0.05)
+                    await lane.offer(USER, family.sequence(case) + 1, text_message(case.interjection))
+                    print("\n  (a message was sent while the turn was running)")
+                    await work
+                done(
+                    f"{letter}{case.index}",
+                    f"{case.name}  [{family.name}; rubric {family.stresses}]",
+                    turn,
+                    checks=case.checks(turn, root),
+                )
+
     finally:
         await agent.aclose()
         telemetry.close()
@@ -974,9 +1023,15 @@ async def main() -> int:
         print("\n=== side by side ===")
         print(side_by_side(here, there))
         return failed_here + failed_there
-    if "--deployed" in argv:
-        return deployed(selected, model_of(argv))[0]
-    return (await local(selected))[0]
+    failed = 0
+    for run in range(repeat_of(argv)):
+        if repeat_of(argv) > 1:
+            print(f"\n=== run {run + 1} of {repeat_of(argv)} ===")
+        if "--deployed" in argv:
+            failed += deployed(selected, model_of(argv))[0]
+        else:
+            failed += (await local(selected))[0]
+    return failed
 
 
 if __name__ == "__main__":

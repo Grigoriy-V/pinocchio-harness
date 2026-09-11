@@ -146,7 +146,11 @@ time; research first where noted; the human's word starts each.
     (`reports/2026-09-11_finetune_scenarios_research.md`): 500–1,000
     kept trajectories is the range that moved 7–13B models; checks test
     outcomes, never a tool the prompt did not name (C and O corrected);
-    seven scenario families proposed as options. Then GLM run
+    seven scenario families — built the same day on the human's word
+    ("давай все"): D L N T U V X, 21 prompts with seeds and outcome checks
+    in `scripts/training_scenarios.py`, `--repeat N` in `loop_live`;
+    offline tests; the first live run of them (deploy, then GLM) pending.
+    Then GLM run
     many times over the scenario prompts, keeping the turns that pass
     their checks, plus the real turns that did — this is where 19's new
     scenarios are written, as prompts for data as well as checks (gate:
