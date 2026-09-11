@@ -486,8 +486,14 @@ def test_the_scenarios_can_be_pointed_at_another_model_set() -> None:
     assert body.index('os.environ["MODEL"] = model') < body.index("_settings()")
     assert "model + '-' if model else ''" in body
 
-    from scripts.loop_live import model_of
+    from scripts.loop_live import model_of, temperature_of
 
     assert model_of(["--deployed", "--model", "v2"]) == "v2"
     assert model_of(["--deployed"]) == ""
+    # A repeated run at the product's temperature 0 is the same trajectory:
+    # the data runs sample, for that run only.
+    assert 'temperature: str = ""' in body
+    assert 'os.environ[f"{prefix}TEMPERATURE"] = temperature' in body
+    assert temperature_of(["--deployed", "--temperature", "0.7"]) == "0.7"
+    assert temperature_of([]) == ""
 

@@ -45,7 +45,8 @@ accepted when all eight pass deployed in one run.
 **The training families** (roadmap 24), D L N T U V X, each several prompts
 seeded and checked on outcomes: `scripts/training_scenarios.py`.
 `--repeat N` runs the chosen letters N times, each run its own ids, for
-pass^k and for data.
+pass^k and for data; `--temperature 0.7` (deployed) samples instead of
+running at the product's 0, without which a repeat is the same trajectory.
 
 **The wider set** (item 19), by letter only: G the person's own request, I a
 shortened result read back, J a worker killed mid-turn, K a fold inside a
@@ -973,13 +974,23 @@ def model_of(argv: list[str]) -> str:
     return ""
 
 
-def deployed(selected, model: str = "") -> tuple[int, list[Result]]:
+def temperature_of(argv: list[str]) -> str:
+    """`--temperature 0.7`: the sampling temperature for a deployed run; empty is the set's own."""
+
+    if "--temperature" in argv:
+        at = argv.index("--temperature")
+        if at + 1 < len(argv):
+            return argv[at + 1]
+    return ""
+
+
+def deployed(selected, model: str = "", temperature: str = "") -> tuple[int, list[Result]]:
     """The same scenarios, in the deployed worker, through its `scenarios` Function."""
 
     import modal
 
     function = modal.Function.from_name("assistant-control", "scenarios")
-    text, failed, rows = function.remote("".join(sorted(selected)), model)
+    text, failed, rows = function.remote("".join(sorted(selected)), model, temperature)
     # The deployed telemetry also logs every event to stdout as one JSON line;
     # the report is the rest.
     print("\n".join(line for line in text.splitlines() if not line.startswith('{"run_id"')))
@@ -1019,7 +1030,7 @@ async def main() -> int:
         print("=== local ===")
         failed_here, here = await local(selected)
         print("\n=== deployed ===")
-        failed_there, there = deployed(selected, model_of(argv))
+        failed_there, there = deployed(selected, model_of(argv), temperature_of(argv))
         print("\n=== side by side ===")
         print(side_by_side(here, there))
         return failed_here + failed_there
@@ -1028,7 +1039,7 @@ async def main() -> int:
         if repeat_of(argv) > 1:
             print(f"\n=== run {run + 1} of {repeat_of(argv)} ===")
         if "--deployed" in argv:
-            failed += deployed(selected, model_of(argv))[0]
+            failed += deployed(selected, model_of(argv), temperature_of(argv))[0]
         else:
             failed += (await local(selected))[0]
     return failed

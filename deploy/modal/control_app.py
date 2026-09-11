@@ -571,7 +571,9 @@ async def self_test(include_model: bool = False, include_credit: bool = False) -
     timeout=1800,
     include_source=False,
 )
-async def scenarios(letters: str = "ABCFWHEM", model: str = "") -> tuple[str, int, list[dict]]:
+async def scenarios(
+    letters: str = "ABCFWHEM", model: str = "", temperature: str = ""
+) -> tuple[str, int, list[dict]]:
     """Run `scripts/loop_live.py`'s scenarios here, in the worker's own environment.
 
     The same image, secrets, Volume and command runner the worker has, so what
@@ -585,7 +587,9 @@ async def scenarios(letters: str = "ABCFWHEM", model: str = "") -> tuple[str, in
     `model` names a model set for this run only (`MODEL=<set>`), so a set that
     is not the deployment's own — Gemma on its GPU App, a fine-tuned one —
     can be measured on the same scenarios (roadmap 24). The run ids carry
-    the set's name, because a run row does not.
+    the set's name, because a run row does not. `temperature` overrides the
+    set's sampling temperature for this run only: the product runs at 0,
+    and a repeated run at 0 is the same trajectory again, which is no data.
     """
 
     import contextlib
@@ -594,8 +598,14 @@ async def scenarios(letters: str = "ABCFWHEM", model: str = "") -> tuple[str, in
     import uuid
     from dataclasses import asdict
 
+    from app.config import chosen_model
+
     if model:
         os.environ["MODEL"] = model
+    if temperature:
+        chosen = chosen_model()
+        prefix = f"MODEL_{chosen}_" if chosen else "MODEL_"
+        os.environ[f"{prefix}TEMPERATURE"] = temperature
 
     from app.agent.interjections import MemoryInterjections
     from app.agent.runtime import create_agent

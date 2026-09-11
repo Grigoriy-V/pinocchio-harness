@@ -284,7 +284,8 @@ trips around the worker) need the dump.
   (G I J K O P Q R S) locally, deployed, or both side by side;
   `--deployed --model <set>` runs them against another model set for that
   run only (its GPU App wakes: a gate), run ids `deployed-<set>-…`;
-  `--repeat N` runs the chosen letters N times. The training families
+  `--repeat N` runs the chosen letters N times; `--temperature 0.7`
+  samples for that deployed run (the product runs at 0). The training families
   D L N T U V X (roadmap 24; seeds, prompts and outcome checks in
   `scripts/training_scenarios.py`) run the same way, several turns a letter.
 - `scripts/measure_command_cold_start.py` starts a command container.
