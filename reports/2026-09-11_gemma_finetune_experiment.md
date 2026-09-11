@@ -113,7 +113,39 @@ batch: the agent ran it. Scores (a b c d e = total):
 | M-180 mid-turn message | 2 | 2 | 2 | 2 | 2 | 10 | "12 times 12 is 144" beside the next call, then finished |
 | M-190 stop | 2 | 2 | 2 | 2 | 2 | 10 | |
 
-Mean 9.7. **Reading:** on this mini set Gemma 4 12B is already at the
+Mean 9.7.
+
+**GLM, the same mini set, judged** — run `deployed-6ac3ecc0-*`, 2026-09-11
+12:19 UTC, the first run with the trajectory capture on (11 files in
+`.trajectories/`); threads kept in `reports/2026-09-11_glm_mini_threads.txt`.
+Counting: parse 18/18; 7/8 scenarios by the checks — C failed "write_file
+then run_command" because GLM did the whole task in **one** `run_command`
+(mkdir, venv, pip, `printf > primes.py`, run) and every other check of C
+passed; model calls 29 (1 2 2 5 2 2 1 2 2 7 3); 0 unobserved claims;
+first token 4.5–37 s on the hosted endpoint against Gemma's 1.7–4 s on the
+A10. Judge:
+
+| scenario | a | b | c | d | e | total | note |
+|---|:-:|:-:|:-:|:-:|:-:|---:|---|
+| A | 2 | 2 | 2 | 2 | 2 | 10 | |
+| B | 2 | 2 | 2 | 2 | 2 | 10 | straight to `read_file` |
+| C | 2 | 1 | 2 | 2 | 2 | 9 | wrote the file through the shell, not `write_file`; output quoted verbatim, the leading spaces explained |
+| F | 2 | 2 | 2 | 2 | 2 | 10 | |
+| W | 2 | 2 | 2 | 2 | 2 | 10 | `use_page`, as the line names |
+| H-80 | 2 | 2 | 2 | 2 | 2 | 10 | |
+| H-81 | 2 | 2 | 2 | 2 | 2 | 10 | answered from the context, no call |
+| H-82 | 2 | 2 | 2 | 2 | 2 | 10 | quoted verbatim, then said what it meant |
+| E | 2 | 2 | 2 | 2 | 2 | 10 | said what happened, offered the next step, did not do it |
+| M-180 | 2 | 2 | 2 | 2 | 2 | 10 | "12 × 12 = 144. Continuing:" beside the next call; listed all three files |
+| M-190 | 2 | 2 | 2 | 2 | 2 | 10 | |
+
+Mean 9.9 against Gemma's 9.7: the whole difference is Gemma's extra tool
+calls. C's failed check is a note for 19, not for either model: the check
+tests the route (`write_file` first) where it should test the outcome (the
+file exists in a folder, the venv holds the package, the output is
+quoted); a model that writes through the shell did what was asked.
+
+**Reading:** on this mini set Gemma 4 12B is already at the
 ceiling of every counting metric and one point under it on the judge, and
 the point it loses is one extra tool call. The mini set was written to
 catch a harness that lies, not to separate two capable models: it cannot

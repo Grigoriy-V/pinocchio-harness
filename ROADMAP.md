@@ -140,7 +140,9 @@ time; research first where noted; the human's word starts each.
     a separate repository, made when step 4 starts (the human,
     2026-09-11; DECISIONS). This repository hands over trajectories with
     their outcome and check results attached (an export tool, to build)
-    and takes back a model set; then GLM run
+    and takes back a model set. Deployed 2026-09-11; the first eleven
+    trajectory files are GLM's mini set, judged 9.9 beside Gemma's 9.7
+    (report §2a). Then GLM run
     many times over the scenario prompts, keeping the turns that pass
     their checks, plus the real turns that did — this is where 19's new
     scenarios are written, as prompts for data as well as checks (gate:
