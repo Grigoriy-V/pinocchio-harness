@@ -322,6 +322,35 @@ Run 1: 20/21 (V3). Run 2: 19/21 (L1, V3). Both real:
 Trajectory files on the Volume: 74. Teacher pass rate on the families at
 0.7: 39/42 by the checks, before the judge.
 
+## 3d. The hand-over and the variants, 2026-09-11
+
+The human's rule for the rest of the item: **generation runs in parallel,
+and the first training version is built from the necessary minimum** — a
+pitfall may sit elsewhere in the loop (export, format, training, serving),
+so the loop is closed once end to end before any stage is polished.
+
+- **Export built:** `tools/export_trajectories.py` reads `.trajectories/`
+  from the Volume (a client read, no worker) and the run rows, and writes
+  one JSON per run with `outcome`, `tool_failed` codes, the repeat-guard
+  count and the scenario's verdict, plus `index.jsonl`. The verdict is a
+  new `scenario_checked` trace event that `loop_live` writes after each
+  scenario (letter, name, passed, every check), so the training side
+  filters on ready fields and never reads this database. First export:
+  **95 runs** (the owner's Telegram turns since the capture went live, both
+  mini sets, the three family runs, Gemma's family run); the runs before
+  the event exist have `scenario: null`.
+- **Variants built:** the nine one-move cases that repeated identically at
+  0.7 get other seeds as further cases — L4 L5 (other dates), N4 N5
+  (7 colours, 12 animals), T4 T5 T6 (other files, another package), U4 U5
+  (another folder and broken file; "later" items), V4 V5 (6 of 10, 14 of
+  8). 32 cases in all; a run of a letter covers them.
+- **Not yet built, needed for parallel runs:** `scenarios` runs with
+  `max_containers=1` and one probe user (`loop-live-check`, one workspace,
+  fixed thread names), so two calls at once would serialize or collide.
+  Parallel generation needs a probe user per call (workspace and threads
+  of its own) and a higher container cap — the next build before the
+  volume run.
+
 ## 4. Research before step 4: the training run on Modal
 
 Open, to be answered by reading, not running: Unsloth against TRL + peft

@@ -77,7 +77,8 @@ from app.agent.runtime import create_agent, text_message
 from app.agent.stop import MemoryStopRequests
 from app.config import AgentSettings
 from app.models import ContentPart, Message, ToolCall, ToolFailure
-from app.telemetry import TurnRun
+from app.telemetry import TraceEvent, TurnRun
+from app.telemetry.base import stamp
 from app.telemetry.open import open_telemetry
 from scripts.training_scenarios import FAMILIES, TRAINING, plant
 
@@ -376,6 +377,32 @@ async def run_scenarios(
             turn.report(f"{name} — turn {turn.sequence}", {})
         misses = last.report(name, checks)
         failed += misses
+        # The verdict beside the trace, so the export (roadmap 24) can hand a
+        # trajectory over with its checks attached and nobody re-reads a
+        # printout. After the turn's own events; best effort like the trace.
+        store = telemetry.store
+        if store is not None:
+            try:
+                store.record_events(
+                    [
+                        TraceEvent(
+                            run_id=turn.run_id,
+                            seq=9000,
+                            type="scenario_checked",
+                            timestamp=stamp(),
+                            duration_ms=None,
+                            data={
+                                "letter": letter,
+                                "name": name,
+                                "passed": misses == 0,
+                                "checks": {k: bool(v) for k, v in checks.items()},
+                            },
+                        )
+                        for turn in turns
+                    ]
+                )
+            except Exception:  # noqa: BLE001 - a verdict lost, never a run failed
+                pass
         rows.append(
             Result(
                 letter=letter,

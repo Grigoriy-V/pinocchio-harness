@@ -159,8 +159,13 @@ time; research first where noted; the human's word starts each.
     built for the data runs (the product samples at 0); two sampled
     repeats the same day: sequences differ on 12 of 21 cases (every wrong
     turn and long task), the same on the nine one-move cases; GLM 39/42
-    (report §3c). Pending: parameterized seeds for the one-move cases, the
-    export tool. Then GLM run
+    (report §3c). Export built (`tools/export_trajectories.py`, the
+    `scenario_checked` event; 95 runs exported) and variants of the nine
+    one-move cases (32 cases now). The human's rule for the rest
+    (2026-09-11): generation runs in parallel, the first training version
+    from the necessary minimum, the loop closed once before any polish.
+    Pending: a probe user per `scenarios` call so runs can go in parallel;
+    then the volume run. Then GLM run
     many times over the scenario prompts, keeping the turns that pass
     their checks, plus the real turns that did — this is where 19's new
     scenarios are written, as prompts for data as well as checks (gate:

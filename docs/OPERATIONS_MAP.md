@@ -258,6 +258,12 @@ parts as kind and size, never bytes. Nothing resets the folder. Read them
 with `python -m modal volume ls assistant-workspaces .trajectories` and
 `python -m modal volume get assistant-workspaces .trajectories/<run_id>.jsonl <local path>`
 (reads, not workers). Locally, set `AGENT_TRAJECTORIES=data/trajectories`.
+`python tools/export_trajectories.py --out data/export [--prefix …]` reads
+them all from the Volume (a client read) and writes one JSON per run with
+the run's outcome, failed-tool codes, repeat-guard count and the scenario's
+checks (the `scenario_checked` event `loop_live` writes) plus
+`index.jsonl` — the hand-over to the training repository, which reads
+those fields and nothing of this database.
 
 `python tools/show_thread.py <thread_id> [head_chars]` prints one thread's
 rows the same way: role, tool calls, each part's kind and byte count, the
