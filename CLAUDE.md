@@ -10,4 +10,4 @@ Nothing in this file may add, weaken, or replace a rule in it.
 - Use `--agent claude` when writing a work-log record.
 - Judge subagents (Sonnet, blind, several at once) score trajectories by
   the rubric in `reports/2026-09-11_gemma_finetune_experiment.md` §2, packed
-  by `tools/judge_pack.py` (the human, 2026-09-11). No other delegation.
+  by `tools/judge_pack.py` (the human, 2026-09-11).
