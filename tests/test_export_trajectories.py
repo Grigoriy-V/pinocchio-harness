@@ -54,6 +54,7 @@ def test_a_run_is_exported_with_its_verdict(tmp_path: Path) -> None:
     assert record["outcome"] == "answer_delivered" and record["model"] == "m"
     assert record["tool_failed"] == {"fs.not_found": 1} and record["repeat_guard"] == 1
     assert record["scenario"]["passed"] is False and record["scenario"]["checks"] == {"x": True, "y": False}
+    assert record["held_out"] is True  # D1 (sequence 210) is measured on, never trained on
     assert [c["call_index"] for c in record["calls"]] == [1, 2]
     index = [json.loads(l) for l in (out / "index.jsonl").read_text(encoding="utf-8").splitlines()]
     assert index[0]["run_id"] == "deployed-abc-210" and index[0]["calls"] == 2 and "messages" not in json.dumps(index)

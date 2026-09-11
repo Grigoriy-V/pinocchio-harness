@@ -168,8 +168,10 @@ time; research first where noted; the human's word starts each.
     (ISS-0067; SQLite on the Volume for the data runs dropped as needless,
     the human's call). Parallel runs built: a probe user per `scenarios`
     call (own workspace, `<probe>:chat-…` threads), eight containers,
-    `loop_live --parallel N`; deploy and the first parallel run pending.
-    Then GLM run
+    `loop_live --parallel N`. The held-out split: D1–3, V1–3, X1–3 are
+    measured on and never trained on (the export marks them); D4 D5, V6
+    V7, X4 X5 written for the data, 38 cases. Deploy and the first
+    parallel run pending. Then GLM run
     many times over the scenario prompts, keeping the turns that pass
     their checks, plus the real turns that did — this is where 19's new
     scenarios are written, as prompts for data as well as checks (gate:

@@ -351,6 +351,27 @@ so the loop is closed once end to end before any stage is polished.
   of its own) and a higher container cap — the next build before the
   volume run.
 
+## 3e. The held-out split and the parallel runs, 2026-09-11
+
+- **Held out:** the original cases of D, V and X (D1–3, V1–3, X1–3) are
+  the measuring set — Gemma's baseline (§3b) is on them — and are never
+  trained on; the export marks their runs `held_out: true`. Training data
+  comes from their variants (D4 D5: a config with a trailing comma, a
+  script wanting an environment variable; V6 V7: a cleanup that claims to
+  have removed files, a status line contradicted by its own results file;
+  X4 X5: a catalogue with a note and a message mid-turn, three logs with a
+  counter and a summary) and from L, N, T, U whole. 38 cases in all.
+- **Parallel:** `scenarios` takes a probe user per call (own workspace,
+  `<probe>:chat-…` threads, own run rows) and allows eight containers;
+  `loop_live --deployed --parallel N` spawns N calls at once under
+  `loop-live-p1…pN`. SQLite on the Volume for the data runs was dropped:
+  after the Neon prune (ISS-0067, 394 → 35 MB) it solved nothing.
+- **Volume for v1:** `--temperature 0.7 --parallel 8 D L N T U V X` —
+  8 × 38 = 304 turns in one run's time, of which 8 × 9 = 72 are held-out
+  runs (kept for pass^k on the measuring set, not for training); with the
+  earlier runs about 300 training trajectories before the judge, which is
+  the necessary minimum (§1).
+
 ## 4. Research before step 4: the training run on Modal
 
 Open, to be answered by reading, not running: Unsloth against TRL + peft

@@ -11,6 +11,7 @@ never reads this database or these settings. One JSON file per run in
 
     run_id, model, source, thread_id, started_at, outcome, status,
     model_calls, tool_calls, tool_failed (codes), repeat_guard (not_run count),
+    held_out — a run of D1–3, V1–3 or X1–3: the measuring set, never trained on
     scenario {letter, name, passed, checks}   — from the `scenario_checked` event
     calls — the trajectory lines as written (`app/trajectories.py`)
 
@@ -32,9 +33,18 @@ from typing import Any
 
 from app.config import AgentSettings
 from app.telemetry.open import open_telemetry
+from scripts.training_scenarios import held_out_sequences
 
 VOLUME = "assistant-workspaces"
 FOLDER = ".trajectories"
+HELD_OUT = held_out_sequences()
+
+
+def is_held_out(run_id: str) -> bool:
+    """A run of a held-out case (D1–3, V1–3, X1–3): measured on, never trained on."""
+
+    tail = run_id.rsplit("-", 1)[-1]
+    return tail.isdigit() and int(tail) in HELD_OUT and run_id.startswith(("deployed-", "live-"))
 
 
 def read_local(directory: Path, prefix: str) -> Iterable[tuple[str, list[dict]]]:
@@ -93,6 +103,7 @@ def export(runs: Iterable[tuple[str, list[dict]]], store, out: Path) -> int:
                 "tool_calls": run.tool_calls if run else None,
                 "tool_failed": dict(codes),
                 "repeat_guard": refused,
+                "held_out": is_held_out(run_id),
                 "scenario": scenario,
                 "calls": sorted(calls, key=lambda c: c.get("call_index", 0)),
             }

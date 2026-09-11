@@ -132,6 +132,16 @@ def test_a_hidden_exit_status_still_counts_and_a_mostly_yes_is_a_yes(tmp_path: P
     assert all(v3_checks(hidden, tmp_path).values())
 
 
+def test_the_held_out_cases_are_the_originals_of_d_v_and_x() -> None:
+    from scripts.training_scenarios import HELD_OUT, held_out_sequences
+
+    assert held_out_sequences() == {210, 220, 230, 710, 720, 730, 810, 820, 830}
+    for letter, index in HELD_OUT:
+        assert any(c.index == index for c in FAMILIES[letter].cases)
+    assert {c.index for c in FAMILIES["D"].cases} == {1, 2, 3, 4, 5}
+    assert {c.index for c in FAMILIES["X"].cases} == {1, 2, 3, 4, 5}
+
+
 def test_a_bare_no_is_a_no() -> None:
     from scripts.training_scenarios import says_no
 
