@@ -79,15 +79,27 @@ def read_env(path: Path) -> dict[str, str]:
     return values
 
 
-def plan(values: dict[str, str]) -> tuple[list[tuple[str, str]], list[tuple[str, str]]]:
+def plan(
+    values: dict[str, str], suffix: str = ""
+) -> tuple[list[tuple[str, str]], list[tuple[str, str]]]:
     """Split the allow list into what will be published and what is absent.
 
     Separate from `main` so the decision about what leaves this machine can be
     tested without running anything.
+
+    `suffix` is for a second workspace (2026-09-12): a key that has a
+    `<NAME><suffix>` line in the file is published under `<NAME>` from that
+    line, so `WEB_RENDERER_KEY_2` becomes the deployed `WEB_RENDERER_KEY`
+    while the first workspace's line stays untouched.
     """
 
     pairs = [named(entry) for entry in ALLOWED]
     pairs += [(key, key) for key in sorted(values) if MODEL_SET.match(key)]
+    if suffix:
+        pairs = [
+            (source + suffix, target) if values.get(source + suffix) else (source, target)
+            for source, target in pairs
+        ]
     present = [(source, target) for source, target in pairs if values.get(source)]
     missing = [(source, target) for source, target in pairs if not values.get(source)]
     return present, missing
@@ -104,9 +116,13 @@ def main() -> int:
         return 1
 
     values = read_env(source)
-    present, missing = plan(values)
+    suffix = ""
+    if "--suffix" in sys.argv:
+        at = sys.argv.index("--suffix")
+        suffix = sys.argv[at + 1] if at + 1 < len(sys.argv) else ""
+    present, missing = plan(values, suffix)
 
-    print(f"publishing {len(present)} keys to the {SECRET_NAME} secret:")
+    print(f"publishing {len(present)} keys to the {SECRET_NAME} secret" + (f" (suffix {suffix})" if suffix else "") + ":")
     for names in present:
         print(f"  + {describe(*names)}")
     for names in missing:

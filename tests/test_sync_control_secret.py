@@ -92,3 +92,22 @@ def test_env_parsing_keeps_values_intact(tmp_path: Path) -> None:
     values = read_env(env)
 
     assert values == {"TELEGRAM_TOKEN": "123:ABC", "MODEL_API_KEY": "wk-id.ws-secret"}
+
+
+def test_a_suffixed_line_is_published_under_the_plain_name() -> None:
+    from tools.sync_control_secret import plan
+
+    values = {
+        "WEB_RENDERER_KEY": "first",
+        "WEB_RENDERER_KEY_2": "second",
+        "DEPLOY_WEB_RENDERER_URL": "https://first",
+        "DEPLOY_WEB_RENDERER_URL_2": "https://second",
+        "MODEL_TUNED_API_KEY": "t",
+    }
+    present, _ = plan(values, "_2")
+    assert ("WEB_RENDERER_KEY_2", "WEB_RENDERER_KEY") in present
+    assert ("DEPLOY_WEB_RENDERER_URL_2", "WEB_RENDERER_URL") in present
+    assert ("MODEL_TUNED_API_KEY", "MODEL_TUNED_API_KEY") in present
+    assert not any(source == "WEB_RENDERER_KEY" for source, _ in present)
+    plain, _ = plan(values)
+    assert ("WEB_RENDERER_KEY", "WEB_RENDERER_KEY") in plain
