@@ -110,7 +110,11 @@ in use since 2026-09-06; it is not seen on the hosted model.
   in 26–33 ms. The earlier cancelled pair (`deployed-dpo-9620fd20-210`,
   `deployed-base-12b85d07-210`) was still inside the build at 115 s when
   it was cancelled. The morning's `deployed-base-71d445ba-*` runs, on the
-  copy deployed before item 26, show no such first turn.
+  copy deployed before item 26, show no such first turn. Seen again the
+  same evening: `deployed-base-3d106de2-210` was killed at 54.3 s, still
+  inside the build, and the platform reran the input on a fresh container
+  (`deployed-base-40e5ad1a-*`, its first build 37.0 s); the `scenarios`
+  Function has no retries of its own and reserves 2 GiB.
 - **Costs:** two and a half minutes of a person's first turn on a cold
   worker, paid as CPU seconds and as waiting; a scenario's timing is
   wrong by that much.
