@@ -22,6 +22,8 @@ authorizes nothing; `ROADMAP.md` alone orders work. Evidence lives in
 
 | Id | Status | Defect | Related |
 |---|---|---|---|
+| ISS-0069 | open | after the repeat guard Gemma answers nothing: the request goes out with no tools, the model emits 16–171 tokens, the harness receives no text and no call | 0068, roadmap 24 |
+| ISS-0068 | open, local Windows only | the sandboxed `run_command` kills every Cygwin tool (`sh`, `ls`, `find`, `cat`, `awk`): `CreateFileMapping … Win32 error 5` | 0053, roadmap 24 |
 | ISS-0067 | open, pruned once 2026-09-11 | every checkpoint version of every thread is kept forever; 368 of Neon's 394 MB were old versions | 0066 |
 | ISS-0066 | open | every turn's context load carries the bytes of every image still in history, and then shows the model a stub | 0065, roadmap 18 |
 | ISS-0065 | fixed 2026-09-08 | a `send_file` result carries the file's bytes into the thread's history | 0064, roadmap 23 |
@@ -96,6 +98,48 @@ in use since 2026-09-06; it is not seen on the hosted model.
 ---
 
 ## Open
+
+### ISS-0069 — after the repeat guard, Gemma answers nothing
+
+- **Status:** open. Seen through the fine-tune measurement (roadmap 24);
+  older than the fine-tune.
+- **Seen:** 2026-09-12, five guard-ended turns of the tuned Gemma on the
+  local harness (D4 D5 V1 V6 V7), and the untuned Gemma's X2 on the
+  deployed Linux worker on 2026-09-11 (`deployed-v2-aaa50fb0-820`): once
+  the guard says "no further tools will run", the next request carries no
+  `tools`; the model returns `finish_reason: stop` with 16–171 output
+  tokens; the harness gets an empty text and no call, and the person an
+  empty answer. GLM in the same state answers in words.
+- **Costs:** every turn Gemma loops into the guard ends with nothing said.
+- **Reproduce:** any repeat loop on a Gemma set through vLLM; the last
+  completion's usage against its text.
+- **Cause:** not shown. The likely shape: the model emits a `<|tool_call>`
+  without a declaration to match, and vLLM's `gemma4` tool parser drops
+  it, content and all. What the tokens were is not recorded locally
+  (`dump_dir` is unset in the local profile); the deployed `.sse` dump of
+  run 820 would show it.
+- **Belongs to:** the harness (the request shape after the guard, and
+  what it does with a completion that has tokens but no content) with the
+  serving stack; not the model alone.
+
+### ISS-0068 — the local Windows `run_command` kills every Cygwin tool
+
+- **Status:** open; local profile on Windows only.
+- **Seen:** 2026-09-12, `loop_live --model tuned D V X` locally: `sh
+  tools_task/build.sh`, `ls`, `find`, `cat`, `awk` each die at once with
+  `*** fatal error - CreateFileMapping S-1-5-…, Win32 error 5.
+  Terminating.` and exit code 256, while `python` and `cmd` built-ins
+  run. Five of the six failed cases begin there; the model then improvises
+  (`dir` with a forward slash, `set X=… &&` with cmd's trailing space).
+- **Costs:** the training and measuring scenarios are written for the
+  Linux worker (`python3`, `VAR=… cmd`, `.sh` scripts); on this machine
+  they measure the sandbox, not the model. A local run cannot stand beside
+  the deployed baselines.
+- **Reproduce:** locally, `run_command` with `ls`.
+- **Cause:** the restricted-token sandbox around a command (Windows) denies
+  the shared memory Cygwin/MSYS processes create at start
+  (`CreateFileMapping` on the user's SID). Not investigated further.
+- **Belongs to:** the harness's Windows command boundary.
 
 ### ISS-0067 — every checkpoint version of every thread is kept forever
 
