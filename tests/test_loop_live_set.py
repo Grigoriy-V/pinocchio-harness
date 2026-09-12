@@ -30,8 +30,11 @@ def test_side_by_side_puts_the_same_scenario_on_one_line() -> None:
 def test_model_and_temperature_reach_the_environment_for_the_local_path(monkeypatch) -> None:
     from scripts.loop_live import apply_model
 
-    monkeypatch.delenv("MODEL", raising=False)
-    monkeypatch.delenv("MODEL_TUNED_TEMPERATURE", raising=False)
+    # Set, not deleted: `delenv` of a name that is absent records nothing,
+    # and the value `apply_model` writes then outlived the test and turned
+    # every later `ModelSettings()` into the `tuned` set (2026-09-12).
+    monkeypatch.setenv("MODEL", "")
+    monkeypatch.setenv("MODEL_TUNED_TEMPERATURE", "")
     apply_model(["--model", "tuned", "--temperature", "0.7", "D"])
     import os
 
