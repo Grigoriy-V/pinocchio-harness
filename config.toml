@@ -71,6 +71,15 @@ endpoint = "https://grigoriy98smile--pinocchio-tune-serve-server-serve.modal.run
 name = "gemma-4-12b-tuned"
 auth_style = "modal_proxy"
 
+[model.sets.base]
+# The same Gemma 4 12B untuned, bf16, served by the same App code on the
+# same workspace and card: the "before" of the roadmap 24 measurement, so
+# that the two endpoints differ in nothing but the weights. Same key as
+# `tuned` (one workspace, one proxy token).
+endpoint = "https://grigoriy98smile--pinocchio-tune-serve-base-server-serve.modal.run/v1"
+name = "gemma-4-12b-base"
+auth_style = "modal_proxy"
+
 [agent]
 # The PostgreSQL schema the deployed store, checkpoints, inbox and telemetry
 # live in (the URL itself is a secret in `.env`). Ignored by the local SQLite.
