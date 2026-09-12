@@ -26,7 +26,9 @@ owns current work, order and authorization.
   switch the whole deployment by one line, `MODEL=<name>`; every set is in
   the control secret. The three GPU Apps (`assistant-llm-v2` Gemma 4 12B,
   `assistant-llm-qwen` and `assistant-llm-qwen-int4`) stay deployed as
-  sets, scaled to zero, not in use.
+  sets, scaled to zero, not in use; so do `tuned` and `base`, the
+  fine-tune experiment's Gemma on the owner's second Modal workspace,
+  where a copy of `assistant-control` runs the scenarios (item 24).
 - **Control plane:** `assistant-control` on Modal serves the webhook, the
   update worker, `render_web_page`, `run_command` and `scenarios`; the
   database is Neon at schema version 4; secrets are published from the
@@ -107,116 +109,29 @@ Items of the 2026-09-07 order, closed:
   Nothing removed; the candidates stay measured in the report. ISS-0056
   fixed as named; ISS-0066 recorded.
   `reports/2026-09-08_item18_harness_seconds.md`.
+- **24, the fine-tune experiment** (closed 2026-09-12, the human): Gemma 4
+  12B-IT with a LoRA r=16 on 782 of this harness's own GLM turns, trained,
+  merged and served from the training repository `pinocchio-finetune`,
+  measured blind beside the untuned model on Linux workers — GLM 9.81,
+  untuned bf16 9.25, tuned 8.67, int4 QAT 8.15: the fine-tune did not help.
+  Left in the harness: trajectory capture, the seven scenario families with
+  outcome checks and held-out cases, the export, the blind-judge pack and
+  unblind tools, the sets `tuned` and `base`; found ISS-0068, ISS-0069, and
+  the int4 endpoint a point below bf16.
+  `reports/2026-09-11_gemma_finetune_experiment.md` §5; further
+  experiments live in that repository's own roadmap.
+- **19, the scenario suite** (closed 2026-09-12, the human): checks read
+  outcomes, never a route the prompt did not name; seven families D L N T
+  U V X with seeds, variants and held-out cases; `--model`,
+  `--temperature`, `--repeat`, `--parallel`, a probe user per call. Not
+  built, dropped with it: the time split into model, tool and wait (18
+  named the harness's seconds instead) and a batch that survives its
+  container (a preempted call restarted itself in the volume run).
 
 ## Queue
 
-The order approved 2026-09-07; 24 put first 2026-09-11. One item at a
+The order approved 2026-09-07. One item at a
 time; research first where noted; the human's word starts each.
-
-24. **An experiment: Gemma 4 12B fine-tuned on this harness's own turns.**
-    Approved 2026-09-11 (the human). The goal, in the human's words, is
-    experience and a portfolio piece — a LoRA/QLoRA of an open model on
-    trajectories collected from one's own agent harness, measured before
-    and after on the same scenario suite. It is not a product step: the
-    hosted GLM stays the assistant's model, and the result is a table, not
-    a replacement. "More agentic" means, measured on the mini set and the
-    wider letters: tool calls that parse (ISS-0001), turns that finish,
-    steps to finish, claims about what was not observed (ISS-0004), and —
-    the main one — an LLM judge with a fixed rubric, the project agent
-    itself in the first version (the human, 2026-09-11; the rubric in the
-    report).
-    Compute: there is no local GPU; every run — baseline, generation,
-    training, evaluation — is a Modal GPU worker, dollars stated and a
-    gate each. Order: (1) count the usable turns already in the deployed
-    store, read-only — done 2026-09-11: ~40 trajectories survive, the
-    scenario runner resets its threads, so data is collected at run time;
-    (2) the metrics fixed and Gemma 4 12B's baseline on the suite through
-    `assistant-llm-v2` (gate) — mini set done 2026-09-11: 8/8, judge 9.7,
-    at the ceiling; the wider letters and 19's new scenarios are where a
-    difference can show (report §2a); (3) the data — the capture built
-    2026-09-11: every model call kept as the model saw it, one file per
-    run on the Volume (`AGENT_TRAJECTORIES`); the training loop itself —
-    export to SFT format, Unsloth/TRL on Modal, merge, publish — lives in
-    a separate repository, made when step 4 starts (the human,
-    2026-09-11; DECISIONS). This repository hands over trajectories with
-    their outcome and check results attached (an export tool, to build)
-    and takes back a model set. Deployed 2026-09-11; the first eleven
-    trajectory files are GLM's mini set, judged 9.9 beside Gemma's 9.7
-    (report §2a). Research for the scenarios read 2026-09-11
-    (`reports/2026-09-11_finetune_scenarios_research.md`): 500–1,000
-    kept trajectories is the range that moved 7–13B models; checks test
-    outcomes, never a tool the prompt did not name (C and O corrected);
-    seven scenario families — built the same day on the human's word
-    ("давай все"): D L N T U V X, 21 prompts with seeds and outcome checks
-    in `scripts/training_scenarios.py`, `--repeat N` in `loop_live`;
-    offline tests; deployed and run on GLM the same day: 21/21, judge 9.95
-    (one point: a `pip install` into the machine's python on D2, a
-    standing-rule miss only the judge sees). 32 trajectory files on the
-    Volume. Gemma on the same letters the same day: 18/21 (19 after a
-    check fix), 151 model calls to GLM's 79, judge 9.0 to 9.7 — the gap has
-    one shape, re-running the same command when a result surprises it,
-    until the repeat guard ends the turn (report §3b). `--temperature`
-    built for the data runs (the product samples at 0); two sampled
-    repeats the same day: sequences differ on 12 of 21 cases (every wrong
-    turn and long task), the same on the nine one-move cases; GLM 39/42
-    (report §3c). Export built (`tools/export_trajectories.py`, the
-    `scenario_checked` event; 95 runs exported) and variants of the nine
-    one-move cases (32 cases now). The human's rule for the rest
-    (2026-09-11): generation runs in parallel, the first training version
-    from the necessary minimum, the loop closed once before any polish.
-    Neon: 368 of 394 MB were old checkpoint versions, pruned to 35 MB
-    (ISS-0067; SQLite on the Volume for the data runs dropped as needless,
-    the human's call). Parallel runs built: a probe user per `scenarios`
-    call (own workspace, `<probe>:chat-…` threads), eight containers,
-    `loop_live --parallel N`. The held-out split: D1–3, V1–3, X1–3 are
-    measured on and never trained on (the export marks them); D4 D5, V6
-    V7, X4 X5 written for the data, 38 cases. Deployed; two parallel
-    calls of D checked live, 10/10, nothing shared but the database. The
-    volume run done 2026-09-11: 8 × 38 at 0.7, 292/304 by the checks (one
-    container preempted and restarted by Modal); exported: **260 GLM
-    training trajectories, 814 samples**, 87 held-out runs all passed
-    (report §3f) — the v1 set; probe rows pruned after. Step 3 done. The
-    judge is blind Sonnet subagents since 2026-09-11 (the human;
-    `tools/judge_pack.py`, three votes, calibrated: GLM 9.90, Gemma 8.65
-    on the families, agreement within a point on 40/42). Step 4 started
-    2026-09-11 on the human's word: the training repository
-    `Grigoriy-V/pinocchio-finetune` (private, D:/ML/pinocchio-finetune)
-    holds the export-to-SFT converter (814 samples from the v1 export,
-    4.37M teacher tokens, 33k of them completion tokens), the Modal QLoRA
-    app (L40S, r=16, bf16 base google/gemma-4-12B-it, merge) and a vLLM
-    serving app whose endpoint comes back here as `[model.sets.tuned]`;
-    its `reports/2026-09-11_v1_plan.md` carries prices and open risks.
-    The v1 adapter trained 2026-09-12 (A100-40, 2 h 46 min, ≈ $8 with
-    reservations; loss 1.47 → 0.17, its report there). Gemma's chat
-    template turned out to close the model turn after a text-with-call
-    message — an inference-time property the harness meets through vLLM,
-    recorded there, not acted on. Remaining gates, on hold while the
-    Modal balance is out (the human, 2026-09-12): merge, deploy as
-    `[model.sets.tuned]`, measure on the held-out families. Done
-    2026-09-12 on the human's second Modal workspace (`grigoriy98smile`,
-    the harness deployed there too; sets `tuned` and `base`): three blind
-    Sonnet judges on 52 transcripts — GLM 9.81, untuned Gemma bf16 9.25,
-    **v1 LoRA 8.67**, int4 QAT 8.15; checks 16/17 vs 15/17. The
-    fine-tune did not help: its whole gap is two repeat loops (V1, V6),
-    the shape imitation data cannot correct (report §5). Findings: the
-    product's int4 endpoint is a point below bf16; ISS-0068, ISS-0069.
-    The loop is closed once; what comes next is the human's choice
-    (options in the training repository's report). Then GLM run
-    many times over the scenario prompts, keeping the turns that pass
-    their checks, plus the real turns that did — this is where 19's new
-    scenarios are written, as prompts for data as well as checks (gate:
-    model calls, priced); (4) training on Modal, LoRA on A100 or QLoRA on
-    A10, assistant tokens only, the tool schemas kept in the context
-    (gate); (5) the fine-tuned model deployed as one more model set and
-    the same suite run before/after (gate). Research first: which of
-    Unsloth or TRL+peft runs Gemma 4 on Modal, and the sequence length the
-    turns need. Report: `reports/2026-09-11_gemma_finetune_experiment.md`
-    (to be written with step 1).
-
-19. **The scenario suite, reconsidered.** After 16: checks on events rather
-    than routes, time split into model, tool and wait, a batch that survives
-    its container. Was item 10. Its new scenarios are written inside 24's
-    step 3, where they double as the data's prompts; the rest waits.
 
 21. **One browser tool, and the page rendered apart from the secrets.**
     Approved 2026-09-07 (the human). Deployed, `use_page open url` runs a
