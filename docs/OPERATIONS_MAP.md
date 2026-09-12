@@ -41,7 +41,9 @@ Deploying `assistant-control` never touches a model App.
 
 - **`config.toml`** at the repository root, committed, shipped in the image
   beside the source: every setting that is not a secret, in sections
-  `[model]`, `[model.sets.<name>]`, `[agent]`, `[telegram]`, `[web]`. The
+  `[model]`, `[model.sets.<name>]`, `[agent]`, `[telegram]`, `[web]`,
+  `[mcp.servers.<name>]` (an MCP server as tools: transport, command or
+  URL, the `.env` key of its token, the allowlist, the read-only list). The
   agent may edit it; a change deployed is a commit and a control-plane
   deploy.
 - **`.env`**, never committed: tokens, keys, database URLs (`env.example`
@@ -106,7 +108,7 @@ timings and counts only and can never fail a turn.
 ```
 
 Reads `.env`, publishes the allow-list only (Telegram, database, every
-`MODEL_<SET>_API_KEY`, web keys), prints names never values, replaces
+`MODEL_<SET>_API_KEY`, every `MCP_<NAME>_TOKEN`, web keys), prints names never values, replaces
 the Modal secret `assistant-control` with `--force`. `DEPLOY_WEB_RENDERER_URL`
 is published as `WEB_RENDERER_URL` so the local profile never sends its page
 views to the deployed renderer. No second sync path, no values typed into the

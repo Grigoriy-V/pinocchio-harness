@@ -61,6 +61,7 @@ are not reachable by following imports from `app/`.
 | Add/change a tool primitive or the execution path | `app/tools/base.py`, `app/tools/execution.py` | `Tool`, `ToolError`, `Toolbox`, `handover`, `ToolExecutor`, `pre_execute`, `execute`, `post_execute`, `tests/test_tool_outcomes.py` |
 | Add a failure code | `app/models/base.py`, `app/tools/base.py`, the family module | `ToolFailure`, `Message.failure`, `fs.*`, `browser.*`, … |
 | Add/change a capability/grant | `app/tools/capabilities.py` | `CapabilityRegistry`, `CapabilityGrant`, `DEFAULT_CAPABILITIES` |
+| Add an MCP server as tools | `config.toml` `[mcp.servers.<name>]`, `app/tools/mcp.py` | `McpSessions`, `mcp_tools`, `contract_of`, `render_result`; `McpSettings` in `app/config.py` |
 | Change what the assistant says it can do, `/can` | `app/capabilities.py` | `system_message`, `capability_report`, `tool_inventory` |
 | Change filesystem tools | `app/tools/filesystem.py` | `resolve_in_root`, `filesystem_tools` |
 | Change attachment admission | `app/attachments.py` | `admit_uploads`, `load_attachments` |

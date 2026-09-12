@@ -161,6 +161,7 @@ web.search / fetch / view search_web, fetch_page, view_web_page          (app/to
 presentation.files        send_file                                      (app/tools/presentation.py)
 always                    remember_fact, search_memory, search_history, read_history, set_goal
 with /plan on             todo_write
+mcp.<server>              <server>_<tool> for each allowed tool       (app/tools/mcp.py)
 ```
 
 - **Filesystem:** every path resolves through `resolve_in_root`; a path
@@ -177,6 +178,17 @@ with /plan on             todo_write
   venv is the model's, in the task's folder, by name; the brief carries the
   one rule about a folder per piece of work. A container is disposable and
   the brief says so once (roadmap 17, 2026-09-08).
+- **MCP servers (roadmap 26):** `[mcp.servers.<name>]` in `config.toml`
+  makes a capability `mcp.<name>`, granted with the defaults; the server's
+  allowed tools become `<name>_<tool>` with the contract rendered from what
+  the server declared. The sessions (`McpSessions`, `app/tools/mcp.py`) run
+  on a loop of their own in a thread, held by the `CapabilityRegistry` like
+  the runner, opened on first use and closed with the agent. A tool the
+  owner listed as `read_only` runs without approval and may be replayed;
+  every other allowed tool asks first, whatever the server's annotations
+  say. A server that cannot be reached contributes no tools and a log line.
+  Results are text; a non-text part is named, not shown; an error result is
+  `mcp.error`, a transport failure `mcp.unreachable`.
 - **Modes:** `full` (default) runs everything inside the workspace without
   asking; `careful` makes `write_file`, `edit_file` and `run_command` ask
   (`app/agent/mode.py`, `Toolbox.ask_for_changes`).
