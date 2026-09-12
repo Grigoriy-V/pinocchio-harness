@@ -458,3 +458,36 @@ request is 5–20k tokens with the prelude, so 16k at least, which on a
 schemas cut from the prelude); assistant-only loss masking with Gemma's
 chat template and tool-call format; the price of one epoch over a few
 hundred trajectories (an hour of A100 80 GB is a few dollars).
+
+## 5. After: the v1 LoRA measured blind beside the untuned model, 2026-09-12
+
+Trained in `pinocchio-finetune` (v1-r16: QLoRA r=16 on `google/gemma-4-12B-it`,
+782 samples, 2 epochs, A100-40, 2 h 46 min, ≈ $8), merged to bf16 and served
+by that repository's `serve_app` on the second Modal workspace beside the
+same base untouched. `assistant-control` deployed to the same workspace so
+the scenarios ran on Linux workers; `loop_live --deployed --model base|tuned
+D V X`, 17 cases each, temperature 0. Packed with the GLM and int4-Gemma
+runs of 2026-09-11 on the same families (held-out cases, 9 each): 52
+transcripts, three blind Sonnet judges (`reports/judge/2026-09-12_after_dvx/`,
+`tools/judge_unblind.py`).
+
+| model | n | checks | judges /10 | per judge |
+|---|---|---|---|---|
+| GLM 5.3 Flash (teacher) | 9 | 9/9 | **9.81** | 9.78 / 10.00 / 9.67 |
+| Gemma-IT bf16 untuned (`base`) | 17 | 16/17 | **9.25** | 9.06 / 9.76 / 8.94 |
+| Gemma-IT bf16 + v1 LoRA (`tuned`) | 17 | 15/17 | **8.67** | 8.59 / 8.94 / 8.47 |
+| Gemma-IT int4 QAT (`v2`, 2026-09-11) | 9 | 7/9 | **8.15** | 8.00 / 8.44 / 8.00 |
+
+Held-out only: base 9.1, tuned 8.2, int4 8.6, GLM 9.8. Agreement within a
+point on 47 of 52. The tuned model's whole gap is two turns of the shape
+the baseline report named — V1 (0.0: the same `sh build.sh && ls` until the
+guard, then nothing said) and V6 (6.0: 92 calls cycling `find`/`cat`/`ls`
+for six minutes until the turn check) — outside them it matches the base
+and beats it on D4/D5. **The v1 fine-tune did not make Gemma more
+agentic**; imitation of a teacher that does not loop carries no example of
+resisting one, and the guard's message appears in almost no training
+prompt. Two findings worth more than the result: the untuned bf16 base
+scores a full point above the int4 QAT endpoint the product serves
+(9.25 vs 8.15), and every Gemma's zero is ISS-0069, the empty answer after
+the guard. Options for a v2 and the harness side are in the training
+repository's `reports/2026-09-12_after_measurement.md`; nothing is decided.

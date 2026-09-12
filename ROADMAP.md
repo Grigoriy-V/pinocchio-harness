@@ -192,7 +192,16 @@ time; research first where noted; the human's word starts each.
     message — an inference-time property the harness meets through vLLM,
     recorded there, not acted on. Remaining gates, on hold while the
     Modal balance is out (the human, 2026-09-12): merge, deploy as
-    `[model.sets.tuned]`, measure on the held-out families. Then GLM run
+    `[model.sets.tuned]`, measure on the held-out families. Done
+    2026-09-12 on the human's second Modal workspace (`grigoriy98smile`,
+    the harness deployed there too; sets `tuned` and `base`): three blind
+    Sonnet judges on 52 transcripts — GLM 9.81, untuned Gemma bf16 9.25,
+    **v1 LoRA 8.67**, int4 QAT 8.15; checks 16/17 vs 15/17. The
+    fine-tune did not help: its whole gap is two repeat loops (V1, V6),
+    the shape imitation data cannot correct (report §5). Findings: the
+    product's int4 endpoint is a point below bf16; ISS-0068, ISS-0069.
+    The loop is closed once; what comes next is the human's choice
+    (options in the training repository's report). Then GLM run
     many times over the scenario prompts, keeping the turns that pass
     their checks, plus the real turns that did — this is where 19's new
     scenarios are written, as prompts for data as well as checks (gate:
