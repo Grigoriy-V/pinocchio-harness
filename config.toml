@@ -61,6 +61,16 @@ endpoint = "https://grigoriy-v--assistant-llm-v2-server-serve.modal.run/v1"
 name = "gemma-4-12b-it"
 auth_style = "modal_proxy"
 
+[model.sets.tuned]
+# Gemma 4 12B with the v1 LoRA of roadmap 24 merged in, served by the
+# training repository's `pinocchio-tune-serve` App on the second Modal
+# workspace (bf16 on an L40S). Its key is that workspace's own proxy token,
+# `MODEL_TUNED_API_KEY`; the shared `MODEL_API_KEY` belongs to the first
+# workspace and does not open it. Never the default: a measuring stick.
+endpoint = "https://grigoriy98smile--pinocchio-tune-serve-server-serve.modal.run/v1"
+name = "gemma-4-12b-tuned"
+auth_style = "modal_proxy"
+
 [agent]
 # The PostgreSQL schema the deployed store, checkpoints, inbox and telemetry
 # live in (the URL itself is a secret in `.env`). Ignored by the local SQLite.

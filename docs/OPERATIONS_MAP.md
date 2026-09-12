@@ -81,7 +81,10 @@ The deployed default, `[model.sets.or]`: GLM 5.3 Flash through OpenRouter,
 - `gemini` is a second set on the same endpoint, paused until its cache
   lands (roadmap item 13). `int4`, `qwen`, `v2` are the GPU Apps:
   `auth_style = "modal_proxy"`, the `wk-…` proxy token as the key; the
-  ceiling is read from the server.
+  ceiling is read from the server. `tuned` is the fine-tuned Gemma of
+  roadmap 24, served from the training repository's App on the second
+  Modal workspace; it needs its own `MODEL_TUNED_API_KEY`, that
+  workspace's proxy token.
 
 ### Turn and context settings
 
