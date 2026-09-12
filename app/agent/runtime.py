@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 
+import asyncio
 import hashlib
 import re
 from collections.abc import AsyncIterator, Sequence
@@ -40,7 +41,7 @@ from app.capabilities import (
     system_message,
 )
 from app.instructions import read_instructions
-from app.config import AgentSettings, ModelSettings
+from app.config import AgentSettings, McpSettings, ModelSettings
 from app.context import ContextPolicy, fold_older_messages, load_turn_context
 from app.context.choice import context_choice, share
 from app.context.window import DEFAULT_SYSTEM_PROMPT, system
@@ -50,6 +51,7 @@ from app.telemetry import NO_TRACE, Telemetry, TurnTrace
 from app.telemetry.trace import spent
 from app.preflight import Probe, backend_probe, report, run, store_probes, tool_probes
 from app.models.openai_compatible import OpenAICompatibleBackend
+from app.tools.mcp import McpSessions
 from app.tools import (
     DEFAULT_CAPABILITIES,
     PRESENT_FILES,
@@ -250,7 +252,9 @@ class Agent:
         self.context_tokens = context_tokens
         self.capability_registry = capability_registry or CapabilityRegistry(self.workspace)
         if capability_grant is None:
-            capabilities = DEFAULT_CAPABILITIES
+            # A configured MCP server is granted with the defaults: being in
+            # `config.toml` is the owner's decision that the assistant has it.
+            capabilities = DEFAULT_CAPABILITIES + self.capability_registry.mcp_names
             if not (delivery.media or delivery.files):
                 capabilities = tuple(
                     name for name in capabilities if name != PRESENT_FILES
@@ -775,6 +779,9 @@ class Agent:
             await close()
         if self._checkpoint_handle is not None:
             await self._checkpoint_handle.close()
+        sessions = getattr(self.capability_registry, "mcp", None)
+        if sessions is not None:
+            await asyncio.to_thread(sessions.close)
         self.store.close()
 
 
@@ -855,11 +862,18 @@ def create_agent(
     Path(agent_settings.workspace).mkdir(parents=True, exist_ok=True)
     workspace = user_workspace(agent_settings.workspace, user_id)
     workspace.mkdir(parents=True, exist_ok=True)
+    # The MCP servers of `config.toml` (roadmap 26): sessions for the life of
+    # this agent, closed with it; none configured, nothing opened.
+    mcp_settings = McpSettings()
+    sessions = McpSessions(mcp_settings) if mcp_settings.servers else None
+    registry = (
+        CapabilityRegistry(workspace, runner=runner, mcp=sessions) if runner or sessions else None
+    )
     return Agent(
         backend=OpenAICompatibleBackend(model_settings or ModelSettings()),
         store=open_store(agent_settings),
         workspace=workspace,
-        capability_registry=CapabilityRegistry(workspace, runner=runner) if runner else None,
+        capability_registry=registry,
         policy=policy,
         system_prompt=system_prompt or DEFAULT_SYSTEM_PROMPT,
         checkpoints=agent_settings.checkpoints,

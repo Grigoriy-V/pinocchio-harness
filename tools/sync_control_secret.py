@@ -43,6 +43,9 @@ SECRET_NAME = "assistant-control"
 # the secret carries credentials only. A named model set's key is
 # `MODEL_<SET>_API_KEY`; the set's other lines are in the file.
 MODEL_SET = re.compile(r"^MODEL_[A-Z0-9]+_API_KEY$")
+# An MCP server's bearer token (roadmap 26): `MCP_<NAME>_TOKEN`, named by
+# `[mcp.servers.<name>].token` in the file.
+MCP_TOKEN = re.compile(r"^MCP_[A-Z0-9]+_TOKEN$")
 
 ALLOWED: tuple[str | tuple[str, str], ...] = (
     "TELEGRAM_TOKEN",
@@ -95,6 +98,7 @@ def plan(
 
     pairs = [named(entry) for entry in ALLOWED]
     pairs += [(key, key) for key in sorted(values) if MODEL_SET.match(key)]
+    pairs += [(key, key) for key in sorted(values) if MCP_TOKEN.match(key)]
     if suffix:
         pairs = [
             (source + suffix, target) if values.get(source + suffix) else (source, target)

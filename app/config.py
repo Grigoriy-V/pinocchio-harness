@@ -20,7 +20,7 @@ from contextvars import ContextVar
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import field_validator
+from pydantic import BaseModel, field_validator
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 
 CONFIG_FILE_VAR = "CONFIG_FILE"
@@ -486,3 +486,57 @@ class AgentSettings(Configured):
     # part a person notices breaking: turning it off is a redeployed setting,
     # not a reverted release.
     stream_answers: bool = True
+
+
+class McpServerConfig(BaseModel):
+    """One MCP server the assistant may use as tools (roadmap 26).
+
+    `transport` is `stdio` (a `command` this process starts) or `http` (a
+    `url`, Streamable HTTP). `token` names the `.env` key whose value goes in
+    the `Authorization: Bearer` header; the value itself is never in the
+    file. `tools` is the allowlist: a tool the server offers that is not
+    named here does not exist to the model; empty means none. `read_only`
+    names the tools the owner vouches for: they run without approval and may
+    be replayed. Any other allowed tool asks first, because the server's own
+    annotations are hints a client must not trust.
+    """
+
+    transport: Literal["stdio", "http"] = "stdio"
+    command: list[str] = []
+    url: str = ""
+    token: str = ""
+    tools: list[str] = []
+    read_only: list[str] = []
+    timeout: float = 60.0
+
+
+def secret_named(key: str) -> str:
+    """The value of one `.env` key by name, the environment first; empty when absent.
+
+    Here rather than in a tool because this file is where the environment is
+    read; a caller gets the value to send, never the file.
+    """
+
+    if not key:
+        return ""
+    value = os.environ.get(key)
+    if value is not None:
+        return value
+    from dotenv import dotenv_values
+
+    return dotenv_values(".env").get(key) or ""
+
+
+class McpSettings(Configured):
+    """The `[mcp.servers.<name>]` sections of `config.toml`."""
+
+    model_config = SettingsConfigDict(env_prefix="MCP_", env_file=".env", extra="ignore")
+
+    servers: dict[str, McpServerConfig] = {}
+
+    @classmethod
+    def section(cls, config: dict[str, Any], values: dict[str, Any]) -> dict[str, Any]:
+        return {"servers": dict((config.get("mcp") or {}).get("servers") or {})}
+
+    def token_for(self, name: str) -> str:
+        return secret_named(self.servers[name].token)

@@ -111,3 +111,14 @@ def test_a_suffixed_line_is_published_under_the_plain_name() -> None:
     assert not any(source == "WEB_RENDERER_KEY" for source, _ in present)
     plain, _ = plan(values)
     assert ("WEB_RENDERER_KEY", "WEB_RENDERER_KEY") in plain
+
+
+def test_an_mcp_servers_token_is_published_by_its_name() -> None:
+    """`[mcp.servers.<name>].token` names an `.env` key `MCP_<NAME>_TOKEN`;
+    the key goes to the secret, the server's other lines are in the file."""
+
+    values = {"MCP_GITHUB_TOKEN": "ghp", "MCP_GITHUB_URL": "not a secret", "MCP_TOKEN_X": "no"}
+
+    present, _missing = plan(values)
+
+    assert [target for _source, target in present] == ["MCP_GITHUB_TOKEN"]

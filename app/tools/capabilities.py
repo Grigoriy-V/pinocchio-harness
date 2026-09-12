@@ -10,6 +10,7 @@ from app.tools.base import Tool, Toolbox
 from app.tools.browser import Pages, browser_tools
 from app.tools.documents import document_tools
 from app.tools.filesystem import filesystem_tools
+from app.tools.mcp import CAPABILITY_PREFIX, McpSessions, mcp_tools
 from app.tools.presentation import presentation_tools
 from app.tools.shell import LocalRunner, Runner, shell_tools
 from app.tools.web import web_fetch_tools, web_search_tools, web_view_tools
@@ -77,11 +78,15 @@ class CapabilityRegistry:
         workspace: Path,
         capabilities: Iterable[Capability] | None = None,
         runner: Runner | None = None,
+        mcp: McpSessions | None = None,
     ) -> None:
         self.workspace = Path(workspace).resolve()
         if not self.workspace.is_dir():
             raise ValueError(f"the workspace {workspace} is not a directory")
         self.runner: Runner = runner if runner is not None else LocalRunner()
+        # The connections to configured MCP servers (roadmap 26), kept here
+        # like the runner: one per process, not per toolbox.
+        self.mcp = mcp
         # The open page, kept between the calls of one turn whichever toolbox
         # they come through (a toolbox is built per thread, and more than once).
         self.pages = Pages()
@@ -101,10 +106,19 @@ class CapabilityRegistry:
             )
         )
         self._capabilities = {capability.name: capability for capability in configured}
+        for server in (mcp.names if mcp is not None else ()):
+            name = CAPABILITY_PREFIX + server
+            self._capabilities[name] = Capability(name, lambda root, s=server: mcp_tools(mcp, s))
 
     @property
     def names(self) -> tuple[str, ...]:
         return tuple(self._capabilities)
+
+    @property
+    def mcp_names(self) -> tuple[str, ...]:
+        """The capabilities that stand for configured MCP servers."""
+
+        return tuple(name for name in self._capabilities if name.startswith(CAPABILITY_PREFIX))
 
     def grant(
         self,

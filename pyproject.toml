@@ -61,6 +61,9 @@ deploy = [
 # which Claude Code and Codex accept.
 mcp = [
     "mcp>=1.29,<2",
+    # The reference time server, the first MCP server the assistant uses
+    # (`[mcp.servers.time]`); also in the deployed image.
+    "mcp-server-time>=2025.8",
 ]
 postgres = [
     "psycopg[binary]>=3.2",

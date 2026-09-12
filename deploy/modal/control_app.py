@@ -39,7 +39,7 @@ control_secret = modal.Secret.from_name(SECRET_NAME)
 # every deploy reinstalled all of it — minutes, each time, for a one-line edit.
 _dependencies = modal.Image.debian_slim(python_version="3.12").uv_sync(
     ".",
-    groups=["app", "agent", "postgres", "deploy", "documents"],
+    groups=["app", "agent", "postgres", "deploy", "documents", "mcp"],
     frozen=True,
     extra_options="--no-install-project",
 )

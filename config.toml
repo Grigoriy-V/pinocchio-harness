@@ -113,3 +113,24 @@ max_redirects = 3
 max_bytes = 1000000
 viewport_width = 1200
 viewport_height = 900
+
+# MCP servers the assistant uses as tools (roadmap 26). A server here is a
+# capability `mcp.<name>`, granted with the defaults; `tools` is the
+# allowlist (a tool not named does not exist to the model); `read_only` names
+# the tools the owner vouches for, which run without approval — every other
+# allowed tool asks first, because a server's own annotations are hints.
+# `token` names the `.env` key sent as a bearer header; never the value.
+[mcp.servers.time]
+transport = "stdio"
+# The reference server, installed with the `mcp` group (`python -m`, so the
+# deployed image needs no `uvx`).
+command = ["python", "-m", "mcp_server_time"]
+tools = ["get_current_time", "convert_time"]
+read_only = ["get_current_time", "convert_time"]
+
+[mcp.servers.github]
+transport = "http"
+url = "https://api.githubcopilot.com/mcp/"
+token = "MCP_GITHUB_TOKEN"
+tools = ["get_file_contents", "list_issues", "get_issue", "search_code", "list_commits"]
+read_only = ["get_file_contents", "list_issues", "get_issue", "search_code", "list_commits"]
