@@ -565,25 +565,63 @@ def one_turn(text: str, model: str, thread: str, user: str, ceiling: int) -> Tur
     )
 
 
-@mcp.tool(annotations=STARTS_WORKERS, meta=ASK_EVERY_TIME)
-async def run_turn(ctx: Context, text: str, model: str = "", thread: str = "chat-mcp", max_tool_calls: int = 40) -> TurnResult:
-    """The assistant as a tool: one turn on `text` in a sealed room (a
-    temporary workspace and databases of its own, a probe user), on the
-    model set `model` (empty is the `.env` default, the product's hosted
-    model). An approval the turn asks for is answered no: the caller is not
-    the person. Stops after `max_tool_calls`. Priced: the model's tokens; a
-    GPU App wakes if the set is one. Asks the person before starting.
-    Returns: the answer, the run id, the tools called, seconds and call
-    counts, and the telemetry file the trace went to (read it with `run`
-    after pointing AGENT_TELEMETRY_DATABASE at it).
-    Leaves: the sealed room under the system temp folder."""
+def deployed_turn(text: str, model: str) -> TurnResult:
+    """The same turn in the deployed worker, through its `ask` Function on
+    the active Modal workspace: the product's image, secrets, Volume,
+    command runner and MCP servers. Blocks; runs in a thread."""
 
+    import modal
+
+    function = modal.Function.from_name("assistant-control", "ask")
+    result = function.remote(text, model)
+    return TurnResult(
+        ok=not result.get("failures"),
+        answer=result.get("answer", ""),
+        run_id=result.get("run_id", ""),
+        tools=list(result.get("tools", [])),
+        seconds=float(result.get("seconds", 0.0)),
+        model_calls=int(result.get("model_calls", 0)),
+        tool_calls=int(result.get("tool_calls", 0)),
+        telemetry="the deployed database (AGENT_DATABASE_URL)",
+        reason="; ".join(result.get("failures", [])),
+    )
+
+
+@mcp.tool(annotations=STARTS_WORKERS, meta=ASK_EVERY_TIME)
+async def run_turn(
+    ctx: Context,
+    text: str,
+    model: str = "",
+    thread: str = "chat-mcp",
+    max_tool_calls: int = 40,
+    deployed: bool = False,
+) -> TurnResult:
+    """The assistant as a tool: one turn on `text`. Locally, in a sealed
+    room (a temporary workspace and databases of its own, a probe user);
+    with `deployed`, in the deployed worker on the active Modal workspace
+    through its `ask` Function, with the product's own image, secrets,
+    Volume, command runner and MCP servers. The model set `model` (empty is
+    the default, the product's hosted model). An approval the turn asks for
+    is answered no: the caller is not the person. Locally stops after
+    `max_tool_calls`. Priced: the model's tokens, the container when
+    deployed; a GPU App wakes if the set is one. Asks the person before
+    starting.
+    Returns: the answer, the run id, the tools called, seconds and call
+    counts, and where the trace went (a telemetry file, readable with `run`
+    after pointing AGENT_TELEMETRY_DATABASE at it; or the deployed database).
+    Leaves: the sealed room under the system temp folder; deployed, the
+    probe user's thread and workspace on the Volume."""
+
+    where = f"deployed on Modal workspace {await modal_profile()}" if deployed else "locally"
     question = (
-        f"Run one turn of the assistant on model set {model or '(the .env default)'}, "
-        f"text: {text[:200]!r}. Price: the model's tokens; a GPU App wakes if the set is one. Run?"
+        f"Run one turn of the assistant {where} on model set {model or '(the default)'}, "
+        f"text: {text[:200]!r}. Price: the model's tokens"
+        f"{'; the control container while it runs' if deployed else ''}; a GPU App wakes if the set is one. Run?"
     )
     if (reason := await permitted(ctx, question)) is not None:
         return TurnResult(ok=False, answer="", reason=reason)
+    if deployed:
+        return await asyncio.to_thread(deployed_turn, text, model)
     user = f"mcp-{threading.get_ident()}"
     return await asyncio.to_thread(one_turn, text, model, thread, user, max_tool_calls)
 

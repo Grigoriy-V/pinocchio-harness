@@ -657,6 +657,74 @@ async def scenarios(
 
 
 @app.function(
+    image=agent_image,
+    secrets=[control_secret],
+    volumes={WORKSPACE_ROOT: workspaces},
+    cpu=1.0,
+    memory=2048,
+    min_containers=0,
+    max_containers=2,
+    scaledown_window=2,
+    timeout=900,
+    include_source=False,
+)
+async def ask(text: str, model: str = "", probe: str = "deployed-ask") -> dict:
+    """One turn of the assistant on a free text, here, in the worker's own
+    environment: the same image, secrets, Volume, command runner and MCP
+    servers the product runs with. The way `scenarios` runs a case, for a
+    prompt no scenario has (roadmap 26's deployed check; the MCP server's
+    `run_turn` deployed). A probe user's thread and workspace on the Volume,
+    the deployed telemetry with a run id of this call's own. A paid model
+    call and a product-runtime worker: permission each time.
+    """
+
+    import os
+    import uuid
+
+    if model:
+        os.environ["MODEL"] = model
+
+    from app.agent.interjections import MemoryInterjections
+    from app.agent.runtime import create_agent
+    from app.agent.stop import MemoryStopRequests
+    from app.config import AgentSettings
+    from app.telemetry import open_telemetry
+    from scripts import loop_live
+    from ui.telegram.adapter import DELIVERY
+
+    _settings()
+    telemetry = open_telemetry(AgentSettings())
+    loop_live.USER = probe
+    loop_live.RUN_PREFIX = f"deployed-ask-{uuid.uuid4().hex[:8]}-"
+    agent = create_agent(
+        agent_settings=AgentSettings(),
+        user_id=probe,
+        delivery=DELIVERY,
+        telemetry=telemetry,
+        stops=MemoryStopRequests(),
+        interjections=MemoryInterjections(),
+        runner=ModalRunner(),
+    )
+    await workspaces.reload.aio()
+    try:
+        turn = loop_live.Turn(agent, telemetry, 1)
+        await turn.ask("chat-ask", text)
+    finally:
+        await agent.aclose()
+        telemetry.close()
+        await workspaces.commit.aio()
+    return {
+        "answer": turn.answer,
+        "run_id": turn.run_id,
+        "tools": turn.tools,
+        "seconds": round(turn.seconds, 2),
+        "model_calls": turn.run.model_calls,
+        "tool_calls": turn.run.tool_calls,
+        "failures": [f"{name}: {why.code}" for name, why in turn.failures],
+    }
+
+
+@app.function(
     image=control_image,
     secrets=[control_secret],
     cpu=0.25,

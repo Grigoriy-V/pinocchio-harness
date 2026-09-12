@@ -23,6 +23,7 @@ assistant-control (Modal, CPU)
    ├─ render_web_page           isolated browser
    ├─ run_command               a command in one workspace, no secret
    ├─ scenarios                 live scenarios inside the worker's environment
+   ├─ ask                       one turn on a free text, the same way (MCP run_turn --deployed)
    ├─ self_test                 capability probes
    └─ measure_database_latency  diagnostic
           │
@@ -306,7 +307,8 @@ as `mcp__pinocchio__<tool>`. Thirteen tools: `runs`, `run`,
 `judge_pack` (write files), `work_log_add` (appends); and two that start
 priced work, `run_scenarios` (`loop_live` with its flags) and `run_turn`
 (one turn of the assistant in a sealed room, a probe user, approvals
-inside the turn answered no). Each wrapped script runs as a subprocess in
+inside the turn answered no; `deployed=true` runs it in the deployed
+worker through the `ask` Function of the active workspace). Each wrapped script runs as a subprocess in
 this process's environment, stdout captured, so a script's `print` never
 lands on the protocol's stdout.
 

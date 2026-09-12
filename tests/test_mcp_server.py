@@ -190,3 +190,35 @@ async def test_the_protocol_owns_stdout_and_prints_go_to_stderr(monkeypatch: pyt
     # The newline as the SDK's own wrapper writes it on this platform.
     assert real.buffer.read().rstrip() == b"protocol"
     assert "a trace line" in capsys.readouterr().err
+
+
+async def test_a_deployed_turn_goes_through_the_ask_function(monkeypatch: pytest.MonkeyPatch):
+    seen: list[tuple[str, str]] = []
+
+    def fake_deployed(text: str, model: str):
+        seen.append((text, model))
+        return mcp_server.TurnResult(ok=True, answer="12:34", run_id="deployed-ask-x-1")
+
+    async def never(*args, **kwargs):
+        raise AssertionError("the local room ran for a deployed turn")
+
+    async def profile(argv, **kwargs):
+        return mcp_server.Output(ok=True, text="grigoriy98smile", command="")
+
+    monkeypatch.setattr(mcp_server, "deployed_turn", fake_deployed)
+    monkeypatch.setattr(mcp_server, "one_turn", never)
+    monkeypatch.setattr(mcp_server, "run_script", profile)
+    questions: list[str] = []
+
+    async def remember_and_accept(context, params):
+        questions.append(params.message)
+        return ElicitResult(action="accept", content={"ok": True})
+
+    async with create_connected_server_and_client_session(
+        mcp_server.mcp, elicitation_callback=remember_and_accept
+    ) as session:
+        result = await session.call_tool("run_turn", {"text": "what time is it", "model": "or", "deployed": True})
+    assert seen == [("what time is it", "or")]
+    assert result.structuredContent["run_id"] == "deployed-ask-x-1"
+    assert "deployed on Modal workspace grigoriy98smile" in questions[0]
+    assert "control container" in questions[0]

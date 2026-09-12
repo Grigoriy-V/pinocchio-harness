@@ -37,6 +37,8 @@ owns current work, order and authorization.
   Chainlit; the boundary for commands exists on Windows only (item 7).
 - **MCP:** the harness is an MCP server (`python -m tools.mcp_server`,
   `.mcp.json`) for the operator tools; the priced two ask in the protocol.
+  The assistant uses MCP servers as tools: `time` (stdio) and GitHub
+  (HTTP, read-only) from `config.toml`, locally and deployed.
 
 ## Done
 
@@ -130,6 +132,13 @@ Items of the 2026-09-07 order, closed:
   at the priced one; `run_turn` on GLM locally; the mini set deployed on
   the second workspace through it, 43 checks passed, progress streamed.
   `reports/2026-09-12_item25_mcp_server.md`.
+- **26, MCP servers as the assistant's tools** (2026-09-12):
+  `[mcp.servers.<name>]` in `config.toml` is a capability `mcp.<name>`,
+  its allowed tools wired with the contract from what the server declared,
+  the owner's `read_only` list deciding approval and replay; sessions on
+  their own loop (`app/tools/mcp.py`). `time` and GitHub configured; one
+  local and one deployed turn used both; the deployed `ask` Function and
+  `run_turn --deployed` came with it. `reports/2026-09-12_item26_mcp_tools.md`.
 - **19, the scenario suite** (closed 2026-09-12, the human): checks read
   outcomes, never a route the prompt did not name; seven families D L N T
   U V X with seeds, variants and held-out cases; `--model`,
@@ -140,17 +149,8 @@ Items of the 2026-09-07 order, closed:
 
 ## Queue
 
-The order approved 2026-09-07; 26 put first 2026-09-12. One item
+The order approved 2026-09-07. One item
 at a time; research first where noted; the human's word starts each.
-
-26. **MCP servers as the assistant's tools.** Approved 2026-09-12 (the
-    human). A capability `mcp:<server>` that lists a configured server's
-    tools and wires each as a `Tool` with the contract the model reads;
-    servers declared in `config.toml` (transport, allowlist), secrets by
-    the usual route; a tool without a read-only annotation asks first and
-    is not replayed. Adding a server later is a config section, not code.
-    First servers chosen after the research of 25. Accepted by an
-    end-to-end turn that uses one, locally and deployed.
 
 21. **One browser tool, and the page rendered apart from the secrets.**
     Approved 2026-09-07 (the human). Deployed, `use_page open url` runs a
