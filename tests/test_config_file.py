@@ -120,3 +120,21 @@ def test_a_set_without_its_own_key_uses_the_shared_one(monkeypatch, tmp_path: Pa
     # A hosted set never borrows the Modal token.
     monkeypatch.setenv("MODEL", "or")
     assert ModelSettings(_env_file=None, _config_file=path).api_key is None
+
+
+def test_a_set_may_read_another_sets_key(monkeypatch, tmp_path: Path) -> None:
+    """`key_of = "tuned"`: the set reads `MODEL_TUNED_API_KEY`, so one
+    workspace's proxy token lives in one variable however many Apps serve
+    from it; its own variable, when set, still wins."""
+
+    path = write(
+        tmp_path,
+        FILE + '\n[model.sets.dpo]\nendpoint = "https://dpo.modal.run/v1"\nauth_style = "modal_proxy"\nkey_of = "tuned"\n',
+    )
+    monkeypatch.setenv("MODEL_API_KEY", "wk-shared.ws-x")
+    monkeypatch.setenv("MODEL_TUNED_API_KEY", "wk-second.ws-2")
+    monkeypatch.setenv("MODEL", "dpo")
+    assert ModelSettings(_env_file=None, _config_file=path).api_key == "wk-second.ws-2"
+    monkeypatch.setenv("MODEL_DPO_API_KEY", "wk-own.ws-3")
+    assert ModelSettings(_env_file=None, _config_file=path).api_key == "wk-own.ws-3"
+

@@ -83,10 +83,12 @@ auth_style = "modal_proxy"
 [model.sets.dpo]
 # The same Gemma 4 12B with the DPO adapter of the fine-tune queue's item 1
 # merged in (loop pairs, two A10s, 2026-09-12), served by the same App code
-# on the same workspace and card as `base` and `tuned`. Same key as them.
+# on the same workspace and card as `base` and `tuned`; reads `tuned`'s key
+# (`MODEL_TUNED_API_KEY`), one variable for the workspace's proxy token.
 endpoint = "https://grigoriy98smile--pinocchio-tune-serve-dpo-server-serve.modal.run/v1"
 name = "gemma-4-12b-dpo"
 auth_style = "modal_proxy"
+key_of = "tuned"
 
 [agent]
 # The PostgreSQL schema the deployed store, checkpoints, inbox and telemetry

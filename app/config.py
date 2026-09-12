@@ -176,6 +176,14 @@ class ModelSettings(Configured):
         if named:
             values["_env_prefix"] = f"MODEL_{named}_"
         super().__init__(**values)
+        if named and self.api_key is None and self.key_of:
+            # A set that names another set's key reads that set's variable,
+            # `MODEL_<KEY_OF>_API_KEY`: the Apps of one workspace share one
+            # proxy token, and the same variable should serve them rather
+            # than a copy per set (the human, 2026-09-12).
+            other = _SharedKey(_env_prefix=f"MODEL_{self.key_of.upper()}_", **_passthrough(values))
+            if other.api_key is not None:
+                self.api_key = other.api_key
         if named and self.api_key is None and self.auth_style == "modal_proxy":
             # A Modal App set without a key of its own uses the plain
             # `MODEL_API_KEY`: the Apps share one proxy token, and one line
@@ -195,6 +203,9 @@ class ModelSettings(Configured):
     endpoint: str = "http://127.0.0.1:8000/v1"
     name: str = "gemma-4-12b-it"
     api_key: str | None = None
+    # The name of another set whose `MODEL_<NAME>_API_KEY` this set reads
+    # when it has none of its own (`key_of = "tuned"` in `config.toml`).
+    key_of: str | None = None
     # Ordinary OpenAI-compatible services use bearer auth. Modal web endpoints
     # can instead require the proxy token as two headers; keeping this explicit
     # avoids guessing from a URL or from the shape of a secret.
