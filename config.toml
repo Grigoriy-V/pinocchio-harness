@@ -80,6 +80,14 @@ endpoint = "https://grigoriy98smile--pinocchio-tune-serve-base-server-serve.moda
 name = "gemma-4-12b-base"
 auth_style = "modal_proxy"
 
+[model.sets.dpo]
+# The same Gemma 4 12B with the DPO adapter of the fine-tune queue's item 1
+# merged in (loop pairs, two A10s, 2026-09-12), served by the same App code
+# on the same workspace and card as `base` and `tuned`. Same key as them.
+endpoint = "https://grigoriy98smile--pinocchio-tune-serve-dpo-server-serve.modal.run/v1"
+name = "gemma-4-12b-dpo"
+auth_style = "modal_proxy"
+
 [agent]
 # The PostgreSQL schema the deployed store, checkpoints, inbox and telemetry
 # live in (the URL itself is a secret in `.env`). Ignored by the local SQLite.
