@@ -1097,6 +1097,10 @@ async def local(selected) -> tuple[int, list[Result]]:
         )
 
     print(f"telemetry {settings.telemetry_database}")
+    from app.config import ModelSettings, chosen_model
+
+    served = ModelSettings()
+    print(f"model set {chosen_model() or '(unnamed)'}: {served.name} at {served.endpoint}")
     failed, rows = await run_scenarios(selected, factory(), telemetry, factory)
     print(
         f"\nRead any of them back with:\n  AGENT_TELEMETRY_DATABASE={settings.telemetry_database} "
@@ -1105,8 +1109,26 @@ async def local(selected) -> tuple[int, list[Result]]:
     return failed, rows
 
 
+def apply_model(argv: list[str]) -> None:
+    """Put `--model` and `--temperature` into the environment the settings
+    read, for the local path too. Until 2026-09-12 only the deployed
+    `scenarios` function did this, and a local `--model tuned` ran the
+    `.env` default in silence (found by the human: no container woke)."""
+    import os
+
+    from app.config import chosen_model
+
+    if model_of(argv):
+        os.environ["MODEL"] = model_of(argv)
+    if temperature_of(argv):
+        chosen = chosen_model()
+        prefix = f"MODEL_{chosen}_" if chosen else "MODEL_"
+        os.environ[f"{prefix}TEMPERATURE"] = temperature_of(argv)
+
+
 async def main() -> int:
     argv = sys.argv[1:]
+    apply_model(argv)
     selected = chosen(argv)
     if "--both" in argv:
         print("=== local ===")

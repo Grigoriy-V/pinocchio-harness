@@ -25,3 +25,15 @@ def test_side_by_side_puts_the_same_scenario_on_one_line() -> None:
     assert lines[2].startswith("A  PASS") and "+3.5" in lines[2]
     assert lines[3].startswith("B  FAIL 1") and lines[3].rstrip().endswith("-")
     assert lines[4].startswith("W  -")
+
+
+def test_model_and_temperature_reach_the_environment_for_the_local_path(monkeypatch) -> None:
+    from scripts.loop_live import apply_model
+
+    monkeypatch.delenv("MODEL", raising=False)
+    monkeypatch.delenv("MODEL_TUNED_TEMPERATURE", raising=False)
+    apply_model(["--model", "tuned", "--temperature", "0.7", "D"])
+    import os
+
+    assert os.environ["MODEL"] == "tuned"
+    assert os.environ["MODEL_TUNED_TEMPERATURE"] == "0.7"
