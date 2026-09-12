@@ -130,8 +130,29 @@ Items of the 2026-09-07 order, closed:
 
 ## Queue
 
-The order approved 2026-09-07. One item at a
-time; research first where noted; the human's word starts each.
+The order approved 2026-09-07; 25 and 26 put first 2026-09-12. One item
+at a time; research first where noted; the human's word starts each.
+
+25. **The harness as an MCP server.** Approved 2026-09-12 (the human), a
+    branch for the project and for the portfolio: what the project agent
+    now does by hand from `tools/` and `scripts/` becomes tools any MCP
+    client can call — run a scenario family on a named model set, read a
+    turn's trace and the harness's seconds, export trajectories, pack a
+    blind judge set and unblind the votes, the doctor, the work log. A
+    tool that wakes a worker is marked so and asks before it runs, in the
+    protocol, not by agreement. Then `run_turn`: the assistant as a tool
+    for another agent, under a probe user and its own budget. Research
+    first (`reports/2026-09-12_mcp_research.md`), then a first version
+    against the local profile; the deployed check on the second Modal
+    workspace, the first being at its limit.
+26. **MCP servers as the assistant's tools.** Approved 2026-09-12 (the
+    human). A capability `mcp:<server>` that lists a configured server's
+    tools and wires each as a `Tool` with the contract the model reads;
+    servers declared in `config.toml` (transport, allowlist), secrets by
+    the usual route; a tool without a read-only annotation asks first and
+    is not replayed. Adding a server later is a config section, not code.
+    First servers chosen after the research of 25. Accepted by an
+    end-to-end turn that uses one, locally and deployed.
 
 21. **One browser tool, and the page rendered apart from the secrets.**
     Approved 2026-09-07 (the human). Deployed, `use_page open url` runs a
