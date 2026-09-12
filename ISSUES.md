@@ -22,6 +22,7 @@ authorizes nothing; `ROADMAP.md` alone orders work. Evidence lives in
 
 | Id | Status | Defect | Related |
 |---|---|---|---|
+| ISS-0070 | open | the first turn on a fresh deployed worker spends ~150 s building the graph before the first model call; the next turns 33 ms | roadmap 18, 26 |
 | ISS-0069 | open | after the repeat guard Gemma answers nothing: the request goes out with no tools, the model emits 16–171 tokens, the harness receives no text and no call | 0068, roadmap 24 |
 | ISS-0068 | open, local Windows only | the sandboxed `run_command` kills every Cygwin tool (`sh`, `ls`, `find`, `cat`, `awk`): `CreateFileMapping … Win32 error 5` | 0053, roadmap 24 |
 | ISS-0067 | open, pruned once 2026-09-11 | every checkpoint version of every thread is kept forever; 368 of Neon's 394 MB were old versions | 0066 |
@@ -98,6 +99,31 @@ in use since 2026-09-06; it is not seen on the hosted model.
 ---
 
 ## Open
+
+### ISS-0070 — the first turn on a fresh worker builds the graph for ~150 s
+
+- **Status:** open. Seen on the measurement of the fine-tune queue's item 1.
+- **Seen:** 2026-09-12, the first case of both `scenarios` calls on the
+  second workspace's `assistant-control`: `graph_built` at 151.1 s
+  (`deployed-dpo-9a6f2f66-210`) and 155.2 s (`deployed-base-7d7c629d-210`),
+  before any model call; every later case of the same container built it
+  in 26–33 ms. The earlier cancelled pair (`deployed-dpo-9620fd20-210`,
+  `deployed-base-12b85d07-210`) was still inside the build at 115 s when
+  it was cancelled. The morning's `deployed-base-71d445ba-*` runs, on the
+  copy deployed before item 26, show no such first turn.
+- **Costs:** two and a half minutes of a person's first turn on a cold
+  worker, paid as CPU seconds and as waiting; a scenario's timing is
+  wrong by that much.
+- **Reproduce:** a fresh `assistant-control` container with
+  `[mcp.servers.time]` and `[mcp.servers.github]` configured; the first
+  turn's `graph_built` span.
+- **Cause:** not shown. The build is synchronous and, since item 26, it
+  opens the MCP sessions and lists their tools on first use: two servers
+  with a 60 s timeout each is the right order of magnitude, but which
+  of them waits, and on what, is not recorded (the `ask` Function's turn
+  of the same day took 17 s in all, with both servers answering).
+- **Belongs to:** the harness (`app/tools/mcp.py`, `McpSessions` on the
+  toolbox build); the seconds should be named on the trace (roadmap 18).
 
 ### ISS-0069 — after the repeat guard, Gemma answers nothing
 
