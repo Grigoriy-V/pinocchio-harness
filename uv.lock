@@ -810,6 +810,9 @@ documents = [
     { name = "pypdfium2" },
     { name = "python-docx" },
 ]
+mcp = [
+    { name = "mcp" },
+]
 postgres = [
     { name = "langgraph-checkpoint-postgres" },
     { name = "psycopg", extra = ["binary"] },
@@ -846,6 +849,7 @@ documents = [
     { name = "pypdfium2", specifier = ">=4.30" },
     { name = "python-docx", specifier = ">=1.1" },
 ]
+mcp = [{ name = "mcp", specifier = ">=1.29,<2" }]
 postgres = [
     { name = "langgraph-checkpoint-postgres", specifier = ">=3.0" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },

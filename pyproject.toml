@@ -55,6 +55,13 @@ deploy = [
 # The deployed profile's conversation store. Not installed locally by default:
 # the local profile keeps using SQLite, and `app/memory/open.py` imports this
 # driver only when a database URL is configured.
+# The harness as an MCP server (`tools/mcp_server.py`, roadmap 25) and, later,
+# MCP servers as the assistant's tools (26). Held below 2 because Chainlit
+# pins `mcp<2` (2.12.0, 2026-09-12); the 1.x SDK speaks protocol 2025-11-25,
+# which Claude Code and Codex accept.
+mcp = [
+    "mcp>=1.29,<2",
+]
 postgres = [
     "psycopg[binary]>=3.2",
     "langgraph-checkpoint-postgres>=3.0",

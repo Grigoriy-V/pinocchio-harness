@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "pinocchio": {
+      "type": "stdio",
+      "command": ".venv/Scripts/python.exe",
+      "args": ["-m", "tools.mcp_server"],
+      "timeout": 3600000
+    }
+  }
+}

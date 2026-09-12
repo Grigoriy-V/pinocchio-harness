@@ -293,6 +293,33 @@ second table from the store instead, since the named events are trace
 events; only the log-only ones after a turn (inbox completion, the Volume
 trips around the worker) need the dump.
 
+## The harness as an MCP server (roadmap 25)
+
+`python -m tools.mcp_server` serves the operator tools above over MCP on
+stdio; `.mcp.json` at the repository root registers it for Claude Code as
+`pinocchio` (Codex takes the same command in its own config), tools appear
+as `mcp__pinocchio__<tool>`. Thirteen tools: `runs`, `run`,
+`harness_seconds`, `thread`, `scenarios`, `judge_unblind`,
+`work_log_search`, `doctor` (read-only); `export_trajectories`,
+`judge_pack` (write files), `work_log_add` (appends); and two that start
+priced work, `run_scenarios` (`loop_live` with its flags) and `run_turn`
+(one turn of the assistant in a sealed room, a probe user, approvals
+inside the turn answered no). Each wrapped script runs as a subprocess in
+this process's environment, stdout captured, so a script's `print` never
+lands on the protocol's stdout.
+
+The gate is in the protocol twice: the priced tools carry
+`anthropic/requiresUserInteraction` (Claude Code asks before every call in
+every mode but `dontAsk`) and ask again themselves through elicitation,
+scope and price in the question; anything but an accepted yes is a
+refusal, and a client without elicitation gets the refusal too. The rule
+that a worker starts on the human's word is not replaced by this; the
+project agent still asks in the chat. No tool returns an environment
+value; the database is reached only by the scripts, through
+`AgentSettings`. The SDK is held below 2 (`mcp>=1.29,<2`, group `mcp`)
+because Chainlit pins it; that speaks protocol 2025-11-25, which the
+clients accept.
+
 ## Other tools
 
 - `tools/prompt_scenarios.py --dry-run` composes the brief and contacts

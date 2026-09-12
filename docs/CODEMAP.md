@@ -84,6 +84,7 @@ are not reachable by following imports from `app/`.
 | **Publish the control secret** | **`tools/sync_control_secret.py`** | **`ALLOWED`, `MODEL_SET`, `DEPLOY_WEB_RENDERER_URL`** |
 | Migrate the deployed database | `tools/setup_control_plane.py` | `setup_control_plane` |
 | Telegram webhook / bot profile | `tools/telegram_webhook.py`, `tools/telegram_profile.py` | `setWebhook`, `--delete`, `--publish` |
+| The harness as an MCP server | `tools/mcp_server.py`, `.mcp.json` | `run_script` (a script as a subprocess), `permitted` (the elicitation gate), `one_turn` |
 | Work journals | `tools/work_log.py` | `reports/agent_tasks.jsonl`, `reports/ml_work.jsonl` |
 | Run the live scenarios | `scripts/loop_live.py` | `MINI` (A B C F W H E M), `WIDER`, `--deployed`, `--both`, `side_by_side`, `run_scenarios`, `Turn`, `tests/test_loop_live_set.py` |
 | Compare prompts on fixed scenarios | `tools/prompt_scenarios.py` | `SCENARIOS`, `--dry-run`, `--goal off`, `--prompt-file` |
