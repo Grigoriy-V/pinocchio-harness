@@ -109,19 +109,48 @@ a retried call) is the client's concern and needs nothing here.
   at HEAD before this item, order-dependent, not seen when the two files
   ran alone.
 
-## Live checks (gates, not run yet)
+## Live checks (approved 2026-09-12, "делай все")
 
-1. A Claude Code session opened in this repository with `.mcp.json`
-   loaded: `runs`, `run`, `scenarios` on local data. Free. Needs a new
-   session (a project's MCP servers load at start and are approved by
-   the person); the transcript goes here.
-2. `run_turn` locally on the `or` set: one short prompt through GLM.
-   Cents.
-3. `run_scenarios` deployed on the second workspace, the mini set on
-   `or`: the control container's minutes and GLM's tokens, under a
-   dollar. The first workspace is not touched.
+1. **Claude Code as the client.** `claude -p` (2.1.251, Sonnet) with
+   `--mcp-config .mcp.json --strict-mcp-config` and the three tools in
+   `--allowedTools`. It called `runs` (three deployed runs listed with
+   their ids) and `scenarios` (seven families, 38 cases, counted per
+   family), then `run_scenarios D` and reported: "`MCPTool requires
+   permission.` It never got to its own 'asks the person before
+   starting' step; my permission mode blocked the call outright, so
+   nothing ran and nothing was priced." The ask-every-time flag held in a
+   headless session even with the tool allowed — the first layer of the
+   gate, before the server's own question.
+2. **`run_turn` locally on `or`.** A stdio client that answers the
+   question yes; prompt: create `notes/hello.txt` with one line and give
+   its size. Answer "16 bytes", tools `write_file`, `run_command`, 3
+   model calls, 15–17 s, trace in the room's telemetry file. The first
+   run showed the trace's JSON lines inside the protocol stream (the
+   client discarded them as invalid messages); fixed by `claim_stdout`,
+   the second run was clean. Two runs, cents of GLM.
+3. **`run_scenarios` deployed on the second workspace**, the mini set on
+   `or`. The question read: "Run scenarios the mini set on model set or,
+   deployed on Modal workspace grigoriy98smile. Price: model tokens for
+   every case; the control container while it runs; a GPU App wakes if
+   the set is one. Run exactly this?" Answered yes. 44 progress
+   notifications reached the client (one per check line and the
+   verdict), `all scenarios passed`: 43 checks over A B C F W H E M, run
+   ids `deployed-or-7270963e-10 … -190`, eleven turns between 10:06:06
+   and 10:09:15 UTC, 4.75–43.6 s each, 164k input tokens in total
+   (`tools/show_run.py --last 12`). The client script then crashed
+   printing the result to a cp1251 console (an emoji in an answer); the
+   server and the run were unaffected. The first workspace was not
+   touched.
 
-## Cost so far
+## Cost
 
-None: no worker, no model call. The stdio check read the deployed
-telemetry from this machine, which is a client read.
+Two local turns and eleven deployed turns of GLM 5.3 Flash (about 200k
+input tokens, cents), about four minutes of the control container on the
+second workspace. No GPU.
+
+## Left open
+
+- Streamable HTTP for this server (a remote client without the
+  repository): not in this version, by the human's word.
+- The 2.x SDK when Chainlit lifts its pin: `FastMCP` → `MCPServer`,
+  elicitation as a retried call; nothing in the tools' contract changes.

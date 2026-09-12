@@ -35,6 +35,8 @@ owns current work, order and authorization.
   owner's `.env` by `tools/sync_control_secret.py`.
 - **Local profile:** the same `app/` runs on the owner's machine with
   Chainlit; the boundary for commands exists on Windows only (item 7).
+- **MCP:** the harness is an MCP server (`python -m tools.mcp_server`,
+  `.mcp.json`) for the operator tools; the priced two ask in the protocol.
 
 ## Done
 
@@ -120,6 +122,14 @@ Items of the 2026-09-07 order, closed:
   the int4 endpoint a point below bf16.
   `reports/2026-09-11_gemma_finetune_experiment.md` §5; further
   experiments live in that repository's own roadmap.
+- **25, the harness as an MCP server** (2026-09-12): `tools/mcp_server.py`
+  on stdio, registered by `.mcp.json`; thirteen tools over the operator
+  scripts, `run_scenarios` and `run_turn` gated in the protocol twice
+  (the ask-every-time flag, then the server's own question with scope
+  and price). Claude Code headless used the read tools and was stopped
+  at the priced one; `run_turn` on GLM locally; the mini set deployed on
+  the second workspace through it, 43 checks passed, progress streamed.
+  `reports/2026-09-12_item25_mcp_server.md`.
 - **19, the scenario suite** (closed 2026-09-12, the human): checks read
   outcomes, never a route the prompt did not name; seven families D L N T
   U V X with seeds, variants and held-out cases; `--model`,
@@ -130,21 +140,9 @@ Items of the 2026-09-07 order, closed:
 
 ## Queue
 
-The order approved 2026-09-07; 25 and 26 put first 2026-09-12. One item
+The order approved 2026-09-07; 26 put first 2026-09-12. One item
 at a time; research first where noted; the human's word starts each.
 
-25. **The harness as an MCP server.** Approved 2026-09-12 (the human), a
-    branch for the project and for the portfolio: what the project agent
-    now does by hand from `tools/` and `scripts/` becomes tools any MCP
-    client can call — run a scenario family on a named model set, read a
-    turn's trace and the harness's seconds, export trajectories, pack a
-    blind judge set and unblind the votes, the doctor, the work log. A
-    tool that wakes a worker is marked so and asks before it runs, in the
-    protocol, not by agreement. Then `run_turn`: the assistant as a tool
-    for another agent, under a probe user and its own budget. Research
-    first (`reports/2026-09-12_mcp_research.md`), then a first version
-    against the local profile; the deployed check on the second Modal
-    workspace, the first being at its limit.
 26. **MCP servers as the assistant's tools.** Approved 2026-09-12 (the
     human). A capability `mcp:<server>` that lists a configured server's
     tools and wires each as a `Tool` with the contract the model reads;
