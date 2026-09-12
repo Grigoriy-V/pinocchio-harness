@@ -588,5 +588,35 @@ async def run_turn(ctx: Context, text: str, model: str = "", thread: str = "chat
     return await asyncio.to_thread(one_turn, text, model, thread, user, max_tool_calls)
 
 
+def claim_stdout() -> Any:
+    """The protocol's own handle on stdout; every later `print` goes to stderr.
+
+    The transport is given a wrapper of the real file descriptor before
+    `sys.stdout` is rebound, so a trace event the harness logs in this
+    process (`app/telemetry/trace.py` prints one JSON line per event) lands
+    beside the protocol, not inside it. Found by the first live `run_turn`:
+    the client threw the lines away as invalid messages, but they were
+    written into the stream a stricter client would close on.
+    """
+
+    import anyio
+    from io import TextIOWrapper
+
+    protocol = anyio.wrap_file(TextIOWrapper(sys.stdout.buffer, encoding="utf-8"))
+    sys.stdout = sys.stderr
+    return protocol
+
+
+async def serve() -> None:
+    from mcp.server.stdio import stdio_server
+
+    protocol = claim_stdout()
+    async with stdio_server(stdout=protocol) as (read_stream, write_stream):
+        server = mcp._mcp_server
+        await server.run(read_stream, write_stream, server.create_initialization_options())
+
+
 if __name__ == "__main__":
-    mcp.run()
+    import anyio
+
+    anyio.run(serve)

@@ -173,3 +173,20 @@ async def test_the_question_names_the_scope(monkeypatch: pytest.MonkeyPatch):
     assert "workspace grigoriy98smile" in questions[0]
     assert "Price" in questions[0]
     assert "what time is it" in questions[1] and "or" in questions[1]
+
+
+async def test_the_protocol_owns_stdout_and_prints_go_to_stderr(monkeypatch: pytest.MonkeyPatch, capsys):
+    import io
+    import sys
+
+    real = io.TextIOWrapper(io.BytesIO(), encoding="utf-8")
+    monkeypatch.setattr(sys, "stdout", real)
+    protocol = mcp_server.claim_stdout()
+    assert sys.stdout is sys.stderr
+    print("a trace line the harness logs")
+    await protocol.write("protocol\n")
+    await protocol.flush()
+    real.buffer.seek(0)
+    # The newline as the SDK's own wrapper writes it on this platform.
+    assert real.buffer.read().rstrip() == b"protocol"
+    assert "a trace line" in capsys.readouterr().err
