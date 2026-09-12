@@ -66,6 +66,24 @@ not screenshots of a chat:
 The same suite records the failures, with run ids, in
 [`ISSUES.md`](ISSUES.md). Regenerate the pages with `tools/showcase.py`.
 
+## MCP, both ways
+
+The harness speaks the Model Context Protocol in both directions. As a
+**server** (`python -m tools.mcp_server`, registered by `.mcp.json`) it
+hands its operator's tools to Claude Code or Codex: the last turns and one
+turn's trace, the harness's own seconds, the scenario suite, the export
+and blind-judge pipeline, the journals — and two priced tools,
+`run_scenarios` and `run_turn`, that ask the person in the protocol
+before they start, twice: Claude Code's ask-every-time flag and the
+server's own question with the scope and the price. As a **client**, a
+section in `config.toml` makes any MCP server the assistant's tools, under
+an allowlist and an approval rule the owner sets rather than the server:
+today a time server over stdio and GitHub's remote server over HTTP,
+locally and deployed. One page: [`docs/MCP.md`](docs/MCP.md); the two
+reports with the live transcripts:
+[`reports/2026-09-12_item25_mcp_server.md`](reports/2026-09-12_item25_mcp_server.md),
+[`reports/2026-09-12_item26_mcp_tools.md`](reports/2026-09-12_item26_mcp_tools.md).
+
 ## Two profiles, one product
 
 ```text
@@ -140,9 +158,9 @@ app/        agent (the loop), context, memory, models, tools, telemetry
 ui/         Chainlit and Telegram adapters
 deploy/     Modal apps: control plane, model, autoscale
 scripts/    live scenarios, doctor, measurements
-tools/      show_run, showcase, prompt_scenarios, work_log
+tools/      show_run, showcase, prompt_scenarios, work_log, mcp_server
 tests/      offline suite
-docs/       PRODUCT, PROJECT_MAP, CODEMAP, OPERATIONS_MAP
+docs/       PRODUCT, PROJECT_MAP, CODEMAP, OPERATIONS_MAP, MCP
 reports/    evidence, dated, with the two JSONL journals
 ```
 
