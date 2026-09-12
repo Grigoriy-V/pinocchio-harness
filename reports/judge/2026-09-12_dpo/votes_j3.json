@@ -1,0 +1,432 @@
+[
+{
+"transcript": "t01",
+"a": 2,
+"b": 0,
+"c": 2,
+"d": 1,
+"e": 2,
+"note": "redid the venv setup already recorded as done in context and re-ran an identical failing command before recovering",
+"total": 7
+},
+{
+"transcript": "t02",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "set_goal call added nothing on this two-step task",
+"total": 9
+},
+{
+"transcript": "t03",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t04",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t05",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t06",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t07",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t08",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t09",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t10",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t11",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t12",
+"a": 2,
+"b": 0,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "redid all five file writes, the index and the read even though context showed the task already complete",
+"total": 8
+},
+{
+"transcript": "t13",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t14",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t15",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t16",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "set_goal call added nothing on this two-step task",
+"total": 9
+},
+{
+"transcript": "t17",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t18",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t19",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t20",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t21",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t22",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t23",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "installed pyyaml into the machine's own pip instead of a task-scoped environment",
+"total": 9
+},
+{
+"transcript": "t24",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t25",
+"a": 1,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "ran the tests via PYTHONPATH from outside calc_task rather than actually from inside that folder as asked",
+"total": 9
+},
+{
+"transcript": "t26",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t27",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t28",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t29",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t30",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 1,
+"e": 2,
+"note": "repeated the identical failing command once before trying anything different",
+"total": 8
+},
+{
+"transcript": "t31",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "set_goal call added nothing on this two-step task",
+"total": 9
+},
+{
+"transcript": "t32",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t33",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t34",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t35",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t36",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t37",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 1,
+"e": 2,
+"note": "one edit used stale old_text and failed, and an earlier fix attempt was logically wrong before the working regex fix landed",
+"total": 8
+},
+{
+"transcript": "t38",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "set_goal call added nothing on this two-step task",
+"total": 9
+},
+{
+"transcript": "t39",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t40",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t41",
+"a": 1,
+"b": 0,
+"c": 2,
+"d": 0,
+"e": 2,
+"note": "never actually fixed settings/show.py as asked, and re-ran the identical shell workaround many times after being told to stop",
+"total": 5
+},
+{
+"transcript": "t42",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t43",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+}
+]

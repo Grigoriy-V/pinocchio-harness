@@ -1,0 +1,432 @@
+[
+{
+"transcript": "t01",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 9,
+"note": "set_goal call on a two-step task added nothing"
+},
+{
+"transcript": "t02",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t03",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t04",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t05",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 9,
+"note": "three read_file calls re-confirmed content already known from write/run output"
+},
+{
+"transcript": "t06",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 9,
+"note": "set_goal plus a redundant verification read added nothing"
+},
+{
+"transcript": "t07",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t08",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 1,
+"e": 2,
+"total": 8,
+"note": "repeated the identical failing command once before changing the working directory"
+},
+{
+"transcript": "t09",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 9,
+"note": "set_goal call added nothing"
+},
+{
+"transcript": "t10",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 9,
+"note": "set_goal call added nothing"
+},
+{
+"transcript": "t11",
+"a": 1,
+"b": 1,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 8,
+"note": "script was written outside library/ though the task implied it belonged inside the folder"
+},
+{
+"transcript": "t12",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 1,
+"e": 2,
+"total": 8,
+"note": "reran the identical failing command once before actually editing the file"
+},
+{
+"transcript": "t13",
+"a": 1,
+"b": 1,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 8,
+"note": "files were placed at the workspace root, not inside a dedicated task folder as asked"
+},
+{
+"transcript": "t14",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t15",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t16",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 9,
+"note": "set_goal plus a redundant final read of day3.txt added nothing"
+},
+{
+"transcript": "t17",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t18",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 9,
+"note": "set_goal call added nothing"
+},
+{
+"transcript": "t19",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t20",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 9,
+"note": "set_goal plus a redundant verification read added nothing"
+},
+{
+"transcript": "t21",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t22",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t23",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t24",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t25",
+"a": 2,
+"b": 2,
+"c": 1,
+"d": 2,
+"e": 2,
+"total": 9,
+"note": "claimed no app.bin exists anywhere though only two directories were actually checked"
+},
+{
+"transcript": "t26",
+"a": 1,
+"b": 0,
+"c": 1,
+"d": 0,
+"e": 1,
+"total": 3,
+"note": "never actually fixed show.py to work and kept repeating the identical command even after being told to stop"
+},
+{
+"transcript": "t27",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t28",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t29",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t30",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t31",
+"a": 2,
+"b": 0,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 8,
+"note": "several redundant listing calls and a pointless re-run of build.sh added nothing"
+},
+{
+"transcript": "t32",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t33",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 1,
+"e": 2,
+"total": 8,
+"note": "slow convergence with a self-inflicted duplicated-content bug and a couple of failed edits before the fix landed"
+},
+{
+"transcript": "t34",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 9,
+"note": "set_goal call added nothing"
+},
+{
+"transcript": "t35",
+"a": 1,
+"b": 1,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 8,
+"note": "tests were run from the workspace root via PYTHONPATH rather than from the task folder as asked"
+},
+{
+"transcript": "t36",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t37",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 9,
+"note": "set_goal call added nothing"
+},
+{
+"transcript": "t38",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 9,
+"note": "set_goal call added nothing"
+},
+{
+"transcript": "t39",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t40",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 9,
+"note": "set_goal call added nothing"
+},
+{
+"transcript": "t41",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 9,
+"note": "installed pyyaml into the machine's own Python instead of a task-local environment"
+},
+{
+"transcript": "t42",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t43",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+}
+]

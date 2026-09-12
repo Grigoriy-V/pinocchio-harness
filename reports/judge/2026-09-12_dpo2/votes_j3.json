@@ -1,0 +1,432 @@
+[
+{
+"transcript": "t01",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 9,
+"note": "listed the out/ dir twice in a row (list_files then ls -R) with no new information between them"
+},
+{
+"transcript": "t02",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t03",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t04",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t05",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 9,
+"note": "read back all three just-written files though their content was already known, adding nothing"
+},
+{
+"transcript": "t06",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t07",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t08",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 1,
+"e": 2,
+"total": 8,
+"note": "reran the identical failing command from the wrong directory before trying a different path"
+},
+{
+"transcript": "t09",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t10",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t11",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t12",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t13",
+"a": 1,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 9,
+"note": "put the package at the workspace root with no dedicated task folder wrapping it and the README/test file, as the prompt asked"
+},
+{
+"transcript": "t14",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t15",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t16",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t17",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t18",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t19",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t20",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t21",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t22",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t23",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t24",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t25",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t26",
+"a": 1,
+"b": 0,
+"c": 2,
+"d": 0,
+"e": 1,
+"total": 4,
+"note": "never actually fixed show.py, instead ran a one-off replica command outside it, and repeated the same call several times after the harness said it had already run"
+},
+{
+"transcript": "t27",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t28",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t29",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t30",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t31",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 9,
+"note": "three near-identical directory listings (list_files, ls -R, ls -F) plus a needless rerun of build.sh added nothing new"
+},
+{
+"transcript": "t32",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t33",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 1,
+"e": 2,
+"total": 8,
+"note": "introduced a duplicated-import bug via its own edits, causing two failed edit_file calls and repeated identical tracebacks before recovering"
+},
+{
+"transcript": "t34",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t35",
+"a": 1,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 9,
+"note": "ran the tests from the workspace root with PYTHONPATH set rather than from the task folder as the prompt specified"
+},
+{
+"transcript": "t36",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t37",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t38",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t39",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t40",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t41",
+"a": 2,
+"b": 0,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 8,
+"note": "installed pyyaml with a bare pip install into the machine's own Python rather than a task-scoped environment"
+},
+{
+"transcript": "t42",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t43",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+}
+]

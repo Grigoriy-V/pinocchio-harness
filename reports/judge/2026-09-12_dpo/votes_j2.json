@@ -1,0 +1,432 @@
+[
+{
+"transcript": "t01",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 1,
+"e": 2,
+"note": "repeated the identical failing command once before changing directory approach",
+"total": 8
+},
+{
+"transcript": "t02",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t03",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t04",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t05",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t06",
+"a": 1,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "no dedicated task folder was created; the package, test file and README were placed directly in the workspace root instead of inside a folder for the task",
+"total": 9
+},
+{
+"transcript": "t07",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t08",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t09",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t10",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t11",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "the set_goal call did no work the task needed",
+"total": 9
+},
+{
+"transcript": "t12",
+"a": 2,
+"b": 0,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "set_goal plus re-running all the writes/reads that context showed were already done added nothing",
+"total": 8
+},
+{
+"transcript": "t13",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t14",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "the set_goal call did no work the task needed",
+"total": 9
+},
+{
+"transcript": "t15",
+"a": 2,
+"b": 1,
+"c": 1,
+"d": 2,
+"e": 2,
+"note": "claimed the original script 'would have crashed' on 'abc' without ever observing that crash, and set_goal plus a redundant python -c rehearsal added nothing",
+"total": 8
+},
+{
+"transcript": "t16",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "the set_goal call did no work the task needed",
+"total": 9
+},
+{
+"transcript": "t17",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t18",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t19",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t20",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t21",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t22",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "the identical request was re-run end to end producing the same result, adding no new work",
+"total": 9
+},
+{
+"transcript": "t23",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "installed pyyaml into the machine's own Python with pip rather than a task-local environment",
+"total": 9
+},
+{
+"transcript": "t24",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t25",
+"a": 1,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "tests were run from the workspace root with PYTHONPATH set rather than from inside the package folder as asked",
+"total": 9
+},
+{
+"transcript": "t26",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t27",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "the page was reopened and recounted for an identical repeated question, adding no new information",
+"total": 9
+},
+{
+"transcript": "t28",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t29",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t30",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "reran the same failing command once before making any change to the path",
+"total": 9
+},
+{
+"transcript": "t31",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "set_goal call added nothing for this two-step task",
+"total": 9
+},
+{
+"transcript": "t32",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "re-read all three just-written files whose contents were already confirmed",
+"total": 9
+},
+{
+"transcript": "t33",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "set_goal call added nothing beyond what the prompt already listed",
+"total": 9
+},
+{
+"transcript": "t34",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t35",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "set_goal call added nothing beyond what the prompt already listed",
+"total": 9
+},
+{
+"transcript": "t36",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t37",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "the list_files('.') call added nothing toward fixing show.py",
+"total": 9
+},
+{
+"transcript": "t38",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "set_goal call added nothing on this two-part task",
+"total": 9
+},
+{
+"transcript": "t39",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t40",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t41",
+"a": 1,
+"b": 0,
+"c": 2,
+"d": 0,
+"e": 1,
+"note": "never actually fixed show.py as asked, and repeated the identical successful/failed python -c call several times instead of changing approach or stopping",
+"total": 4
+},
+{
+"transcript": "t42",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t43",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+}
+]

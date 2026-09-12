@@ -1,0 +1,432 @@
+[
+{
+"transcript": "t01",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t02",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t03",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t04",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t05",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t06",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t07",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t08",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 1,
+"e": 2,
+"total": 8,
+"note": "repeated an identical failing command unchanged before finally fixing the venv path"
+},
+{
+"transcript": "t09",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t10",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t11",
+"a": 1,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 9,
+"note": "wrote the script outside library/ instead of inside the requested folder"
+},
+{
+"transcript": "t12",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t13",
+"a": 1,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 9,
+"note": "no dedicated task folder was created; test file and README ended up at workspace root, not with the package"
+},
+{
+"transcript": "t14",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t15",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t16",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t17",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t18",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t19",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t20",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t21",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t22",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t23",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t24",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t25",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t26",
+"a": 1,
+"b": 0,
+"c": 2,
+"d": 0,
+"e": 2,
+"total": 5,
+"note": "never fixed show.py itself, only computed the answer separately, and repeated the identical successful command several times until the harness blocked it"
+},
+{
+"transcript": "t27",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t28",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t29",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t30",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t31",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 9,
+"note": "several redundant listing/rerun calls (ls -F after ls -R, re-running the build script) added nothing new"
+},
+{
+"transcript": "t32",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t33",
+"a": 2,
+"b": 0,
+"c": 2,
+"d": 1,
+"e": 2,
+"total": 7,
+"note": "many wasted/failed edit_file attempts, including one that duplicated code by mistake, before finally fixing the script"
+},
+{
+"transcript": "t34",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t35",
+"a": 1,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 9,
+"note": "ran the tests via a PYTHONPATH hack from the workspace root rather than from the task folder as instructed"
+},
+{
+"transcript": "t36",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t37",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t38",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t39",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t40",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t41",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 9,
+"note": "installed pyyaml into the system Python with pip rather than a task-scoped environment"
+},
+{
+"transcript": "t42",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+},
+{
+"transcript": "t43",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"total": 10,
+"note": ""
+}
+]

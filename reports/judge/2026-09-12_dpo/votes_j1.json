@@ -1,0 +1,432 @@
+[
+{
+"transcript": "t01",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t02",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t03",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t04",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t05",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t06",
+"a": 1,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "no dedicated task folder was created and the tests were run as a file argument from the workspace root rather than 'from that folder' as asked",
+"total": 9
+},
+{
+"transcript": "t07",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t08",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t09",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t10",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t11",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t12",
+"a": 2,
+"b": 0,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "recreated all five files, index.md and re-read day3.txt even though the context showed this identical task already completed",
+"total": 8
+},
+{
+"transcript": "t13",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t14",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t15",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t16",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t17",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t18",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t19",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t20",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t21",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t22",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "re-ran clean.sh and re-counted with find again though the identical question had already been answered with no state change",
+"total": 9
+},
+{
+"transcript": "t23",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t24",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t25",
+"a": 1,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "ran the tests via a PYTHONPATH hack from the workspace root instead of from inside the task folder as asked",
+"total": 9
+},
+{
+"transcript": "t26",
+"a": 2,
+"b": 0,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "recreated the three log files and the script even though the context showed the identical task already completed with the same total",
+"total": 8
+},
+{
+"transcript": "t27",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t28",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t29",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t30",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "re-ran the already-failed command a second time before reading the script instead of reading it first",
+"total": 9
+},
+{
+"transcript": "t31",
+"a": 2,
+"b": 1,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "repeated the whole build-and-check sequence though the identical question had already been fully answered",
+"total": 9
+},
+{
+"transcript": "t32",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t33",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t34",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t35",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t36",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t37",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t38",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t39",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t40",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t41",
+"a": 1,
+"b": 0,
+"c": 1,
+"d": 0,
+"e": 1,
+"note": "kept repeating an already-succeeded/already-failed command after explicit warnings, never got settings/show.py itself to run, and reported the workaround's number as if the script printed it",
+"total": 3
+},
+{
+"transcript": "t42",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+},
+{
+"transcript": "t43",
+"a": 2,
+"b": 2,
+"c": 2,
+"d": 2,
+"e": 2,
+"note": "",
+"total": 10
+}
+]
