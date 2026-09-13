@@ -15,7 +15,7 @@ import itertools
 import json
 import os
 import secrets
-from collections.abc import AsyncIterator, Awaitable, Callable
+from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
 
@@ -46,6 +46,8 @@ def _auth_secret() -> str:
 os.environ.setdefault("CHAINLIT_AUTH_SECRET", _auth_secret())
 
 import chainlit as cl
+from chainlit.server import app as server
+from fastapi.responses import JSONResponse
 
 from app.agent.commands import (
     CONTEXT_COMMANDS,
@@ -56,13 +58,11 @@ from app.agent.commands import (
     mode_reply,
     plan_reply,
 )
-from app.agent.mode import current_mode
 from app.agent.runtime import Agent, create_agent
+from app.agent.status import CreditsWatch, status_of
 from app.agent.stop import MemoryStopRequests
-from app.agent.todo import planning_enabled
 from app.capabilities import Delivery
-from app.config import AgentSettings, ModelSettings, chosen_model
-from app.context.choice import context_choice
+from app.config import AgentSettings
 from app.memory import SqliteStore
 from app.models import ContentPart, Message
 from ui.chainlit_history import LOCAL_USER_IDENTIFIER, MemoryStoreDataLayer
@@ -75,7 +75,6 @@ DELIVERY = Delivery(media=(IMAGE, AUDIO), place="the Chainlit web app")
 # Offered in the composer's menu; typed with a slash they mean the same. The
 # words of every reply are `app.agent.commands`, shared with Telegram.
 COMMANDS = [
-    {"id": "status", "description": "Open the status panel", "icon": "activity", "button": True},
     {"id": "compact", "description": "Fold the older part of this conversation now", "icon": "fold-vertical"},
     {"id": "plan", "description": "on | off: a task list for longer work", "icon": "list-checks"},
     {"id": "mode", "description": "full | careful: whether changes ask first", "icon": "shield"},
@@ -211,15 +210,9 @@ class Turn:
         await self.step.update()
 
 
-Refresh = Callable[[], Awaitable[None]]
-
-
-async def render(
-    produced: AsyncIterator[Message], turn: Turn, after_call: Refresh | None = None
-) -> None:
+async def render(produced: AsyncIterator[Message], turn: Turn) -> None:
     """Show messages as their nodes finish: a tool call as a step under the
-    turn's, an answer as a message. `after_call` runs when a result lands,
-    which is when the status panel has something new to say."""
+    turn's, an answer as a message."""
 
     steps: dict[str, cl.Step] = {}
     async for message in produced:
@@ -234,8 +227,6 @@ async def render(
             shown = attachments(message, outbound_only=True)
             if shown:
                 await cl.Message(content="", elements=shown).send()
-            if after_call is not None:
-                await after_call()
             continue
 
         body = spoken(message)
@@ -297,67 +288,31 @@ def create_runtime_with_stops() -> tuple[Agent, MemoryStopRequests]:
     )
 
 
-def bar(share: float, width: int = 20) -> str:
-    filled = max(0, min(width, round(share * width)))
-    return "█" * filled + "░" * (width - filled)
+# The status card (`public/status.js`) asks this route while it is open. A
+# loopback app with one person: the session that opened last is the one
+# in front of them, so the route needs no id from the page.
+_current: dict[str, Any] = {}
+_credits = CreditsWatch()
 
 
-def status_text(agent: Agent, thread_id: str) -> str:
-    """What the panel says: the thread, the model, the context against its
-    budget, the switches, the folder. Estimated from the store and the last
-    request's own count, never by waking the model (`Agent.context_report`)."""
-
-    report = agent.context_report(thread_id)
-    model = ModelSettings()
-    lines = [
-        f"**Thread** `{thread_id}`",
-        f"**Model** `{chosen_model() or 'plain'}` · {model.name or model.endpoint}",
-    ]
-    if report.last_used is not None and report.budget:
-        share = report.last_used / report.budget
-        lines.append(
-            f"**Context** {bar(share)} {share:.0%}  \n"
-            f"{report.last_used:,} of {report.budget:,} tokens "
-            f"(size {report.size}, the model's {report.ceiling:,})"
-        )
-    elif report.last_used is not None:
-        lines.append(
-            f"**Context** {report.last_used:,} tokens in the last request (size {report.size})"
-        )
-    else:
-        estimate = sum(report.layers.values())
-        lines.append(
-            f"**Context** ~{estimate:,} tokens estimated for the next request "
-            f"(size {report.size})"
-        )
-    conversation = f"**Conversation** {report.messages} messages verbatim"
-    if report.summarized_through:
-        conversation += f", a summary covers {report.summarized_through} before them"
-    lines.append(conversation)
-    workspace = agent.workspace
-    lines.append(
-        f"**Mode** {current_mode(workspace)} · "
-        f"**Plan** {'on' if planning_enabled(workspace) else 'off'} · "
-        f"**Size** {context_choice(workspace)}"
+async def status_route() -> JSONResponse:
+    agent: Agent | None = _current.get("agent")
+    thread_id: str | None = _current.get("thread_id")
+    if agent is None or thread_id is None:
+        return JSONResponse({"error": "no session"}, status_code=404)
+    credits = await _credits.read()
+    # `context_report` lists the toolbox, and the first listing of a process
+    # waits on the MCP servers with a blocking call (ISS-0070): in a thread,
+    # so the app is not held while it does.
+    status = await asyncio.to_thread(
+        status_of, agent, thread_id, credits, _credits.session_spend()
     )
-    lines.append(f"**Folder** `{workspace}`")
-    lines.append(f"Commands: {COMMAND_NAMES}")
-    return "\n\n".join(lines)
+    return JSONResponse(status.as_dict())
 
 
-async def show_status(agent: Agent, thread_id: str) -> None:
-    """The panel beside the chat, open and kept current.
-
-    The text is made in a thread: the first report of a process lists the
-    MCP servers' tools, and that listing waits on the servers with a
-    blocking call (ISS-0070); made on the loop it held the whole app.
-    """
-
-    text = await asyncio.to_thread(status_text, agent, thread_id)
-    await cl.ElementSidebar.set_title("Status")
-    await cl.ElementSidebar.set_elements(
-        [cl.Text(name="status", content=text, display="inline")], key="status"
-    )
+# Ahead of Chainlit's catch-all, which serves its page for any path.
+server.add_api_route("/status", status_route, methods=["GET"])
+server.router.routes.insert(0, server.router.routes.pop())
 
 
 def command_of(incoming: cl.Message) -> tuple[str, str] | None:
@@ -380,9 +335,6 @@ async def handle_command(agent: Agent, thread_id: str, incoming: cl.Message) -> 
     if command is None:
         return False
     head, argument = command
-    if head == "/status":
-        await show_status(agent, thread_id)
-        return True
     if head in PLAN_COMMANDS:
         reply = plan_reply(agent, argument)
     elif head in MODE_COMMANDS:
@@ -394,7 +346,6 @@ async def handle_command(agent: Agent, thread_id: str, incoming: cl.Message) -> 
     else:
         reply = f"No such command: {head}. Commands: {COMMAND_NAMES}."
     await cl.Message(content=reply).send()
-    await show_status(agent, thread_id)
     return True
 
 
@@ -408,16 +359,11 @@ async def drive(
     """
 
     turn = Turn()
-
-    async def refresh() -> None:
-        await show_status(agent, thread_id)
-
     if produced is not None:
-        await render(produced, turn, refresh)
+        await render(produced, turn)
     while (question := await agent.pending(thread_id)) is not None:
-        await render(agent.resume(thread_id, await confirm(question)), turn, refresh)
+        await render(agent.resume(thread_id, await confirm(question)), turn)
     await turn.close()
-    await refresh()
 
 
 async def open_session(agent: Agent, stops: MemoryStopRequests, thread_id: str) -> None:
@@ -425,9 +371,7 @@ async def open_session(agent: Agent, stops: MemoryStopRequests, thread_id: str) 
     cl.user_session.set("stops", stops)
     cl.user_session.set("thread_id", thread_id)
     await cl.context.emitter.set_commands(COMMANDS)
-    # Not awaited: the chat is usable at once, the panel follows when the
-    # toolbox has been listed.
-    cl.user_session.set("status_task", asyncio.create_task(show_status(agent, thread_id)))
+    _current.update(agent=agent, thread_id=thread_id)
 
 
 @cl.on_chat_start
@@ -468,6 +412,8 @@ async def on_message(incoming: cl.Message) -> None:
 async def end() -> None:
     agent: Agent | None = cl.user_session.get("agent")
     if agent is not None:
+        if _current.get("agent") is agent:
+            _current.clear()
         await agent.aclose()
 
 
