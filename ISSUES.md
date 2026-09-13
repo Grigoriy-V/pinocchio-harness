@@ -22,6 +22,12 @@ authorizes nothing; `ROADMAP.md` alone orders work. Evidence lives in
 
 | Id | Status | Defect | Related |
 |---|---|---|---|
+| ISS-0076 | open, local | after a page reload a turn's tool calls come back as separate rows: the one collapsed step per turn is not kept | 0071, roadmap 27 |
+| ISS-0075 | open, local | a server the model starts with `start` opens a console window on the person's desktop and outlives the conversation untracked; `run_command` has no background mode | roadmap 27 |
+| ISS-0074 | open, local | `use_page open http://localhost:…` is refused (`ERR_ACCESS_DENIED`): the browser's public-only policy also holds on the person's own machine | roadmap 27 |
+| ISS-0073 | open | a GitHub MCP file's content comes back as `EmbeddedResource` and is dropped by the renderer: the model reads "1 non-text part(s) not shown" and fetches the file again from the web | roadmap 26 |
+| ISS-0072 | open, local | after the websocket reconnects a message runs on a closed agent: `Cannot send a request, as the client has been closed`; the turn dies | 0071 |
+| ISS-0071 | open, local | the status route holds the agent of a closed session: `/status` after a tab is closed fails on a closed database | 0072 |
 | ISS-0070 | open | the first turn on a fresh deployed worker spends ~150 s building the graph before the first model call; the next turns 33 ms | roadmap 18, 26 |
 | ISS-0069 | open | after the repeat guard Gemma answers nothing: the request goes out with no tools, the model emits 16–171 tokens, the harness receives no text and no call | 0068, roadmap 24 |
 | ISS-0068 | open, local Windows only | the sandboxed `run_command` kills every Cygwin tool (`sh`, `ls`, `find`, `cat`, `awk`): `CreateFileMapping … Win32 error 5` | 0053, roadmap 24 |
@@ -99,6 +105,107 @@ in use since 2026-09-06; it is not seen on the hosted model.
 ---
 
 ## Open
+
+### ISS-0076 — after a reload a turn's tool calls are separate rows again
+
+- **Status:** open; local Chainlit.
+- **Seen:** 2026-09-13, the `Pixel_CV` thread reopened after a page
+  reload: every `run_command` and `use_page` call of the turn stands as
+  its own row, each with its own "Used Tool" line, where the live turn
+  had one collapsed "3 tool calls" step.
+- **Costs:** a reopened conversation is the long list the collapsed step
+  was built to remove (roadmap 27 step 1); the person reads the harness's
+  calls instead of the answers.
+- **Reproduce:** a turn with tool calls, then reload the page.
+- **Cause:** the history layer (`ui/chainlit_history.py`) builds one step
+  per stored message with no parent: the live grouping lives only in the
+  session's `Turn`.
+- **Belongs to:** the harness's Chainlit history layer.
+
+### ISS-0075 — a server the model starts opens a console window and outlives the conversation
+
+- **Status:** open; local Windows.
+- **Seen:** 2026-09-13, "запусти сайт чтобы я открыл" in the `Pixel_CV`
+  thread: `start "" cmd /c "python -m http.server 8080"` failed
+  ("перенаправление ввода не поддерживается": the restricted command has no
+  stdin), `python -m http.server 8080` in the foreground was killed at its
+  10 s timeout, then `start "pixel_cv_server" /min python -m http.server
+  8080` worked: a minimized console window appeared on the person's
+  desktop, the server answered 200 and is still running with nothing in the
+  harness knowing of it.
+- **Costs:** windows on the desktop the person did not open; a process no
+  command of the chat can stop; three model calls and two failed commands
+  to reach a workaround. Claude Code and Codex run a long-lived command in
+  the background, hidden, with a handle, and end it with the session.
+- **Reproduce:** locally, ask for a dev server to be started.
+- **Cause:** `run_command` runs one process to its end or its timeout; a
+  process that should stay has no mode of its own, so the model reaches for
+  `start`, which makes a new visible console.
+- **Belongs to:** the harness (`app/tools/shell.py`): a background mode.
+
+### ISS-0074 — locally the browser refuses localhost
+
+- **Status:** open; local profile.
+- **Seen:** 2026-09-13, the same turn: `use_page open
+  http://localhost:8080/index.html` → `the page could not be opened
+  (net::ERR_ACCESS_DENIED)`; the model told the person to open it
+  themselves.
+- **Costs:** the model cannot look at the site it just started on the
+  person's machine, which is the one thing a code agent's browser is for.
+- **Reproduce:** locally, `use_page open` on any localhost address.
+- **Cause:** the page's request policy admits public addresses only
+  (`app/web.py`, `app/tools/browser.py`), right for the deployed renderer
+  beside the worker's network, unchanged on the person's own machine.
+- **Belongs to:** the harness: the local profile's `open` flag (roadmap 27
+  step 2) should open private addresses to the browser too.
+
+### ISS-0073 — a GitHub MCP file's content is dropped as a non-text part
+
+- **Status:** open.
+- **Seen:** 2026-09-13, the `Pixel_CV` thread: three
+  `github_get_file_contents` calls each returned "successfully downloaded
+  text file (SHA …) (1 non-text part(s) not shown: EmbeddedResource)"; the
+  model then fetched README, index.html and two scripts from
+  `raw.githubusercontent.com` with `fetch_page`, seven calls for what
+  three would have done.
+- **Costs:** the GitHub server's file reads are useless to the model; twice
+  the calls, the model's time and a web fetch for every file.
+- **Reproduce:** `github_get_file_contents` with a `path`.
+- **Cause:** `render_result` in `app/tools/mcp.py` shows text parts only
+  (its first version, item 26); the server puts the file in an
+  `EmbeddedResource` whose `resource.text` is the file.
+- **Belongs to:** the harness (`app/tools/mcp.py`).
+
+### ISS-0072 — after a reconnect a message runs on a closed agent
+
+- **Status:** open; local Chainlit.
+- **Seen:** 2026-09-13 23:37, the server log: `on_message` →
+  `agent.steps` → `Cannot send a request, as the client has been closed`
+  in the backend's `stream`; the turn died before the model.
+- **Costs:** a message lost and the person waiting for nothing; the next
+  message may run.
+- **Reproduce:** not pinned down; seen after a page reload while the tab
+  stayed open.
+- **Cause:** likely `on_chat_end` on a websocket disconnect closes the
+  session's agent (`agent.aclose()`), and Chainlit keeps the user session,
+  whose next message finds the closed agent. Not proven.
+- **Belongs to:** the harness's Chainlit adapter.
+
+### ISS-0071 — the status route keeps the agent of a closed session
+
+- **Status:** open; local Chainlit.
+- **Seen:** 2026-09-13 23:35, the server log: `GET /status` →
+  `status_of` → `context_report` → `sqlite3.ProgrammingError: Cannot
+  operate on a closed database`, a traceback in the log for every poll of
+  the open card.
+- **Costs:** the card shows "unreachable" until a chat is opened again; a
+  traceback in the log every three seconds meanwhile.
+- **Reproduce:** open the status card, close the tab, open the app again
+  before starting a chat.
+- **Cause:** the route reads a process-wide "current session" that
+  `on_chat_end` clears only when it still points at the closing agent; a
+  race between two sessions leaves a closed one there.
+- **Belongs to:** the harness's Chainlit adapter.
 
 ### ISS-0070 — the first turn on a fresh worker builds the graph for ~150 s
 
