@@ -52,6 +52,10 @@ class ContentPart:
     media_type: str | None = None
     name: str | None = None
     outbound: bool = False
+    # The harness's words to the model inside the person's message (what
+    # was attached and where it was saved): sent, stored, never shown as
+    # the person's own text. `name` then lists the saved paths, one per line.
+    hidden: bool = False
 
     def __post_init__(self) -> None:
         if self.kind == "text":

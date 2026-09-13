@@ -1045,7 +1045,7 @@ async def test_context_reports_from_the_store_without_the_model(
     assert report.startswith("What my next request in this chat is made of")
     assert "2 messages verbatim" in report
     assert "tool schemas" in report
-    assert "read when it next answers" in report, "no ceiling was ever read here"
+    assert "Size normal: up to 262,144 tokens;" in report, "no ceiling was ever read here"
     assert needs_model(Incoming(CHAT, ALLOWED, "/context")) is False
     assert needs_model(Incoming(CHAT, ALLOWED, "/context small")) is False
     assert needs_model(Incoming(CHAT, ALLOWED, "/compact")) is True
@@ -1063,7 +1063,7 @@ async def test_context_size_is_a_marker_read_by_the_budget(
 
     assert "Context size is small" in telegram.sent[0]
     assert (tmp_path / "workspace" / ".agent" / "context").read_text(encoding="utf-8").strip() == "small"
-    assert "Size small: up to 10,000 tokens of the model's 40,000" in telegram.sent[-1]
+    assert "Size small: up to 40,000 tokens of the model's 40,000" in telegram.sent[-1]
 
     await adapter.handle_update(text_update("/context normal", update_id=4))
 
@@ -1076,7 +1076,7 @@ async def test_a_fold_during_a_turn_is_announced(
     """Asked for by the human, 2026-09-03: a person should hear that older
     conversation was folded, and how much, without reading a trace."""
 
-    backend = ScriptedBackend(default=says("a summary of what was said", input_tokens=9_000), limit=10_000)
+    backend = ScriptedBackend(default=says("a summary of what was said", input_tokens=9_000), limit=6_000)
     adapter = build(telegram, settings, tmp_path, backend, policy=ContextPolicy(keep_turns=2))
     for index in range(4):
         await adapter.handle_update(text_update(f"message {index}", update_id=index + 1))

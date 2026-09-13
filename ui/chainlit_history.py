@@ -8,6 +8,8 @@ elements from the store and ignores Chainlit's duplicate step writes.
 from __future__ import annotations
 
 import base64
+import mimetypes
+from pathlib import Path
 import json
 import uuid
 from typing import Any
@@ -38,7 +40,9 @@ def _id(thread_id: str, position: int, suffix: str = "message") -> str:
 
 
 def _text(message: Message) -> str:
-    return " ".join(part.text or "" for part in message.content if part.kind == "text").strip()
+    return " ".join(
+        part.text or "" for part in message.content if part.kind == "text" and not part.hidden
+    ).strip()
 
 
 def _thread_name(thread: Thread) -> str:
@@ -61,6 +65,36 @@ def _element(
         "mime": part.media_type,
         "url": f"data:{part.media_type};base64,{encoded}",
     }
+
+
+def _saved_files(
+    thread_id: str, step_id: str, position: int, part_index: int, listed: str, workspace: Path
+) -> list[ElementDict]:
+    """The files a message attached, as they lie in the workspace now."""
+
+    shown: list[ElementDict] = []
+    for index, relative in enumerate(listed.splitlines()):
+        path = workspace / relative
+        try:
+            data = path.read_bytes()
+        except OSError:
+            continue
+        media_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+        encoded = base64.b64encode(data).decode("ascii")
+        shown.append(
+            {
+                "id": _id(thread_id, position, f"part-{part_index}-file-{index}"),
+                "threadId": thread_id,
+                "forId": step_id,
+                "type": "file",
+                "name": path.name,
+                "display": "inline",
+                "size": None,
+                "mime": media_type,
+                "url": f"data:{media_type};base64,{encoded}",
+            }
+        )
+    return shown
 
 
 def _step(thread_id: str, position: int, message: Message, created_at: str) -> StepDict:
@@ -106,9 +140,13 @@ class MemoryStoreDataLayer(BaseDataLayer):
         self,
         store: ConversationStore,
         checkpoints: str = "data/checkpoints.sqlite3",
+        workspace: Path | None = None,
     ) -> None:
         self.store = store
         self.checkpoints = checkpoints
+        # Where a sent file was saved (`inbox/`), so a reopened conversation
+        # shows the file the person attached and not the harness's note.
+        self.workspace = workspace
 
     async def get_user(self, identifier: str) -> PersistedUser | None:
         if identifier != LOCAL_USER_IDENTIFIER:
@@ -226,6 +264,10 @@ class MemoryStoreDataLayer(BaseDataLayer):
                         message.role != "tool" or part.outbound
                     ):
                         elements.append(_element(thread.id, step["id"], position, part_index, part))
+                    elif part.hidden and part.name and self.workspace is not None:
+                        elements.extend(
+                            _saved_files(thread.id, step["id"], position, part_index, part.name, self.workspace)
+                        )
         return {
             "id": thread.id,
             "createdAt": thread.created_at,

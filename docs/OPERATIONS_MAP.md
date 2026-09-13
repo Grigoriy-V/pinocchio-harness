@@ -95,7 +95,9 @@ A turn has no ceiling on steps, tool calls or seconds (2026-09-07). After
 `turn_check_seconds` (360 in the file, 600 in code) of work the harness asks the model, between two
 steps, whether it is on track and what is left; the model's answer streams
 to the chat and the decision is the model's; zero asks never. Context:
-`context_fraction` 0.8 of a reported ceiling, or the set's `context_tokens`;
+the size the person chose (`/context small|normal|large`: 128K, 256K, 512K
+tokens), clamped to the window the server reports, or to the set's
+`context_tokens` where it reports none;
 a fold happens only when the request would not fit, or on `/compact`;
 `keep_turns` 2. `stream_answers` and `telemetry` are on; telemetry holds
 timings and counts only and can never fail a turn.

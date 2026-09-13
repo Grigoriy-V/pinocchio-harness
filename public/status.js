@@ -73,15 +73,10 @@
         bar(share) + " " +
         (s.context_estimated ? "~" : "") + fmt(s.context_used) + " of " + short(s.context_window) +
         " (" + Math.round(share * 100) + "%)" +
-        (s.context_estimated ? ", estimated for the next request" : ", the last request") +
-        (s.last_cached ? ", " + fmt(s.last_cached) + " cached" : "") +
-        (s.context_budget ? "; folds past " + short(s.context_budget) : "");
+        (s.last_cached ? ", " + fmt(s.last_cached) + " cached" : "");
     } else {
-      context = (s.context_estimated ? "~" : "") + fmt(s.context_used) + " tokens; the window is read when the model next answers";
+      context = (s.context_estimated ? "~" : "") + fmt(s.context_used) + " tokens";
     }
-    const history =
-      s.messages + " message" + (s.messages === 1 ? "" : "s") + " sent verbatim" +
-      (s.summarized_through ? ", " + s.summarized_through + " older ones folded into a summary" : "");
     const session =
       s.session_spend === null
         ? "—"
@@ -98,7 +93,6 @@
       row("Thread", "<code>" + s.thread_id + "</code>") +
       row("Model", s.model_set + " · " + s.model_name) +
       row("Context", context) +
-      row("History", history) +
       row("Session", session) +
       row("Account", account) +
       row("Switches", "mode " + s.mode + " · plan " + (s.plan ? "on" : "off") + " · size " + s.context_size) +

@@ -49,6 +49,7 @@ def dump_content(parts: Sequence[ContentPart]) -> str:
             "media_type": part.media_type,
             "name": part.name,
             "outbound": part.outbound,
+            "hidden": part.hidden,
         }
         for part in (delivered(part) if part.outbound else part for part in parts)
     ]
@@ -64,6 +65,7 @@ def load_content(raw: str) -> list[ContentPart]:
             media_type=item["media_type"],
             name=item.get("name"),
             outbound=bool(item.get("outbound", False)),
+            hidden=bool(item.get("hidden", False)),
         )
         for item in json.loads(raw)
     ]

@@ -95,6 +95,8 @@ def test_chainlit_early_limits_match_the_authoritative_policy() -> None:
     config = tomllib.loads(config_path.read_text(encoding="utf-8"))
     upload = config["features"]["spontaneous_file_upload"]
 
-    assert upload["accept"] == list(ACCEPTED_MEDIA_TYPES)
+    # Any file: the harness admits every kind since 2026-09-07 (a document to
+    # `inbox/`), and since 2026-09-13 Chainlit does too.
+    assert upload["accept"] == ["*/*"]
     assert upload["max_files"] == MAX_FILES
     assert upload["max_size_mb"] * 1024 * 1024 == MAX_FILE_SIZE_BYTES

@@ -58,12 +58,12 @@ from app.agent.commands import (
     mode_reply,
     plan_reply,
 )
-from app.agent.runtime import Agent, create_agent
+from app.agent.runtime import Agent, create_agent, user_workspace
 from app.agent.status import CreditsWatch, status_of
 from app.agent.stop import MemoryStopRequests
 from app.capabilities import Delivery
 from app.config import AgentSettings
-from app.memory import SqliteStore
+from app.memory import LOCAL_USER_ID, SqliteStore
 from app.models import ContentPart, Message
 from ui.chainlit_history import LOCAL_USER_IDENTIFIER, MemoryStoreDataLayer
 
@@ -94,7 +94,9 @@ async def local_auth(_headers: Any) -> cl.User:
 def history_layer() -> MemoryStoreDataLayer:
     settings = AgentSettings()
     return MemoryStoreDataLayer(
-        SqliteStore(settings.database), checkpoints=settings.checkpoints
+        SqliteStore(settings.database),
+        checkpoints=settings.checkpoints,
+        workspace=user_workspace(settings.workspace, LOCAL_USER_ID),
     )
 
 

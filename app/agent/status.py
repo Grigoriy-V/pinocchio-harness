@@ -97,7 +97,7 @@ class Status:
     # The model's window: read from the model once it has answered,
     # the configured `context_tokens` before that.
     context_window: int | None
-    context_budget: int | None
+    context_budget: int
     context_size: str
     messages: int
     summarized_through: int
@@ -128,9 +128,8 @@ def status_of(agent: Agent, thread_id: str, credits: Credits | None, spend: floa
         model_name=model.name or model.endpoint,
         context_used=report.last_used if report.last_used is not None else sum(report.layers.values()),
         context_estimated=report.last_used is None,
-        context_window=report.ceiling or agent.context_tokens or None,
-        context_budget=report.budget
-        or (int(agent.context_tokens * report.fraction) if agent.context_tokens else None),
+        context_window=report.ceiling,
+        context_budget=report.budget,
         context_size=report.size,
         messages=report.messages,
         summarized_through=report.summarized_through,

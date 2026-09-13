@@ -172,8 +172,8 @@ async def test_older_context_is_summarized_rather_than_grown(
     database: Path, workspace: Path
 ) -> None:
     policy = ContextPolicy(keep_turns=2)
-    backend = ScriptedBackend(default=says("a summary of what came before", input_tokens=9_000), limit=10_000)
-    agent = Agent(backend, SqliteStore(database), workspace, policy, context_fraction=0.6)
+    backend = ScriptedBackend(default=says("a summary of what came before", input_tokens=9_000), limit=6_000)
+    agent = Agent(backend, SqliteStore(database), workspace, policy)
 
     for turn in range(10):
         await agent.answer("t1", user(f"turn {turn}"))
@@ -187,8 +187,8 @@ async def test_older_context_is_summarized_rather_than_grown(
 
 async def test_the_full_history_is_never_sent(database: Path, workspace: Path) -> None:
     policy = ContextPolicy(keep_turns=2)
-    backend = ScriptedBackend(default=says("ok", input_tokens=9_000), limit=10_000)
-    agent = Agent(backend, SqliteStore(database), workspace, policy, context_fraction=0.6)
+    backend = ScriptedBackend(default=says("ok", input_tokens=9_000), limit=6_000)
+    agent = Agent(backend, SqliteStore(database), workspace, policy)
 
     for turn in range(12):
         await agent.answer("t1", user(f"turn {turn}"))
@@ -201,7 +201,7 @@ async def test_the_full_history_is_never_sent(database: Path, workspace: Path) -
 async def test_folding_never_deletes_a_message(database: Path, workspace: Path) -> None:
     policy = ContextPolicy(keep_turns=2)
     backend = ScriptedBackend(default=says("ok", input_tokens=9_000), limit=10_000)
-    agent = Agent(backend, SqliteStore(database), workspace, policy, context_fraction=0.6)
+    agent = Agent(backend, SqliteStore(database), workspace, policy)
 
     for turn in range(10):
         await agent.answer("t1", user(f"turn {turn}"))
@@ -286,16 +286,16 @@ async def test_answer_returns_the_intermediate_steps_and_the_answer(
 
 async def test_the_fill_is_the_size_the_model_reported(database: Path, workspace: Path) -> None:
     backend = ScriptedBackend(says("hello", input_tokens=600), limit=10_000)
-    agent = Agent(backend, SqliteStore(database), workspace, context_fraction=0.5)
+    agent = Agent(backend, SqliteStore(database), workspace)
 
     await agent.answer("t1", user("hi"))
     fill = await agent.fill()
 
-    assert (fill.used, fill.budget) == (600, 5000)
-    assert fill.fraction == pytest.approx(0.12)
+    assert (fill.used, fill.budget) == (600, 10_000)
+    assert fill.fraction == pytest.approx(0.06)
 
 
-async def test_a_model_that_states_no_limit_leaves_the_request_unjudged(
+async def test_a_model_that_states_no_limit_is_judged_against_the_chosen_size(
     database: Path, workspace: Path
 ) -> None:
     backend = ScriptedBackend(says("hello", input_tokens=600))
@@ -304,8 +304,8 @@ async def test_a_model_that_states_no_limit_leaves_the_request_unjudged(
     await agent.answer("t1", user("hi"))
     fill = await agent.fill()
 
-    assert fill.budget is None
-    assert fill.fraction is None
+    assert fill.budget == 262_144
+    assert fill.fraction == pytest.approx(600 / 262_144)
 
 
 async def test_there_is_no_fill_before_a_turn(database: Path, workspace: Path) -> None:
@@ -339,8 +339,8 @@ async def test_a_request_over_budget_folds_the_conversation(
     """The bound is a token bound: nothing here is long enough to fold by count."""
 
     policy = ContextPolicy(keep_turns=1)
-    backend = ScriptedBackend(default=says("ok", input_tokens=9_000), limit=10_000)
-    agent = Agent(backend, SqliteStore(database), workspace, policy, context_fraction=0.6)
+    backend = ScriptedBackend(default=says("ok", input_tokens=9_000), limit=6_000)
+    agent = Agent(backend, SqliteStore(database), workspace, policy)
 
     for turn in range(4):
         await agent.answer("t1", user(f"turn {turn}"))
@@ -384,7 +384,7 @@ async def test_a_conversation_over_budget_folds_before_the_request_is_sent(
         limit=1_000,
     )
     policy = ContextPolicy(keep_turns=1)
-    agent = Agent(backend, store, workspace, policy, context_fraction=0.6)
+    agent = Agent(backend, store, workspace, policy)
 
     produced = await agent.answer("t1", user("new question"))
 
@@ -415,7 +415,7 @@ async def test_context_overflow_folds_then_retries_once(
         limit=100_000,
     )
     policy = ContextPolicy(keep_turns=1)
-    agent = Agent(backend, store, workspace, policy, context_fraction=0.6)
+    agent = Agent(backend, store, workspace, policy)
 
     produced = await agent.answer("t1", user("new question"))
 
@@ -437,7 +437,7 @@ async def test_a_second_context_overflow_returns_a_clear_refusal(
         limit=100_000,
     )
     policy = ContextPolicy(keep_turns=1)
-    agent = Agent(backend, store, workspace, policy, context_fraction=0.6)
+    agent = Agent(backend, store, workspace, policy)
 
     produced = await agent.answer("t1", user("huge new question"))
 
@@ -450,7 +450,7 @@ async def test_an_input_that_cannot_be_folded_is_refused_without_retrying(
     database: Path, workspace: Path
 ) -> None:
     backend = ScriptedBackend(ContextOverflowError("too large"), limit=100)
-    agent = Agent(backend, SqliteStore(database), workspace, context_fraction=0.6)
+    agent = Agent(backend, SqliteStore(database), workspace)
 
     produced = await agent.answer("t1", user("one enormous new input"))
 
@@ -473,7 +473,7 @@ async def test_overflow_while_summarizing_stops_with_a_refusal(
         limit=100_000,
     )
     policy = ContextPolicy(keep_turns=1)
-    agent = Agent(backend, store, workspace, policy, context_fraction=0.6)
+    agent = Agent(backend, store, workspace, policy)
 
     produced = await agent.answer("t1", user("new question"))
 
@@ -515,8 +515,8 @@ async def test_a_summarizer_that_does_not_fit_does_not_fail_a_delivered_turn(
     and the person read "That request failed" under a complete answer."""
 
     policy = ContextPolicy(keep_turns=2)
-    backend = _Overflowing(default=says("ok", input_tokens=9_000), limit=10_000)
-    agent = Agent(backend, SqliteStore(database), workspace, policy, context_fraction=0.6)
+    backend = _Overflowing(default=says("ok", input_tokens=9_000), limit=6_000)
+    agent = Agent(backend, SqliteStore(database), workspace, policy)
 
     answers = [await agent.answer("t1", user(f"turn {turn}")) for turn in range(6)]
 

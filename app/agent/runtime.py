@@ -43,7 +43,7 @@ from app.capabilities import (
 from app.instructions import read_instructions
 from app.config import AgentSettings, McpSettings, ModelSettings
 from app.context import ContextPolicy, fold_older_messages, load_turn_context
-from app.context.choice import context_choice, share
+from app.context.choice import budget_of, context_choice
 from app.context.window import DEFAULT_SYSTEM_PROMPT, system
 from app.memory import LOCAL_USER_ID, ConversationStore, Thread, open_store
 from app.models import ContentPart, Message, ModelBackend, Usage
@@ -158,9 +158,8 @@ class ContextReport:
     """
 
     size: str
-    fraction: float
     ceiling: int | None
-    budget: int | None
+    budget: int
     messages: int
     summarized_through: int
     stubbed: int
@@ -210,7 +209,6 @@ class Agent:
         system_prompt: str = DEFAULT_SYSTEM_PROMPT,
         checkpoints: str | Path | None = None,
         checkpoint_database_url: str = "",
-        context_fraction: float = 0.8,
         context_tokens: int | None = None,
         capability_registry: CapabilityRegistry | None = None,
         capability_grant: CapabilityGrant | None = None,
@@ -248,7 +246,6 @@ class Agent:
         self.system_prompt = system_prompt
         self.delivery = delivery
         self.checkpoints = checkpoints
-        self.context_fraction = context_fraction
         self.context_tokens = context_tokens
         self.capability_registry = capability_registry or CapabilityRegistry(self.workspace)
         if capability_grant is None:
@@ -283,31 +280,22 @@ class Agent:
         self.spent: float | None = None
 
     async def budget(self) -> int | None:
-        """How many tokens a request may take, or `None` if the model is silent.
+        """How many tokens a request may take: the size the person chose
+        (`/context small|normal|large`, tokens), clamped to the model's window.
 
-        Asked once. The model behind an agent does not change while it runs, and
-        a limit that arrived late would not match the graphs already compiled
-        with the earlier one.
-
-        A chosen `context_tokens` wins over the share, and is clamped to what
-        the server said it accepts. The clamp is the whole point of asking the
-        server rather than configuring the number: a person, or a stale setting,
-        can ask for less than the model allows, never for more than it can
-        serve. With no limit reported there is nothing to clamp against: a
-        chosen number stands as it is (a hosted service says nothing about its
-        length, and the person's number is then the only one there is), and
-        with no number chosen either there is nothing to take a fraction of, so
-        the request stays unbounded here and is bounded by the overflow path.
+        The window is asked of the server once. The model behind an agent
+        does not change while it runs, and a limit that arrived late would
+        not match the graphs already compiled with the earlier one. The clamp
+        is the point of asking rather than configuring: a person can ask for
+        less than the model allows, never for more than it can serve. Where
+        the server says nothing, the set's `context_tokens` is the window;
+        where that is unset too, the size stands as it is.
         """
 
         if not self._asked_the_limit:
             self._limit = await self.backend.context_limit()
             self._asked_the_limit = True
-        if not self._limit:
-            return self.context_tokens or None
-        if self.context_tokens:
-            return min(self.context_tokens, self._limit)
-        return int(self._limit * share(context_choice(self.workspace), self.context_fraction))
+        return budget_of(context_choice(self.workspace), self._limit or self.context_tokens)
 
     async def fill(self) -> Fill | None:
         """How full the last request was, or `None` before there was one."""
@@ -579,13 +567,11 @@ class Agent:
         estimate = self.backend.estimate_tokens
         _, through = self.store.summary(thread_id)
         size = context_choice(self.workspace)
-        fraction = share(size, self.context_fraction)
-        ceiling = self._limit if self._asked_the_limit else None
+        ceiling = (self._limit if self._asked_the_limit else None) or self.context_tokens
         return ContextReport(
             size=size,
-            fraction=fraction,
             ceiling=ceiling,
-            budget=int(ceiling * fraction) if ceiling else None,
+            budget=budget_of(size, ceiling),
             messages=len(context.history),
             summarized_through=through,
             stubbed=surface.stubbed,
@@ -883,7 +869,6 @@ def create_agent(
         system_prompt=system_prompt or DEFAULT_SYSTEM_PROMPT,
         checkpoints=agent_settings.checkpoints,
         checkpoint_database_url=agent_settings.database_url,
-        context_fraction=agent_settings.context_fraction,
         context_tokens=agent_settings.context_tokens,
         user_id=user_id,
         delivery=delivery,

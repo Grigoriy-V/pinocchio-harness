@@ -193,6 +193,8 @@ def admit_uploads(
                     "command. Move a file out of that folder when the work "
                     "needs it elsewhere.]"
                 ),
+                hidden=True,
+                name="\n".join(saved),
             )
         )
     return tuple(parts)

@@ -2,9 +2,9 @@
 
 A marker file, like the plan switch: it survives a restarted worker, is the
 same in every interface, and the person can see it beside `AGENTS.md`. The
-sizes are shares of the model's real ceiling, read from the server, so a
-choice is a trade the engine can state in tokens rather than a number copied
-from a document.
+sizes are token counts (the human, 2026-09-13: small 128K, normal 256K,
+large 512K), clamped by the runtime to the window the model reports, so a
+choice can ask for less than the model allows and never for more.
 """
 
 from __future__ import annotations
@@ -13,8 +13,7 @@ from pathlib import Path
 
 CONTEXT_CHOICE = Path(".agent") / "context"
 
-# Share of the ceiling each size spends. `None` is the configured fraction.
-SIZES: dict[str, float | None] = {"small": 0.25, "normal": None, "large": 0.95}
+SIZES: dict[str, int] = {"small": 131_072, "normal": 262_144, "large": 524_288}
 DEFAULT_SIZE = "normal"
 
 
@@ -39,6 +38,12 @@ def set_context_choice(workspace: Path | str, size: str) -> None:
     marker.write_text(f"{size}\n", encoding="utf-8")
 
 
-def share(size: str, fraction: float) -> float:
-    chosen = SIZES.get(size)
-    return fraction if chosen is None else chosen
+def tokens_of(size: str) -> int:
+    return SIZES.get(size, SIZES[DEFAULT_SIZE])
+
+
+def budget_of(size: str, window: int | None) -> int:
+    """The size, or the window when the window is smaller."""
+
+    chosen = tokens_of(size)
+    return min(chosen, window) if window else chosen

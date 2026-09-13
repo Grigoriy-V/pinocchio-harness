@@ -28,7 +28,7 @@ from app.models.openai_compatible import BackendError, OpenAICompatibleBackend
 
 @asynccontextmanager
 async def open_agent(
-    room: Path, fraction: float = 0.6, policy: ContextPolicy | None = None
+    room: Path, context_tokens: int | None = None, policy: ContextPolicy | None = None
 ) -> AsyncIterator[Agent]:
     """An agent that is closed even when the section fails.
 
@@ -42,7 +42,7 @@ async def open_agent(
         workspace=room / "workspace",
         policy=policy,
         checkpoints=room / "checkpoints.sqlite3",
-        context_fraction=fraction,
+        context_tokens=context_tokens,
     )
     try:
         yield agent
@@ -73,10 +73,10 @@ async def limit_and_fill(room: Path) -> None:
 
 async def folding_by_tokens(room: Path) -> None:
     show("a request over budget folds the conversation, though it is short")
-    # A deliberately tiny share, so even these few turns overshoot it, and a
+    # A deliberately tiny window, so even these few turns overshoot it, and a
     # count trigger far out of reach: nothing here folds because it is long.
     policy = ContextPolicy(keep_turns=1)
-    async with open_agent(room, fraction=0.02, policy=policy) as agent:
+    async with open_agent(room, context_tokens=2_000, policy=policy) as agent:
         print(f"  budget: {await agent.budget()} tokens")
 
         for turn in ("Name one colour.", "Name another one.", "And a third."):

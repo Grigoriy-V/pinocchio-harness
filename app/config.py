@@ -460,11 +460,6 @@ class AgentSettings(Configured):
     # No ceiling on steps, calls or seconds: a ceiling ends work that is going
     # well (the human, 2026-09-07). Zero asks never.
     turn_check_seconds: float = 600.0
-    # The share of the model's own context a request may occupy. The limit
-    # itself is read from the server, never copied here: two copies of one
-    # number are one number and one lie waiting to happen. The headroom is what
-    # absorbs the difference between an estimated request size and the real one.
-    context_fraction: float = 0.8
     # A budget in tokens, when someone has chosen one, instead of the share
     # above. Always clamped to what the server actually accepts, so a choice can
     # only ever ask for less than the model allows and never for more than it

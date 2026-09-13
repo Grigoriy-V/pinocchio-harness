@@ -98,13 +98,8 @@ def context_reply(agent: Agent, thread_id: str, argument: str) -> str:
         set_context_choice(agent.workspace, argument)
         agent.rewire()
         report = agent.context_report(thread_id)
-        # The model's window as the model said it, or as configured before
-        # the model has answered once.
-        window = report.ceiling or agent.context_tokens
-        size = (
-            f"up to {int(window * report.fraction):,} tokens of the model's {window:,}"
-            if window
-            else f"{int(report.fraction * 100)}% of the model's window, read when it next answers"
+        size = f"up to {report.budget:,} tokens" + (
+            f" of the model's {report.ceiling:,}" if report.ceiling else ""
         )
         return f"Context size is {argument} from your next message: {size}" + (
             f". Kept as {CONTEXT_CHOICE.as_posix()} in your workspace."
@@ -136,16 +131,11 @@ def context_reply(agent: Agent, thread_id: str, argument: str) -> str:
             else ""
         )
         lines.append(f"Last request: {report.last_used:,} tokens{cached}.")
-    if report.budget:
-        lines.append(
-            f"Size {report.size}: up to {report.budget:,} tokens of the model's "
-            f"{report.ceiling:,}; older conversation folds into the summary past that."
-        )
-    else:
-        lines.append(
-            f"Size {report.size}: {int(report.fraction * 100)}% of the model's window, "
-            "read when it next answers."
-        )
+    lines.append(
+        f"Size {report.size}: up to {report.budget:,} tokens"
+        + (f" of the model's {report.ceiling:,}" if report.ceiling else "")
+        + "; older conversation folds into the summary past that."
+    )
     lines.append("/context small|normal|large sets the size; /compact folds the older part now.")
     return "\n".join(lines)
 

@@ -158,33 +158,33 @@ def test_a_nonsense_report_cannot_widen_the_ratio_out_of_range() -> None:
     assert backend._chars_per_token <= CHARS_PER_TOKEN_CEILING  # noqa: SLF001
 
 
-async def test_the_budget_is_a_share_of_what_the_server_reports(
+async def test_the_budget_is_the_chosen_size_within_the_servers_window(
+    database: Path, workspace: Path
+) -> None:
+    """Per-person by construction: one agent belongs to one user, and the
+    size is a marker in that user's workspace."""
+
+    from app.context.choice import set_context_choice
+
+    agent = Agent(ScriptedBackend(limit=1_000_000), SqliteStore(database), workspace)
+    assert await agent.budget() == 262_144
+    set_context_choice(workspace, "small")
+    assert await agent.budget() == 131_072
+    set_context_choice(workspace, "large")
+    assert await agent.budget() == 524_288
+
+
+async def test_the_servers_window_wins_over_the_configured_number(
     database: Path, workspace: Path
 ) -> None:
     agent = Agent(
         ScriptedBackend(limit=65_536),
         SqliteStore(database),
         workspace,
-        context_fraction=0.6,
-    )
-
-    assert await agent.budget() == 39_321
-
-
-async def test_a_chosen_budget_wins_over_the_share(
-    database: Path, workspace: Path
-) -> None:
-    """Per-person by construction: one agent belongs to one user."""
-
-    agent = Agent(
-        ScriptedBackend(limit=65_536),
-        SqliteStore(database),
-        workspace,
-        context_fraction=0.6,
         context_tokens=16_000,
     )
 
-    assert await agent.budget() == 16_000
+    assert await agent.budget() == 65_536
 
 
 async def test_a_chosen_budget_cannot_exceed_what_the_server_serves(
@@ -206,14 +206,10 @@ async def test_a_chosen_budget_cannot_exceed_what_the_server_serves(
     assert await agent.budget() == 16_384
 
 
-async def test_a_silent_server_leaves_the_request_unbounded_here(
+async def test_a_silent_server_leaves_the_size_as_it_is(
     database: Path, workspace: Path
 ) -> None:
-    """Nothing to take a share of and nothing to clamp against.
-
-    The overflow path is what bounds a request in that case, which is the
-    arrangement that existed before any of this and still has to hold.
-    """
+    """Nothing to clamp against: the chosen size is the bound."""
 
     agent = Agent(
         ScriptedBackend(limit=None),
@@ -221,7 +217,7 @@ async def test_a_silent_server_leaves_the_request_unbounded_here(
         workspace,
     )
 
-    assert await agent.budget() is None
+    assert await agent.budget() == 262_144
 
 
 async def test_a_chosen_budget_stands_when_the_server_says_nothing(
@@ -249,7 +245,7 @@ async def test_the_answer_is_unchanged_when_nothing_is_over_budget(
     """The check costs one estimate and must not otherwise alter a normal turn."""
 
     backend = ScriptedBackend(says("an ordinary answer"), limit=65_536)
-    agent = Agent(backend, SqliteStore(database), workspace, context_fraction=0.6)
+    agent = Agent(backend, SqliteStore(database), workspace)
 
     produced = await agent.answer("t1", Message(role="user", content=[ContentPart(kind="text", text="hello")]))
 
