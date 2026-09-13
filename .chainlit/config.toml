@@ -66,16 +66,9 @@ reaction_on_message_received = false
     # 3. For specific file extensions:
     #    accept = { "application/octet-stream" = [".xyz", ".pdb"] }
     # Note: Using "*/*" is not recommended as it may cause browser warnings
-    accept = [
-        "image/jpeg",
-        "image/png",
-        "image/webp",
-        "audio/wav",
-        "audio/x-wav",
-        "audio/mpeg",
-        "audio/flac",
-        "audio/ogg",
-    ]
+    # Any file: a picture or a sound goes to the model, everything else to
+    # `inbox/` in the workspace (`app.attachments.admit_uploads`).
+    accept = ["*/*"]
     max_files = 5
     max_size_mb = 20
 

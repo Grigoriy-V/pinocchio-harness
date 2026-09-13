@@ -16,6 +16,7 @@ from app.models import ContentPart, Message
 from app.attachments import AttachmentError
 from ui.chainlit_app import (
     canonical_thread_id,
+    command_of,
     media_parts,
     spoken,
     to_message,
@@ -41,8 +42,8 @@ class FakeMessage:
         self.command = command
 
 
-def test_a_plain_message_becomes_one_text_part() -> None:
-    message = to_message(FakeMessage("hello"))
+def test_a_plain_message_becomes_one_text_part(tmp_path: Path) -> None:
+    message = to_message(FakeMessage("hello"), tmp_path)
 
     assert message.role == "user"
     assert [part.kind for part in message.content] == ["text"]
@@ -52,7 +53,9 @@ def test_an_image_attachment_keeps_its_bytes_and_media_type(tmp_path: Path) -> N
     picture = tmp_path / "shot.png"
     picture.write_bytes(b"\x89PNG\x00")
 
-    message = to_message(FakeMessage("what is this", [FakeElement(str(picture), "image/png")]))
+    message = to_message(
+        FakeMessage("what is this", [FakeElement(str(picture), "image/png")]), tmp_path
+    )
 
     assert [part.kind for part in message.content] == ["text", "image"]
     assert message.content[1].data == b"\x89PNG\x00"
@@ -63,22 +66,43 @@ def test_an_audio_attachment_is_carried_as_audio(tmp_path: Path) -> None:
     clip = tmp_path / "clip.wav"
     clip.write_bytes(b"RIFF")
 
-    message = to_message(FakeMessage("", [FakeElement(str(clip), "audio/wav")]))
+    message = to_message(FakeMessage("", [FakeElement(str(clip), "audio/wav")]), tmp_path)
 
     assert [part.kind for part in message.content] == ["audio"]
 
 
-def test_an_unsupported_attachment_refuses_the_message(tmp_path: Path) -> None:
-    document = tmp_path / "report.pdf"
+def test_a_document_is_saved_to_the_inbox_and_named_in_the_turn(tmp_path: Path) -> None:
+    """Any file, the way the harness admits it: not to the model, to `inbox/`."""
+
+    upload = tmp_path / "upload"
+    upload.mkdir()
+    document = upload / "report.pdf"
     document.write_bytes(b"%PDF")
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
 
-    with pytest.raises(AttachmentError, match="report.pdf: unsupported file type"):
-        to_message(FakeMessage("read this", [FakeElement(str(document), "application/pdf")]))
+    message = to_message(
+        FakeMessage("read this", [FakeElement(str(document), "application/pdf")]), workspace
+    )
+
+    assert (workspace / "inbox" / "report.pdf").read_bytes() == b"%PDF"
+    assert [part.kind for part in message.content] == ["text", "text"]
+    assert "inbox/report.pdf" in (message.content[1].text or "")
 
 
-def test_a_blank_message_does_not_become_an_empty_model_turn() -> None:
+def test_a_blank_message_does_not_become_an_empty_model_turn(tmp_path: Path) -> None:
     with pytest.raises(AttachmentError, match="no text or usable attachments"):
-        to_message(FakeMessage())
+        to_message(FakeMessage(), tmp_path)
+
+
+# --- commands ----------------------------------------------------------------
+
+
+def test_a_command_comes_from_the_menu_or_a_slash() -> None:
+    assert command_of(FakeMessage("on", command="plan")) == ("/plan", "on")
+    assert command_of(FakeMessage("/Mode careful")) == ("/mode", "careful")
+    assert command_of(FakeMessage("/status")) == ("/status", "")
+    assert command_of(FakeMessage("hello /status")) is None
 
 
 # --- what comes back out -----------------------------------------------------

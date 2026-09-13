@@ -10,15 +10,16 @@ second consumer can be added without moving any of it.
 
 from __future__ import annotations
 
+import asyncio
 import itertools
 import json
 import os
 import secrets
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
 from typing import Any
 
-from app.attachments import AttachmentError, AttachmentSource, load_attachments
+from app.attachments import AttachmentBytes, AttachmentError, admit_uploads
 
 
 def _auth_secret() -> str:
@@ -46,10 +47,22 @@ os.environ.setdefault("CHAINLIT_AUTH_SECRET", _auth_secret())
 
 import chainlit as cl
 
+from app.agent.commands import (
+    CONTEXT_COMMANDS,
+    MODE_COMMANDS,
+    PLAN_COMMANDS,
+    compact_reply,
+    context_reply,
+    mode_reply,
+    plan_reply,
+)
+from app.agent.mode import current_mode
 from app.agent.runtime import Agent, create_agent
 from app.agent.stop import MemoryStopRequests
+from app.agent.todo import planning_enabled
 from app.capabilities import Delivery
-from app.config import AgentSettings
+from app.config import AgentSettings, ModelSettings, chosen_model
+from app.context.choice import context_choice
 from app.memory import SqliteStore
 from app.models import ContentPart, Message
 from ui.chainlit_history import LOCAL_USER_IDENTIFIER, MemoryStoreDataLayer
@@ -58,6 +71,17 @@ IMAGE = "image"
 AUDIO = "audio"
 CONFIRM_TIMEOUT = 600
 DELIVERY = Delivery(media=(IMAGE, AUDIO), place="the Chainlit web app")
+
+# Offered in the composer's menu; typed with a slash they mean the same. The
+# words of every reply are `app.agent.commands`, shared with Telegram.
+COMMANDS = [
+    {"id": "status", "description": "Open the status panel", "icon": "activity", "button": True},
+    {"id": "compact", "description": "Fold the older part of this conversation now", "icon": "fold-vertical"},
+    {"id": "plan", "description": "on | off: a task list for longer work", "icon": "list-checks"},
+    {"id": "mode", "description": "full | careful: whether changes ask first", "icon": "shield"},
+    {"id": "context", "description": "small | normal | large, or what the next request is made of", "icon": "layers"},
+]
+COMMAND_NAMES = ", ".join(f"/{command['id']}" for command in COMMANDS)
 
 
 @cl.header_auth_callback
@@ -75,28 +99,40 @@ def history_layer() -> MemoryStoreDataLayer:
     )
 
 
-def attachment_sources(incoming: cl.Message) -> list[AttachmentSource]:
-    """Translate Chainlit metadata without deciding what the agent accepts."""
+def uploads_of(incoming: cl.Message) -> list[AttachmentBytes]:
+    """Read what Chainlit saved, without deciding what the agent accepts."""
 
-    sources = []
+    uploads = []
     for element in incoming.elements or ():
         path = getattr(element, "path", None)
-        if path:
-            sources.append(
-                AttachmentSource(
-                    path=Path(path),
-                    media_type=getattr(element, "mime", None),
-                    name=getattr(element, "name", None) or Path(path).name,
-                )
+        if not path:
+            continue
+        try:
+            data = Path(path).read_bytes()
+        except OSError as exc:
+            raise AttachmentError(f"{Path(path).name}: uploaded file is unavailable") from exc
+        uploads.append(
+            AttachmentBytes(
+                name=getattr(element, "name", None) or Path(path).name,
+                media_type=getattr(element, "mime", None) or None,
+                data=data,
             )
-    return sources
+        )
+    return uploads
 
 
-def to_message(incoming: cl.Message) -> Message:
+def to_message(incoming: cl.Message, workspace: Path) -> Message:
+    """One message as the turn's input.
+
+    A picture or a sound goes to the model; any other file is saved under
+    `inbox/` in the workspace and named in the turn. The admission is
+    `app.attachments`, the same one Telegram has.
+    """
+
     parts: list[ContentPart] = []
     if incoming.content:
         parts.append(ContentPart(kind="text", text=incoming.content))
-    parts.extend(load_attachments(attachment_sources(incoming)))
+    parts.extend(admit_uploads(uploads_of(incoming), workspace))
     if not parts:
         raise AttachmentError("the message has no text or usable attachments")
     return Message(role="user", content=parts)
@@ -143,8 +179,47 @@ def attachments(message: Message, *, outbound_only: bool = False) -> list[Any]:
     return shown
 
 
-async def render(produced: AsyncIterator[Message]) -> None:
-    """Show messages as their nodes finish: a tool call as a step, an answer as a message."""
+class Turn:
+    """One collapsed step per turn, holding every tool call it made.
+
+    Chainlit shows each step as its own row, so a turn of twelve calls was
+    twelve rows. The calls are the turn's children now: a finished turn is
+    one line that opens on a click, the way the references show it. The
+    answers stay top-level, which is why the parent is named on each child
+    rather than entered as a context: a message sent inside a step's
+    context is filed under it.
+    """
+
+    def __init__(self) -> None:
+        self.step: cl.Step | None = None
+        self.calls = 0
+
+    async def child(self, name: str) -> cl.Step:
+        if self.step is None:
+            self.step = cl.Step(name="working", type="run")
+            await self.step.send()
+        self.calls += 1
+        step = cl.Step(name=name, type="tool", parent_id=self.step.id)
+        await step.send()
+        return step
+
+    async def close(self) -> None:
+        if self.step is None:
+            return
+        plural = "" if self.calls == 1 else "s"
+        self.step.name = f"{self.calls} tool call{plural}"
+        await self.step.update()
+
+
+Refresh = Callable[[], Awaitable[None]]
+
+
+async def render(
+    produced: AsyncIterator[Message], turn: Turn, after_call: Refresh | None = None
+) -> None:
+    """Show messages as their nodes finish: a tool call as a step under the
+    turn's, an answer as a message. `after_call` runs when a result lands,
+    which is when the status panel has something new to say."""
 
     steps: dict[str, cl.Step] = {}
     async for message in produced:
@@ -153,13 +228,14 @@ async def render(produced: AsyncIterator[Message]) -> None:
             if step is None:
                 # The call was announced before a restart, so there is no open
                 # step to fill in; show the result on its own instead of losing it.
-                step = cl.Step(name="tool result", type="tool")
-                await step.send()
+                step = await turn.child("tool result")
             step.output = spoken(message) if message.failure is not None else "Completed."
             await step.update()
             shown = attachments(message, outbound_only=True)
             if shown:
                 await cl.Message(content="", elements=shown).send()
+            if after_call is not None:
+                await after_call()
             continue
 
         body = spoken(message)
@@ -167,9 +243,9 @@ async def render(produced: AsyncIterator[Message]) -> None:
         if body or shown:
             await cl.Message(content=body, elements=shown).send()
         for call in message.tool_calls:
-            step = cl.Step(name=call.name, type="tool")
+            step = await turn.child(call.name)
             step.input = call.arguments
-            await step.send()
+            await step.update()
             steps[call.id] = step
         if not body and not shown and not message.tool_calls:
             await cl.Message(content="(no answer)").send()
@@ -221,19 +297,105 @@ def create_runtime_with_stops() -> tuple[Agent, MemoryStopRequests]:
     )
 
 
-async def report_fill(agent: Agent) -> None:
-    """State how large the last request was, counted by the model itself."""
+def bar(share: float, width: int = 20) -> str:
+    filled = max(0, min(width, round(share * width)))
+    return "█" * filled + "░" * (width - filled)
 
-    fill = await agent.fill()
-    if fill is None:
-        return
-    share = fill.fraction
-    body = (
-        f"context {fill.used} / {fill.budget} tokens ({share:.0%})"
-        if share is not None
-        else f"context {fill.used} tokens"
+
+def status_text(agent: Agent, thread_id: str) -> str:
+    """What the panel says: the thread, the model, the context against its
+    budget, the switches, the folder. Estimated from the store and the last
+    request's own count, never by waking the model (`Agent.context_report`)."""
+
+    report = agent.context_report(thread_id)
+    model = ModelSettings()
+    lines = [
+        f"**Thread** `{thread_id}`",
+        f"**Model** `{chosen_model() or 'plain'}` · {model.name or model.endpoint}",
+    ]
+    if report.last_used is not None and report.budget:
+        share = report.last_used / report.budget
+        lines.append(
+            f"**Context** {bar(share)} {share:.0%}  \n"
+            f"{report.last_used:,} of {report.budget:,} tokens "
+            f"(size {report.size}, the model's {report.ceiling:,})"
+        )
+    elif report.last_used is not None:
+        lines.append(
+            f"**Context** {report.last_used:,} tokens in the last request (size {report.size})"
+        )
+    else:
+        estimate = sum(report.layers.values())
+        lines.append(
+            f"**Context** ~{estimate:,} tokens estimated for the next request "
+            f"(size {report.size})"
+        )
+    conversation = f"**Conversation** {report.messages} messages verbatim"
+    if report.summarized_through:
+        conversation += f", a summary covers {report.summarized_through} before them"
+    lines.append(conversation)
+    workspace = agent.workspace
+    lines.append(
+        f"**Mode** {current_mode(workspace)} · "
+        f"**Plan** {'on' if planning_enabled(workspace) else 'off'} · "
+        f"**Size** {context_choice(workspace)}"
     )
-    await cl.Message(content=body, author="context").send()
+    lines.append(f"**Folder** `{workspace}`")
+    lines.append(f"Commands: {COMMAND_NAMES}")
+    return "\n\n".join(lines)
+
+
+async def show_status(agent: Agent, thread_id: str) -> None:
+    """The panel beside the chat, open and kept current.
+
+    The text is made in a thread: the first report of a process lists the
+    MCP servers' tools, and that listing waits on the servers with a
+    blocking call (ISS-0070); made on the loop it held the whole app.
+    """
+
+    text = await asyncio.to_thread(status_text, agent, thread_id)
+    await cl.ElementSidebar.set_title("Status")
+    await cl.ElementSidebar.set_elements(
+        [cl.Text(name="status", content=text, display="inline")], key="status"
+    )
+
+
+def command_of(incoming: cl.Message) -> tuple[str, str] | None:
+    """The command and its argument, from the composer's menu or a slash."""
+
+    text = (incoming.content or "").strip()
+    chosen = getattr(incoming, "command", None)
+    if chosen:
+        return f"/{chosen.lower()}", text.lower()
+    if text.startswith("/"):
+        head, _, argument = text.partition(" ")
+        return head.lower(), argument.strip().lower()
+    return None
+
+
+async def handle_command(agent: Agent, thread_id: str, incoming: cl.Message) -> bool:
+    """Answer a command without a turn. True when the message was one."""
+
+    command = command_of(incoming)
+    if command is None:
+        return False
+    head, argument = command
+    if head == "/status":
+        await show_status(agent, thread_id)
+        return True
+    if head in PLAN_COMMANDS:
+        reply = plan_reply(agent, argument)
+    elif head in MODE_COMMANDS:
+        reply = mode_reply(agent, argument)
+    elif head in CONTEXT_COMMANDS:
+        reply = context_reply(agent, thread_id, argument)
+    elif head == "/compact":
+        reply = await compact_reply(agent, thread_id)
+    else:
+        reply = f"No such command: {head}. Commands: {COMMAND_NAMES}."
+    await cl.Message(content=reply).send()
+    await show_status(agent, thread_id)
+    return True
 
 
 async def drive(
@@ -245,11 +407,27 @@ async def drive(
     turn interrupted before a restart is picked up.
     """
 
+    turn = Turn()
+
+    async def refresh() -> None:
+        await show_status(agent, thread_id)
+
     if produced is not None:
-        await render(produced)
+        await render(produced, turn, refresh)
     while (question := await agent.pending(thread_id)) is not None:
-        await render(agent.resume(thread_id, await confirm(question)))
-    await report_fill(agent)
+        await render(agent.resume(thread_id, await confirm(question)), turn, refresh)
+    await turn.close()
+    await refresh()
+
+
+async def open_session(agent: Agent, stops: MemoryStopRequests, thread_id: str) -> None:
+    cl.user_session.set("agent", agent)
+    cl.user_session.set("stops", stops)
+    cl.user_session.set("thread_id", thread_id)
+    await cl.context.emitter.set_commands(COMMANDS)
+    # Not awaited: the chat is usable at once, the panel follows when the
+    # toolbox has been listed.
+    cl.user_session.set("status_task", asyncio.create_task(show_status(agent, thread_id)))
 
 
 @cl.on_chat_start
@@ -257,19 +435,14 @@ async def start() -> None:
     agent, stops = create_runtime_with_stops()
     # The websocket session id is ephemeral and differs from the canonical
     # thread id that Chainlit puts in its sidebar and data layer.
-    thread_id = canonical_thread_id(cl.context.session)
-    cl.user_session.set("agent", agent)
-    cl.user_session.set("stops", stops)
-    cl.user_session.set("thread_id", thread_id)
+    await open_session(agent, stops, canonical_thread_id(cl.context.session))
 
 
 @cl.on_chat_resume
 async def resume(thread: dict[str, Any]) -> None:
     agent, stops = create_runtime_with_stops()
     thread_id = thread["id"]
-    cl.user_session.set("agent", agent)
-    cl.user_session.set("stops", stops)
-    cl.user_session.set("thread_id", thread_id)
+    await open_session(agent, stops, thread_id)
     if await agent.pending(thread_id) is not None:
         await cl.Message(content="This conversation stopped waiting for an answer.").send()
         await drive(agent, thread_id)
@@ -280,12 +453,12 @@ async def on_message(incoming: cl.Message) -> None:
     agent: Agent = cl.user_session.get("agent")
     thread_id: str = cl.user_session.get("thread_id")
 
+    if await handle_command(agent, thread_id, incoming):
+        return
     try:
-        message = to_message(incoming)
+        message = to_message(incoming, agent.workspace)
     except AttachmentError as exc:
-        await cl.Message(
-            content=f"Upload refused: {exc}."
-        ).send()
+        await cl.Message(content=f"Upload refused: {exc}.").send()
         return
 
     await drive(agent, thread_id, agent.steps(thread_id, message, next(_sequence)))
