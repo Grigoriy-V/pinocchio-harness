@@ -193,6 +193,17 @@ Recorded, not approved, not begun. One line each.
 
 - **A deadline per tool** (ISS-0033), drafted inside item 14 and not
   approved: a hung tool holds the worker and no health check can reach it.
+- **A tool that finds tools, and MCP servers opened on demand** (the
+  human, 2026-09-13). Today every turn sends the model the whole toolbox,
+  the MCP servers' tools included, and a configured server is connected
+  at the first toolbox build and held for the life of the process
+  (ISS-0070: 37-155 s on a fresh worker). Wanted: the model is given the
+  core tools and one `find_tools` that returns matching tools by name and
+  description, which are then offered in the following steps of the turn;
+  an MCP server is connected when one of its tools is first called, and
+  closed after an idle time, so a server that a turn does not use costs
+  nothing. What counts as core, and how much prompt this saves per turn,
+  is measured first.
 - **The whole-code review of 2026-09-03**, its items 3 onward:
   `reports/2026-09-03_v2_whole_code_review.md`.
 - **Finish the `todo` tool.** A turn ending on an item the model does not
