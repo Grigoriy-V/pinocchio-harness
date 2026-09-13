@@ -1098,7 +1098,8 @@ async def test_compact_folds_the_older_part_now(
 
     await adapter.handle_update(text_update("/compact", update_id=20))
 
-    assert telegram.sent[-1].startswith("Folded 8 older messages")
+    assert telegram.sent[-1].startswith("Compacted: about ")
+    assert "8 older messages folded" in telegram.sent[-1]
     store = SqliteStore(str(tmp_path / "memory.sqlite3"))
     summary, through = store.summary(current_thread(store, canonical_user_id(ALLOWED)))
     assert summary == "a summary of what was said"

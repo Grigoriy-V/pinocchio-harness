@@ -141,13 +141,24 @@ def context_reply(agent: Agent, thread_id: str, argument: str) -> str:
 
 
 async def compact_reply(agent: Agent, thread_id: str) -> str:
-    """Fold the older part of this conversation now. One summarizer call."""
+    """Fold the older part of this conversation now. One summarizer call.
 
+    Said in tokens, the way the references say it: what the next request
+    no longer carries, from the same estimate the fold decides by.
+    """
+
+    before = agent.context_report(thread_id).layers["history"]
     folded = await agent.compact(thread_id)
     keep = exchanges(agent.policy.keep_turns)
+    if not folded:
+        return (
+            f"Nothing to fold: {keep} always stay verbatim, and that is all there "
+            "is past the summary."
+        )
+    after = agent.context_report(thread_id).layers["history"]
+    freed = max(0, before - after)
     return (
-        f"Folded {folded} older messages into the summary; {keep} stay verbatim."
-        if folded
-        else f"Nothing to fold: {keep} always stay verbatim, and that is all there "
-        "is past the summary."
+        f"Compacted: about {freed:,} tokens freed, {folded} older messages folded "
+        f"into the summary; {keep} stay verbatim, and the exact words stay "
+        "reachable with search_history."
     )
