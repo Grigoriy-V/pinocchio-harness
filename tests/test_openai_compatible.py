@@ -1144,3 +1144,11 @@ async def test_an_unreachable_server_leaves_the_limit_unknown() -> None:
 
     async with backend(handler) as client:
         assert await client.context_limit() is None
+
+
+def test_usage_carries_the_routers_cost_when_it_says_it() -> None:
+    from app.models.openai_compatible import parse_usage
+
+    assert parse_usage({"prompt_tokens": 5, "completion_tokens": 2, "cost": "0.00031"}).cost == 0.00031
+    assert parse_usage({"prompt_tokens": 5, "completion_tokens": 2}).cost is None
+    assert parse_usage({"cost": "free?"}).cost is None

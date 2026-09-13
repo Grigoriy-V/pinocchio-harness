@@ -174,6 +174,9 @@ class Usage:
     # `None` when the server does not say. Billed as output, and the whole of
     # a slow call's time on a model that thinks first (2026-09-06).
     reasoning_tokens: int | None = None
+    # What the provider charged for the request, in dollars, when it says
+    # (OpenRouter does when asked). `None` is not free: it is unknown.
+    cost: float | None = None
 
 
 @dataclass(frozen=True)

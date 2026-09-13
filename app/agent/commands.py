@@ -97,8 +97,17 @@ def context_reply(agent: Agent, thread_id: str, argument: str) -> str:
     if argument in SIZES:
         set_context_choice(agent.workspace, argument)
         agent.rewire()
-        return f"Context size is {argument} from your next message" + (
-            f", kept as {CONTEXT_CHOICE.as_posix()} in your workspace."
+        report = agent.context_report(thread_id)
+        # The model's window as the model said it, or as configured before
+        # the model has answered once.
+        window = report.ceiling or agent.context_tokens
+        size = (
+            f"up to {int(window * report.fraction):,} tokens of the model's {window:,}"
+            if window
+            else f"{int(report.fraction * 100)}% of the model's window, read when it next answers"
+        )
+        return f"Context size is {argument} from your next message: {size}" + (
+            f". Kept as {CONTEXT_CHOICE.as_posix()} in your workspace."
             if argument != "normal"
             else " (the default)."
         )

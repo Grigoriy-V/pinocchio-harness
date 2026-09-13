@@ -351,6 +351,9 @@ def repaired(call: ToolCall) -> ToolCall:
     return replace(call, arguments=arguments)
 
 
+OPENROUTER = "openrouter.ai"
+
+
 def parse_usage(usage: dict[str, Any] | None) -> Usage:
     details = (usage or {}).get("prompt_tokens_details") or {}
     output = (usage or {}).get("completion_tokens_details") or {}
@@ -359,7 +362,15 @@ def parse_usage(usage: dict[str, Any] | None) -> Usage:
         output_tokens=(usage or {}).get("completion_tokens"),
         cached_tokens=details.get("cached_tokens") if isinstance(details, dict) else None,
         reasoning_tokens=output.get("reasoning_tokens") if isinstance(output, dict) else None,
+        cost=_money((usage or {}).get("cost")),
     )
+
+
+def _money(value: Any) -> float | None:
+    try:
+        return float(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None
 
 
 def parse_completion(payload: dict[str, Any]) -> Completion:
@@ -654,6 +665,10 @@ class OpenAICompatibleBackend(ModelBackend):
             # Without this the streamed response carries no usage at all, and a
             # turn whose size is unknown cannot be folded or reported.
             body["stream_options"] = {"include_usage": True}
+        if OPENROUTER in self.settings.endpoint:
+            # The router puts the request's price in `usage.cost` when asked;
+            # nothing else reads the field, so it is asked of the router only.
+            body["usage"] = {"include": True}
         if self.settings.providers:
             # One host, and the router may not move the call: a move loses the
             # prefix cache. The next host is asked by `stream` only after this

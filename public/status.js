@@ -1,6 +1,7 @@
-// The status card: a small panel above the composer, opened and closed by
-// one button, kept current while it is open. Reads `/status` (this app's
-// own route, `ui/chainlit_app.py`) and draws in place, so nothing flickers.
+// The status card: a panel fastened above the composer, opened and closed
+// by a button inside the composer, kept current while it is open. Reads
+// `/status` (this app's own route, `ui/chainlit_app.py`) and draws in
+// place, so nothing flickers.
 (function () {
   const POLL_MS = 3000;
   let open = false;
@@ -9,19 +10,40 @@
   const card = document.createElement("div");
   card.id = "status-card";
   card.hidden = true;
+  document.body.appendChild(card);
+
   const button = document.createElement("button");
   button.id = "status-button";
   button.type = "button";
+  button.title = "Status";
   button.textContent = "Status";
   button.addEventListener("click", () => toggle());
-  document.body.appendChild(card);
-  document.body.appendChild(button);
+
+  // The composer is Chainlit's and remounts on navigation; the button is
+  // put back whenever it is missing, and the card follows the composer.
+  function fasten() {
+    const composer = document.getElementById("message-composer");
+    if (!composer) return;
+    if (button.parentElement !== composer) {
+      composer.appendChild(button);
+    }
+    if (open) {
+      const rect = composer.getBoundingClientRect();
+      card.style.left = rect.left + "px";
+      card.style.width = rect.width + "px";
+      card.style.bottom = window.innerHeight - rect.top + 8 + "px";
+    }
+  }
+  new MutationObserver(fasten).observe(document.body, { childList: true, subtree: true });
+  window.addEventListener("resize", fasten);
+  fasten();
 
   function toggle(force) {
     open = force === undefined ? !open : force;
     card.hidden = !open;
     button.classList.toggle("open", open);
     if (open) {
+      fasten();
       refresh();
       timer = setInterval(refresh, POLL_MS);
     } else if (timer) {
@@ -35,11 +57,8 @@
   const money = (n) => (n === null || n === undefined ? "—" : "$" + Number(n).toFixed(n < 1 ? 4 : 2));
 
   function bar(share) {
-    const cells = 40;
-    const filled = Math.max(0, Math.min(cells, Math.round(share * cells)));
-    return (
-      '<span class="bar"><span class="fill" style="width:' + (filled / cells) * 100 + '%"></span></span>'
-    );
+    const width = Math.max(0, Math.min(100, Math.round(share * 100)));
+    return '<span class="bar"><span class="fill" style="width:' + width + '%"></span></span>';
   }
 
   function row(label, value) {
@@ -48,24 +67,29 @@
 
   function draw(s) {
     let context;
-    if (s.context_used !== null && s.context_budget) {
-      const share = s.context_used / s.context_budget;
+    if (s.context_window) {
+      const share = s.context_used / s.context_window;
       context =
-        bar(share) +
-        " Remaining " + Math.max(0, Math.round((1 - share) * 100)) + "%  " +
-        "Used " + fmt(s.context_used) + " of " + short(s.context_budget) +
-        (s.last_cached ? " (" + fmt(s.last_cached) + " cached)" : "");
-    } else if (s.context_used !== null) {
-      context = "Used " + fmt(s.context_used) + " in the last request";
+        bar(share) + " " +
+        (s.context_estimated ? "~" : "") + fmt(s.context_used) + " of " + short(s.context_window) +
+        " (" + Math.round(share * 100) + "%)" +
+        (s.context_estimated ? ", estimated for the next request" : ", the last request") +
+        (s.last_cached ? ", " + fmt(s.last_cached) + " cached" : "") +
+        (s.context_budget ? "; folds past " + short(s.context_budget) : "");
     } else {
-      context = "~" + fmt(s.context_estimate) + " estimated for the next request";
+      context = (s.context_estimated ? "~" : "") + fmt(s.context_used) + " tokens; the window is read when the model next answers";
     }
+    const history =
+      s.messages + " message" + (s.messages === 1 ? "" : "s") + " sent verbatim" +
+      (s.summarized_through ? ", " + s.summarized_through + " older ones folded into a summary" : "");
+    const session =
+      s.session_spend === null
+        ? "—"
+        : money(s.session_spend) + (s.session_spend_exact ? " for this session's calls" : " on the account since start");
     let account;
     if (s.credits_total !== null) {
       const left = s.credits_total - s.credits_used;
-      account =
-        bar(s.credits_total ? left / s.credits_total : 0) +
-        " " + money(left) + " left of " + money(s.credits_total);
+      account = bar(s.credits_total ? left / s.credits_total : 0) + " " + money(left) + " left of " + money(s.credits_total);
     } else {
       account = "not an OpenRouter set";
     }
@@ -74,8 +98,8 @@
       row("Thread", "<code>" + s.thread_id + "</code>") +
       row("Model", s.model_set + " · " + s.model_name) +
       row("Context", context) +
-      row("History", s.messages + " messages verbatim" + (s.summarized_through ? ", " + s.summarized_through + " in the summary" : "")) +
-      row("Session", s.session_spend === null ? "—" : money(s.session_spend) + " spent since start") +
+      row("History", history) +
+      row("Session", session) +
       row("Account", account) +
       row("Switches", "mode " + s.mode + " · plan " + (s.plan ? "on" : "off") + " · size " + s.context_size) +
       row("Folder", "<code>" + s.workspace + "</code>");

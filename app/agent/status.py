@@ -91,10 +91,13 @@ class Status:
     thread_id: str
     model_set: str
     model_name: str
-    context_used: int | None
+    # The last request's own count, or the next one's estimate before any.
+    context_used: int
+    context_estimated: bool
+    # The model's window: read from the model once it has answered,
+    # the configured `context_tokens` before that.
+    context_window: int | None
     context_budget: int | None
-    context_ceiling: int | None
-    context_estimate: int
     context_size: str
     messages: int
     summarized_through: int
@@ -102,7 +105,10 @@ class Status:
     mode: str
     plan: bool
     workspace: str
+    # This agent's calls' own cost when the provider says it, else the
+    # account's usage since the process started.
     session_spend: float | None
+    session_spend_exact: bool
     credits_total: float | None
     credits_used: float | None
 
@@ -120,10 +126,11 @@ def status_of(agent: Agent, thread_id: str, credits: Credits | None, spend: floa
         thread_id=thread_id,
         model_set=chosen_model() or "plain",
         model_name=model.name or model.endpoint,
-        context_used=report.last_used,
-        context_budget=report.budget,
-        context_ceiling=report.ceiling,
-        context_estimate=sum(report.layers.values()),
+        context_used=report.last_used if report.last_used is not None else sum(report.layers.values()),
+        context_estimated=report.last_used is None,
+        context_window=report.ceiling or agent.context_tokens or None,
+        context_budget=report.budget
+        or (int(agent.context_tokens * report.fraction) if agent.context_tokens else None),
         context_size=report.size,
         messages=report.messages,
         summarized_through=report.summarized_through,
@@ -131,7 +138,8 @@ def status_of(agent: Agent, thread_id: str, credits: Credits | None, spend: floa
         mode=current_mode(workspace),
         plan=planning_enabled(workspace),
         workspace=str(workspace),
-        session_spend=spend,
+        session_spend=agent.spent if agent.spent is not None else spend,
+        session_spend_exact=agent.spent is not None,
         credits_total=credits.total if credits else None,
         credits_used=credits.used if credits else None,
     )

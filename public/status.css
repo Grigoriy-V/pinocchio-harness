@@ -1,28 +1,31 @@
 /* The status card and its button; the rest of the page is Chainlit's. */
+#message-composer {
+  position: relative;
+}
 #status-button {
-  position: fixed;
-  right: 24px;
-  bottom: 24px;
-  z-index: 60;
-  padding: 6px 12px;
+  position: absolute;
+  right: 56px;
+  bottom: 14px;
+  z-index: 5;
+  padding: 4px 10px;
   border-radius: 999px;
   border: 1px solid rgba(128, 128, 128, 0.4);
-  background: rgba(40, 40, 40, 0.9);
-  color: #ddd;
+  background: transparent;
+  color: #bbb;
   font: 13px/1.2 system-ui, sans-serif;
   cursor: pointer;
 }
 #status-button.open,
 #status-button:hover {
-  background: rgba(70, 70, 70, 0.95);
+  background: rgba(128, 128, 128, 0.25);
   color: #fff;
 }
 #status-card {
   position: fixed;
   left: 50%;
   bottom: 120px;
-  transform: translateX(-50%);
   width: min(860px, calc(100% - 48px));
+  box-sizing: border-box;
   z-index: 60;
   padding: 12px 16px;
   border-radius: 12px;

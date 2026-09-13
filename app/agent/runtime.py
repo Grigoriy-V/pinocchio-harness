@@ -278,6 +278,9 @@ class Agent:
         self._limit: int | None = None
         self._asked_the_limit = False
         self._usage = Usage()
+        # What this agent's model calls have cost, added from each call's own
+        # `usage.cost`; `None` until a call has said its price.
+        self.spent: float | None = None
 
     async def budget(self) -> int | None:
         """How many tokens a request may take, or `None` if the model is silent.
@@ -479,6 +482,8 @@ class Agent:
                 usage = patch.get("usage")
                 if usage is not None:
                     self._usage = usage
+                    if usage.cost is not None:
+                        self.spent = (self.spent or 0.0) + usage.cost
                 steered = patch.get("steered")
                 if steered is not None and steered.candidate is not None:
                     # The graph kept this out of the conversation; the only
