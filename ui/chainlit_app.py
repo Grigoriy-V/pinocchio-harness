@@ -208,7 +208,13 @@ def create_runtime_with_stops() -> tuple[Agent, MemoryStopRequests]:
     """
 
     stops = MemoryStopRequests()
-    settings = AgentSettings()
+    # The local profile: the store and the checkpoints are the SQLite files
+    # beside this process, whatever `.env` says. The developer's `.env` names
+    # the deployed database for the deploy scripts, and this app's history
+    # panel above reads the SQLite store; an agent writing to the other
+    # database would split one conversation in two (and async psycopg does
+    # not run on Windows's default loop, so the turn died before the model).
+    settings = AgentSettings(database_url="")
     return (
         create_agent(agent_settings=settings, delivery=DELIVERY, stops=stops),
         stops,
