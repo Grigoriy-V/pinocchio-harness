@@ -62,12 +62,12 @@ class CapabilityGrant:
         return capability in self.capabilities
 
 
-def _filesystem_read(root: Path) -> list[Tool]:
-    return filesystem_tools(root)[:2]
+def _filesystem_read(root: Path, open_reads: bool = False) -> list[Tool]:
+    return filesystem_tools(root, open_reads=open_reads)[:2]
 
 
-def _filesystem_write(root: Path) -> list[Tool]:
-    return filesystem_tools(root)[2:]
+def _filesystem_write(root: Path, open_reads: bool = False) -> list[Tool]:
+    return filesystem_tools(root, open_reads=open_reads)[2:]
 
 
 class CapabilityRegistry:
@@ -79,8 +79,13 @@ class CapabilityRegistry:
         capabilities: Iterable[Capability] | None = None,
         runner: Runner | None = None,
         mcp: McpSessions | None = None,
+        open: bool = False,
     ) -> None:
         self.workspace = Path(workspace).resolve()
+        # The person's own machine (roadmap 27, 2026-09-13): a grant may name
+        # any folder on it, reading reaches anywhere, a write outside the
+        # folder asks. Deployed, off: several people share one Volume.
+        self.open = open
         if not self.workspace.is_dir():
             raise ValueError(f"the workspace {workspace} is not a directory")
         self.runner: Runner = runner if runner is not None else LocalRunner()
@@ -94,11 +99,11 @@ class CapabilityRegistry:
             capabilities
             if capabilities is not None
             else (
-                Capability(FILESYSTEM_READ, _filesystem_read),
-                Capability(FILESYSTEM_WRITE, _filesystem_write),
+                Capability(FILESYSTEM_READ, lambda root: _filesystem_read(root, self.open)),
+                Capability(FILESYSTEM_WRITE, lambda root: _filesystem_write(root, self.open)),
                 Capability(BROWSER_INSPECT, lambda root: browser_tools(root, pages=self.pages)),
-                Capability(DOCUMENTS_READ, document_tools),
-                Capability(PRESENT_FILES, presentation_tools),
+                Capability(DOCUMENTS_READ, lambda root: document_tools(root, open_reads=self.open)),
+                Capability(PRESENT_FILES, lambda root: presentation_tools(root, open_reads=self.open)),
                 Capability(WEB_SEARCH, web_search_tools),
                 Capability(WEB_FETCH, web_fetch_tools),
                 Capability(WEB_VIEW, web_view_tools),
@@ -131,7 +136,11 @@ class CapabilityRegistry:
             if supplied.is_absolute()
             else (self.workspace / supplied).resolve()
         )
-        if allowed_root != self.workspace and self.workspace not in allowed_root.parents:
+        if (
+            not self.open
+            and allowed_root != self.workspace
+            and self.workspace not in allowed_root.parents
+        ):
             raise PermissionError("capability grant root is outside the workspace")
         if not allowed_root.is_dir():
             raise ValueError("capability grant root is not a directory")

@@ -29,7 +29,7 @@ from app.documents import (
 )
 from app.models import ContentPart
 from app.tools.base import BAD_ARGUMENTS, Tool, ToolError, handover
-from app.tools.filesystem import NOT_A_FILE, NOT_FOUND, TOO_LARGE, resolve_in_root
+from app.tools.filesystem import NOT_A_FILE, NOT_FOUND, TOO_LARGE, resolve_path
 
 MAX_BYTES = 20 * 1024 * 1024
 MAX_CHARS = 12_000
@@ -39,8 +39,8 @@ UNSUPPORTED = "doc.unsupported"
 UNREADABLE = "doc.unreadable"
 
 
-def _existing_file(root: Path, path: str) -> Path:
-    target = resolve_in_root(root, path)
+def _existing_file(root: Path, path: str, *, confined: bool = True) -> Path:
+    target = resolve_path(root, path, confined=confined)
     if not target.exists():
         raise ToolError(f"path {path!r} does not exist", code=NOT_FOUND)
     if not target.is_file():
@@ -76,8 +76,8 @@ def _render(name: str, sections: list[Section], start: int, budget: int) -> str:
     return "\n".join(lines)
 
 
-def read_document(root: Path, path: str, from_section: int = 1) -> str:
-    target = _existing_file(root, path)
+def read_document(root: Path, path: str, from_section: int = 1, *, confined: bool = True) -> str:
+    target = _existing_file(root, path, confined=confined)
     media_type = media_type_for(target.name, None)
     if media_type is None:
         readable = ", ".join(sorted(DOCUMENT_MEDIA_TYPES.values()))
@@ -96,7 +96,9 @@ def read_document(root: Path, path: str, from_section: int = 1) -> str:
     return _render(target.name, sections, from_section - 1, MAX_CHARS)
 
 
-def view_pages(root: Path, path: str, page: int = 1, pages: int = 1) -> list[ContentPart]:
+def view_pages(
+    root: Path, path: str, page: int = 1, pages: int = 1, *, confined: bool = True
+) -> list[ContentPart]:
     """Hand the model a picture of a page, which is how a scan is read.
 
     Not OCR. The model is multimodal, so it looks at the page the way a person
@@ -105,7 +107,7 @@ def view_pages(root: Path, path: str, page: int = 1, pages: int = 1) -> list[Con
     becoming confident nonsense.
     """
 
-    target = _existing_file(root, path)
+    target = _existing_file(root, path, confined=confined)
     if media_type_for(target.name, None) != PDF:
         raise ToolError(
             f"{target.name} is not a PDF, so there are no pages to look at", code=UNSUPPORTED
@@ -143,8 +145,9 @@ def view_pages(root: Path, path: str, page: int = 1, pages: int = 1) -> list[Con
     return parts
 
 
-def document_tools(root: Path) -> list[Tool]:
+def document_tools(root: Path, *, open_reads: bool = False) -> list[Tool]:
     resolved = Path(root).resolve()
+    confined = not open_reads
     if not resolved.is_dir():
         raise ValueError(f"the tool root {root} is not a directory")
     readable = ", ".join(sorted(DOCUMENT_MEDIA_TYPES.values()))

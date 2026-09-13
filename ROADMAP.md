@@ -168,12 +168,19 @@ at a time; research first where noted; the human's word starts each.
        context used against the budget, mode, plan, the working folder;
        the "context …" message after each turn goes. One collapsed step
        per turn holds all its tool calls, so a finished turn is one line.
-    2. **The working folder, per conversation.** The workspace becomes
-       the thread's, not the process's: `/workspace <path>` and the panel
-       set it, the thread keeps it, a new thread inherits the last one.
-       Every path tool and the command boundary keep validating against
-       the thread's root. Designed first as a boundary change; the human's
-       word before it is built.
+    2. **The working folder, per conversation.** Approved 2026-09-13 (the
+       human), the references' rule: read anywhere, write in the folder,
+       write elsewhere after a yes. `/workspace <absolute path>` names the
+       folder a conversation works in (`off` goes back), kept in
+       `.agent/folders.json` of the personal workspace; a new conversation
+       starts in the last folder named. The tools of that conversation are
+       built on the folder: reading reaches any path on the machine, a
+       write or edit outside the folder waits for the person's yes through
+       the same buttons careful mode uses, a command runs in the folder and
+       on Windows its token is granted the folder. Deployed nothing of this
+       applies (`CapabilityRegistry(open=False)`): several people share one
+       Volume, so reading and writing stay inside the root. `inbox/`, the
+       switches and the document previews stay in the personal workspace.
     3. **Coding locally, without crutches.** ISS-0068 (the Windows
        boundary kills every Cygwin tool), the automatic workspace venv
        removed as agreed in the isolated-execution review §11, `python3`

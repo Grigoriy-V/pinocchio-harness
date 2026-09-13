@@ -14,7 +14,7 @@ from pathlib import Path
 from app.attachments import MEDIA_KINDS
 from app.models import ContentPart
 from app.tools.base import BAD_ARGUMENTS, Tool, ToolError
-from app.tools.filesystem import NOT_A_FILE, NOT_FOUND, TOO_LARGE, resolve_in_root
+from app.tools.filesystem import NOT_A_FILE, NOT_FOUND, TOO_LARGE, resolve_path
 
 MAX_OUTBOUND_BYTES = 50 * 1024 * 1024
 
@@ -48,8 +48,8 @@ def send_file(
     ]
 
 
-def _outbound(root: Path, path: str) -> ContentPart:
-    target = resolve_in_root(root, path)
+def _outbound(root: Path, path: str, *, confined: bool = True) -> ContentPart:
+    target = resolve_path(root, path, confined=confined)
     if not target.exists():
         raise ToolError(f"path {path!r} does not exist", code=NOT_FOUND)
     if not target.is_file():
@@ -74,8 +74,9 @@ def _outbound(root: Path, path: str) -> ContentPart:
     )
 
 
-def presentation_tools(root: Path) -> list[Tool]:
+def presentation_tools(root: Path, *, open_reads: bool = False) -> list[Tool]:
     resolved = Path(root).resolve()
+    confined = not open_reads
     if not resolved.is_dir():
         raise ValueError(f"the tool root {root} is not a directory")
     return [

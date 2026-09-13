@@ -283,7 +283,7 @@ class ToolExecutor:
             call=resolved,
             tool=tool,
             refusal=None,
-            approval_required=self.toolbox.requires_approval(name),
+            approval_required=self.toolbox.requires_approval(name, resolved.arguments),
         )
 
     # --- execute -------------------------------------------------------------

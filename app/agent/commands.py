@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from app.agent.folder import clear_folder, set_folder
 from app.agent.mode import MODES, current_mode, set_mode
 from app.agent.todo import PLAN_SWITCH, planning_enabled, set_planning
 from app.context.choice import CONTEXT_CHOICE, SIZES, set_context_choice
@@ -21,6 +22,7 @@ if TYPE_CHECKING:
 PLAN_COMMANDS = {"/plan", "/planning"}
 MODE_COMMANDS = {"/mode"}
 CONTEXT_COMMANDS = {"/context", "/ctx"}
+WORKSPACE_COMMANDS = {"/workspace", "/folder", "/cd"}
 
 
 def exchanges(keep_turns: int) -> str:
@@ -138,6 +140,33 @@ def context_reply(agent: Agent, thread_id: str, argument: str) -> str:
     )
     lines.append("/context small|normal|large sets the size; /compact folds the older part now.")
     return "\n".join(lines)
+
+
+def workspace_reply(agent: Agent, thread_id: str, argument: str) -> str:
+    """Show or set the folder this conversation works in.
+
+    An absolute path to an existing folder; `off` goes back to the personal
+    workspace. Takes effect from the next message, like the other switches.
+    """
+
+    if argument == "off":
+        clear_folder(agent.workspace, thread_id)
+        agent.rewire()
+        return f"Working folder: {agent.workspace} (your workspace) from your next message."
+    if argument:
+        try:
+            chosen = set_folder(agent.workspace, thread_id, argument)
+        except ValueError as error:
+            return f"Not set: {error}. Give an absolute path to an existing folder."
+        agent.rewire()
+        return (
+            f"Working folder: {chosen} from your next message. Files are read and "
+            "written there; a write anywhere else asks you first."
+        )
+    return (
+        f"Working folder: {agent.folder(thread_id)}. /workspace <absolute path> sets "
+        "another for this conversation; /workspace off goes back to your workspace."
+    )
 
 
 async def compact_reply(agent: Agent, thread_id: str) -> str:

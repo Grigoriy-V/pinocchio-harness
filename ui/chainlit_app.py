@@ -53,12 +53,15 @@ from app.agent.commands import (
     CONTEXT_COMMANDS,
     MODE_COMMANDS,
     PLAN_COMMANDS,
+    WORKSPACE_COMMANDS,
     compact_reply,
     context_reply,
     mode_reply,
     plan_reply,
     short,
+    workspace_reply,
 )
+from app.agent.folder import folder_of, last_folder, set_folder
 from app.agent.runtime import Agent, create_agent, user_workspace
 from app.agent.status import CreditsWatch, status_of
 from app.agent.stop import MemoryStopRequests
@@ -80,6 +83,7 @@ COMMANDS = [
     {"id": "plan", "description": "on | off: a task list for longer work", "icon": "list-checks"},
     {"id": "mode", "description": "full | careful: whether changes ask first", "icon": "shield"},
     {"id": "context", "description": "small | normal | large, or what the next request is made of", "icon": "layers"},
+    {"id": "workspace", "description": "<absolute path> | off: the folder this conversation works in", "icon": "folder-open"},
 ]
 COMMAND_NAMES = ", ".join(f"/{command['id']}" for command in COMMANDS)
 
@@ -286,7 +290,7 @@ def create_runtime_with_stops() -> tuple[Agent, MemoryStopRequests]:
     # not run on Windows's default loop, so the turn died before the model).
     settings = AgentSettings(database_url="")
     return (
-        create_agent(agent_settings=settings, delivery=DELIVERY, stops=stops),
+        create_agent(agent_settings=settings, delivery=DELIVERY, stops=stops, open=True),
         stops,
     )
 
@@ -355,6 +359,12 @@ async def handle_command(agent: Agent, thread_id: str, incoming: cl.Message) -> 
         reply = mode_reply(agent, argument)
     elif head in CONTEXT_COMMANDS:
         reply = context_reply(agent, thread_id, argument)
+    elif head in WORKSPACE_COMMANDS:
+        # The path as typed: lower-casing it would name another folder on
+        # a case-sensitive disk.
+        typed = (incoming.content or "").strip()
+        raw = typed if getattr(incoming, "command", None) else typed.partition(" ")[2].strip()
+        reply = workspace_reply(agent, thread_id, raw if raw.lower() != "off" else "off")
     elif head == "/compact":
         reply = await compact_reply(agent, thread_id)
     else:
@@ -401,7 +411,12 @@ async def start() -> None:
     agent, stops = create_runtime_with_stops()
     # The websocket session id is ephemeral and differs from the canonical
     # thread id that Chainlit puts in its sidebar and data layer.
-    await open_session(agent, stops, canonical_thread_id(cl.context.session))
+    thread_id = canonical_thread_id(cl.context.session)
+    # A new conversation starts in the folder the last one worked in.
+    inherited = last_folder(agent.workspace)
+    if inherited is not None and folder_of(agent.workspace, thread_id) is None:
+        set_folder(agent.workspace, thread_id, inherited)
+    await open_session(agent, stops, thread_id)
 
 
 @cl.on_chat_resume

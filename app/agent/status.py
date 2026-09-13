@@ -136,7 +136,7 @@ def status_of(agent: Agent, thread_id: str, credits: Credits | None, spend: floa
         last_cached=report.last_cached,
         mode=current_mode(workspace),
         plan=planning_enabled(workspace),
-        workspace=str(workspace),
+        workspace=str(agent.folder(thread_id)),
         session_spend=agent.spent if agent.spent is not None else spend,
         session_spend_exact=agent.spent is not None,
         credits_total=credits.total if credits else None,

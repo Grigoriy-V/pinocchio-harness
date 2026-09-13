@@ -30,6 +30,7 @@ from app.agent.graph import (
 )
 from app.agent.mode import careful_enabled
 from app.agent.interjections import NO_INTERJECTIONS, Interjections
+from app.agent.folder import folder_of
 from app.agent.stop import NO_STOPS, StopRequests
 from app.agent.stopping import STOP_ON_ANSWER, TurnStopping
 from app.agent.todo import FinishesItsOwnList, planning_enabled
@@ -314,6 +315,18 @@ class Agent:
             return None
         return await self._checkpoint_handle.open()
 
+    def folder(self, thread_id: str) -> Path:
+        """Where this conversation's tools work: the folder the person named
+        for it (`/workspace`), else the personal workspace."""
+
+        return folder_of(self.workspace, thread_id) or self.capability_grant.root
+
+    def grant_for(self, thread_id: str) -> CapabilityGrant:
+        folder = self.folder(thread_id)
+        if folder == self.capability_grant.root:
+            return self.capability_grant
+        return self.capability_registry.grant(folder, self.capability_grant.capabilities)
+
     def toolbox(self, thread_id: str) -> Toolbox:
         """The tools this thread's graph is compiled with.
 
@@ -323,7 +336,7 @@ class Agent:
         """
 
         return self.capability_registry.toolbox(
-            self.capability_grant,
+            self.grant_for(thread_id),
             [
                 *memory_tools(
                     self.store, self.user_id, thread_id, self.policy.retrieved_facts
@@ -351,9 +364,7 @@ class Agent:
     def capabilities(self, thread_id: str) -> str:
         """What this agent can see, hear, send, read and change, for a person."""
 
-        return capability_report(
-            self.toolbox(thread_id), self.delivery, self.capability_grant.root
-        )
+        return capability_report(self.toolbox(thread_id), self.delivery, self.folder(thread_id))
 
     def probes(self, thread_id: str) -> list[Probe]:
         """Everything this agent claims, expressed as something to try.
@@ -364,7 +375,7 @@ class Agent:
 
         return [
             *store_probes(self.store, self.user_id),
-            *tool_probes(self.toolbox(thread_id), self.capability_grant.root),
+            *tool_probes(self.toolbox(thread_id), self.folder(thread_id)),
         ]
 
     async def selftest(self, thread_id: str, include: Sequence[str] = ("free",)) -> str:
@@ -813,6 +824,7 @@ def create_agent(
     interjections: Interjections = NO_INTERJECTIONS,
     system_prompt: str | None = None,
     runner: Runner | None = None,
+    open: bool = False,
 ) -> Agent:
     """Build the default agent from configuration.
 
@@ -857,8 +869,13 @@ def create_agent(
     # this agent, closed with it; none configured, nothing opened.
     mcp_settings = McpSettings()
     sessions = McpSessions(mcp_settings) if mcp_settings.servers else None
+    # `open`: the person's own machine (the local profile): a conversation
+    # may work in any folder, reading reaches anywhere, a write outside the
+    # folder asks. Deployed, several people share one Volume, so never.
     registry = (
-        CapabilityRegistry(workspace, runner=runner, mcp=sessions) if runner or sessions else None
+        CapabilityRegistry(workspace, runner=runner, mcp=sessions, open=open)
+        if runner or sessions or open
+        else None
     )
     return Agent(
         backend=OpenAICompatibleBackend(model_settings or ModelSettings()),

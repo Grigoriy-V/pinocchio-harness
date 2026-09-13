@@ -54,6 +54,7 @@ and says what replaced it.
 | 2026-09-04 | A dead worker's turn is taken up; replay is the tool's to say | standing |
 | 2026-09-04 | The last two exchanges stay verbatim; a fold takes only what must go | standing |
 | 2026-09-04 | Generated code runs where no secret is; installs live in the workspace | standing |
+| 2026-09-13 | Locally a conversation works in a named folder: read anywhere, write inside, elsewhere after a yes | standing |
 | 2026-09-05 | The goal is the request's parts, written once by the model | standing, measured next |
 | 2026-09-05 | A second model is a second App, pointed at by configuration | standing, GPU Apps |
 | 2026-09-06 | A hosted model is a set of lines; default GLM at Novita/Z.ai | standing |
@@ -781,3 +782,24 @@ Consequences: an export tool here (Volume → JSONL with outcomes and
 checks); the new repository is created when step 4 starts, on the human's
 word; a fine-tuned model arrives as `[model.sets.<name>]` and is never the
 default.
+
+## 2026-09-13 — Locally a conversation works in a named folder: read anywhere, write inside, elsewhere after a yes
+
+Decision (the human, 2026-09-13, roadmap 27 step 2): on the person's own
+machine the local app is a code agent the way Claude Code and Codex are.
+Each conversation works in a folder the person names (`/workspace`), a new
+one starting where the last one worked. Reading reaches any path on the
+machine; a write inside the folder is autonomous; a write outside it runs
+only after the person's yes, through the same consent seam careful mode
+uses; a command runs in the folder with the folder granted to its
+restricted token on Windows. The deployed profile keeps the older rule
+unchanged, reading and writing confined to the person's root, because
+several people share one Volume there.
+
+Consequences: `AGENTS.md`'s root rule gains the local clause; the registry
+carries `open`; `Tool.asks` lets a tool ask by what a call names rather
+than by what the tool is; the personal workspace remains where sent files
+land and where the switches live, so nothing of the harness is written
+into a project folder. Supersedes, locally, the 2026-08-02 confinement of
+reads to the workspace.
+

@@ -124,6 +124,10 @@ class Tool:
     # model time and its result is the outcome of the turn, so a turn that has
     # spent its budget still runs it: the ceiling bounds work, not delivery.
     delivers: bool = False
+    # A call that needs the person's yes because of what it names, not
+    # what it is: a write outside the conversation's folder on the person's
+    # own machine (2026-09-13). Given the call's arguments; `None` never asks.
+    asks: Callable[[dict[str, Any]], bool] | None = None
 
     @property
     def contract(self) -> str:
@@ -290,16 +294,19 @@ class Toolbox:
         by_lower = {known.lower(): known for known in self._tools}
         return by_lower.get(candidate.lower())
 
-    def requires_approval(self, name: str) -> bool:
+    def requires_approval(self, name: str, arguments: dict[str, Any] | None = None) -> bool:
         """Whether policy requires approval before this tool may execute.
 
-        An unknown name never runs, so there is nothing to ask about.
+        An unknown name never runs, so there is nothing to ask about. With the
+        call's arguments, a tool that asks by what it names is asked too.
         """
 
         tool = self._tools.get(name)
         if tool is None:
             return False
-        return tool.requires_approval or (self.ask_for_changes and tool.mutates)
+        if tool.requires_approval or (self.ask_for_changes and tool.mutates):
+            return True
+        return bool(tool.asks and arguments is not None and tool.asks(arguments))
 
     def coerce(self, call: ToolCall) -> ToolCall:
         """The call with its arguments brought to the declared types."""

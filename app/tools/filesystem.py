@@ -61,6 +61,40 @@ def corrupted_path(path: str) -> bool:
     )
 
 
+def resolve_path(root: Path, path: str, *, confined: bool = True) -> Path:
+    """Resolve a model-supplied path against the root; with `confined` off
+    any absolute path on the machine is allowed (the person's own machine,
+    where the references read anywhere too)."""
+
+    if confined:
+        return resolve_in_root(root, path)
+    if corrupted_path(path or ""):
+        raise ToolError(
+            f"path {path!r} contains quotes or a delimiter no path has; the call "
+            "arrived corrupted, send it again with the plain path",
+            code=BAD_ARGUMENTS,
+        )
+    try:
+        supplied = Path(path or ".")
+        return supplied.resolve() if supplied.is_absolute() else (root / supplied).resolve()
+    except (OSError, RuntimeError) as error:
+        raise ToolError(
+            f"path {path!r} cannot be resolved", code=IO, detail=_detail(error)
+        ) from error
+
+
+def outside(root: Path, path: str | None) -> bool:
+    """Whether a model-supplied path leaves the root: what a write there
+    asks about. A path that cannot be resolved is left to the tool to
+    refuse."""
+
+    try:
+        target = resolve_path(root, path or ".", confined=False)
+    except ToolError:
+        return False
+    return target != root and root not in target.parents
+
+
 def resolve_in_root(root: Path, path: str) -> Path:
     """Resolve a model-supplied path inside the root, or refuse it.
 
@@ -89,10 +123,10 @@ def resolve_in_root(root: Path, path: str) -> Path:
     return candidate
 
 
-def _existing_file(root: Path, path: str) -> Path:
+def _existing_file(root: Path, path: str, *, confined: bool = True) -> Path:
     """The file this path names, or the reason it does not."""
 
-    target = resolve_in_root(root, path)
+    target = resolve_path(root, path, confined=confined)
     if not target.exists():
         raise ToolError(f"path {path!r} does not exist", code=NOT_FOUND)
     if not target.is_file():
@@ -100,8 +134,8 @@ def _existing_file(root: Path, path: str) -> Path:
     return target
 
 
-def _list_files(root: Path, path: str = ".") -> str:
-    target = resolve_in_root(root, path)
+def _list_files(root: Path, path: str = ".", *, confined: bool = True) -> str:
+    target = resolve_path(root, path, confined=confined)
     if not target.exists():
         raise ToolError(f"path {path!r} does not exist", code=NOT_FOUND)
     if not target.is_dir():
@@ -136,8 +170,10 @@ IMAGE_SUFFIXES = {
 }
 
 
-def _read_file(root: Path, path: str, offset: int = 0) -> str | list[ContentPart]:
-    target = _existing_file(root, path)
+def _read_file(
+    root: Path, path: str, offset: int = 0, *, confined: bool = True
+) -> str | list[ContentPart]:
+    target = _existing_file(root, path, confined=confined)
     media_type = IMAGE_SUFFIXES.get(target.suffix.lower())
     try:
         if media_type:
@@ -213,14 +249,14 @@ def _same_content(target: Path, content: str) -> bool:
         return False
 
 
-def _write_file(root: Path, path: str, content: str) -> str:
+def _write_file(root: Path, path: str, content: str, *, confined: bool = True) -> str:
     if _names_a_directory(path):
         raise ToolError(
             f"path {path!r} names a directory, not a file. Write the file you want "
             "and any directories it needs are created for you.",
             code=IS_DIRECTORY,
         )
-    target = resolve_in_root(root, path)
+    target = resolve_path(root, path, confined=confined)
     if target.is_dir():
         raise ToolError(f"path {path!r} is a directory", code=IS_DIRECTORY)
     existed = target.is_file()
@@ -251,8 +287,10 @@ def _write_file(root: Path, path: str, content: str) -> str:
     return f"{verb} {path} ({len(content)} characters); {handover(path)}"
 
 
-def _edit_file(root: Path, path: str, old_text: str, new_text: str) -> str:
-    target = _existing_file(root, path)
+def _edit_file(
+    root: Path, path: str, old_text: str, new_text: str, *, confined: bool = True
+) -> str:
+    target = _existing_file(root, path, confined=confined)
     if not old_text:
         raise ToolError("old_text cannot be empty", code=BAD_ARGUMENTS)
 
@@ -278,12 +316,25 @@ def _edit_file(root: Path, path: str, old_text: str, new_text: str) -> str:
     return f"edited {path} (replaced 1 match; {len(updated)} characters)"
 
 
-def filesystem_tools(root: Path) -> list[Tool]:
-    """Build the filesystem tools confined to `root`."""
+def filesystem_tools(root: Path, *, open_reads: bool = False) -> list[Tool]:
+    """Build the filesystem tools on `root`.
+
+    Confined (the default, the deployed profile): every path stays inside
+    the root. Open (`open_reads`, the person's own machine): reading reaches
+    any path on the machine, as the references do; a write outside the root
+    asks the person first (`Tool.asks`), and so stays possible.
+    """
 
     resolved = Path(root).resolve()
     if not resolved.is_dir():
         raise ValueError(f"the tool root {root} is not a directory")
+    confined = not open_reads
+    where = (
+        "Absolute path inside the workspace root, or a path relative to it."
+        if confined
+        else "A path relative to the working folder, or any absolute path on this machine."
+    )
+    asks = None if confined else (lambda arguments: outside(resolved, arguments.get("path")))
 
     return [
         Tool(
@@ -300,16 +351,13 @@ def filesystem_tools(root: Path) -> list[Tool]:
                 "properties": {
                     "path": {
                         "type": "string",
-                        "description": (
-                            "Absolute path inside the workspace root, or a path relative to "
-                            "that root. Defaults to the root."
-                        ),
+                        "description": where + " Defaults to the working folder.",
                     }
                 },
                 "required": [],
                 "additionalProperties": False,
             },
-            run=lambda path=".": _list_files(resolved, path),
+            run=lambda path=".": _list_files(resolved, path, confined=confined),
         ),
         Tool(
             name="read_file",
@@ -342,7 +390,7 @@ def filesystem_tools(root: Path) -> list[Tool]:
                 "required": ["path"],
                 "additionalProperties": False,
             },
-            run=lambda path, offset=0: _read_file(resolved, path, int(offset)),
+            run=lambda path, offset=0: _read_file(resolved, path, int(offset), confined=confined),
         ),
         Tool(
             name="write_file",
@@ -375,7 +423,8 @@ def filesystem_tools(root: Path) -> list[Tool]:
                 "required": ["path", "content"],
                 "additionalProperties": False,
             },
-            run=lambda path, content: _write_file(resolved, path, content),
+            run=lambda path, content: _write_file(resolved, path, content, confined=confined),
+            asks=asks,
             mutates=True,
         ),
         Tool(
@@ -414,8 +463,9 @@ def filesystem_tools(root: Path) -> list[Tool]:
                 "additionalProperties": False,
             },
             run=lambda path, old_text, new_text: _edit_file(
-                resolved, path, old_text, new_text
+                resolved, path, old_text, new_text, confined=confined
             ),
+            asks=asks,
             mutates=True,
         ),
     ]
