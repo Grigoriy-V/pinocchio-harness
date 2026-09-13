@@ -149,16 +149,11 @@ async def compact_reply(agent: Agent, thread_id: str) -> str:
 
     before = agent.context_report(thread_id).layers["history"]
     folded = await agent.compact(thread_id)
-    keep = exchanges(agent.policy.keep_turns)
     if not folded:
-        return (
-            f"Nothing to fold: {keep} always stay verbatim, and that is all there "
-            "is past the summary."
-        )
+        return "Nothing to compact"
     after = agent.context_report(thread_id).layers["history"]
-    freed = max(0, before - after)
-    return (
-        f"Compacted: about {freed:,} tokens freed, {folded} older messages folded "
-        f"into the summary; {keep} stay verbatim, and the exact words stay "
-        "reachable with search_history."
-    )
+    return f"Compacted conversation · saved {_short(max(0, before - after))} tokens"
+
+
+def _short(tokens: int) -> str:
+    return f"{tokens / 1000:.1f}k" if tokens >= 1000 else str(tokens)
