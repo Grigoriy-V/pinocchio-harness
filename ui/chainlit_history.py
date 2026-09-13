@@ -97,7 +97,9 @@ def _saved_files(
     return shown
 
 
-def _step(thread_id: str, position: int, message: Message, created_at: str) -> StepDict:
+def _step(
+    thread_id: str, position: int, message: Message, created_at: str, parent_id: str | None = None
+) -> StepDict:
     step_id = _id(thread_id, position)
     if message.role == "user":
         step_type = "user_message"
@@ -122,11 +124,49 @@ def _step(thread_id: str, position: int, message: Message, created_at: str) -> S
     return {
         "id": step_id,
         "threadId": thread_id,
-        "parentId": None,
+        "parentId": parent_id,
         "name": name,
         "type": step_type,
         "input": "" if step_type != "tool" else output,
         "output": output,
+        "createdAt": created_at,
+        "start": created_at,
+        "end": created_at,
+    }
+
+
+def _turn_step(thread_id: str, position: int, calls: int, created_at: str) -> StepDict:
+    """One collapsed step for a turn's tool calls, as the live turn shows
+    them (ISS-0076): the calls are its children."""
+
+    plural = "" if calls == 1 else "s"
+    return {
+        "id": _id(thread_id, position, "turn"),
+        "threadId": thread_id,
+        "parentId": None,
+        "name": f"{calls} tool call{plural}",
+        "type": "run",
+        "input": "",
+        "output": "",
+        "createdAt": created_at,
+        "start": created_at,
+        "end": created_at,
+    }
+
+
+def _call_step(
+    thread_id: str, position: int, index: int, call: Any, created_at: str, parent_id: str
+) -> StepDict:
+    """One tool call of a reopened turn, as the live turn showed it."""
+
+    return {
+        "id": _id(thread_id, position, f"call-{index}"),
+        "threadId": thread_id,
+        "parentId": parent_id,
+        "name": call.name,
+        "type": "tool",
+        "input": json.dumps(call.arguments, ensure_ascii=False),
+        "output": "",
         "createdAt": created_at,
         "start": created_at,
         "end": created_at,
@@ -276,16 +316,53 @@ class MemoryStoreDataLayer(BaseDataLayer):
             # The harness's own lines, each after the messages it followed.
             notes = self.store.notes(thread.id)
             noted = 0
+            turn: StepDict | None = None
+            calls: dict[str, StepDict] = {}
             for position, message in enumerate(messages):
                 while noted < len(notes) and notes[noted].position <= position:
                     steps.append(_note_step(noted, notes[noted]))
                     noted += 1
+                if message.role == "user":
+                    turn = None
+                # A turn's calls sit under one collapsed step, each call a tool
+                # step with its arguments and, once it came, its result: what
+                # the live turn showed (ISS-0076). The person's message and
+                # the answer stand on their own.
+                if message.role == "assistant" and message.tool_calls:
+                    if turn is None:
+                        turn = _turn_step(thread.id, position, 0, thread.created_at)
+                        steps.append(turn)
+                    for index, call in enumerate(message.tool_calls):
+                        turn["_calls"] = turn.get("_calls", 0) + 1  # type: ignore[typeddict-unknown-key]
+                        plural = "" if turn["_calls"] == 1 else "s"  # type: ignore[typeddict-item]
+                        turn["name"] = f"{turn['_calls']} tool call{plural}"  # type: ignore[typeddict-item]
+                        child = _call_step(thread.id, position, index, call, thread.created_at, turn["id"])
+                        calls[call.id] = child
+                        steps.append(child)
+                    if not _text(message):
+                        continue
+                if message.role == "tool":
+                    child = calls.get(message.tool_call_id or "")
+                    if child is None:
+                        # A result whose call was not stored (an older thread).
+                        if turn is None:
+                            turn = _turn_step(thread.id, position, 0, thread.created_at)
+                            steps.append(turn)
+                        turn["_calls"] = turn.get("_calls", 0) + 1  # type: ignore[typeddict-unknown-key]
+                        plural = "" if turn["_calls"] == 1 else "s"  # type: ignore[typeddict-item]
+                        turn["name"] = f"{turn['_calls']} tool call{plural}"  # type: ignore[typeddict-item]
+                        child = _step(thread.id, position, message, thread.created_at, parent_id=turn["id"])
+                        steps.append(child)
+                    else:
+                        child["output"] = _step(thread.id, position, message, thread.created_at)["output"]
+                    for part_index, part in enumerate(message.content):
+                        if part.kind != "text" and part.outbound:
+                            elements.append(_element(thread.id, child["id"], position, part_index, part))
+                    continue
                 step = _step(thread.id, position, message, thread.created_at)
                 steps.append(step)
                 for part_index, part in enumerate(message.content):
-                    if part.kind != "text" and (
-                        message.role != "tool" or part.outbound
-                    ):
+                    if part.kind != "text":
                         elements.append(_element(thread.id, step["id"], position, part_index, part))
                     elif part.hidden and part.name and self.workspace is not None:
                         elements.extend(
@@ -293,6 +370,8 @@ class MemoryStoreDataLayer(BaseDataLayer):
                         )
             for index in range(noted, len(notes)):
                 steps.append(_note_step(index, notes[index]))
+            for step in steps:
+                step.pop("_calls", None)  # type: ignore[misc]
         return {
             "id": thread.id,
             "createdAt": thread.created_at,

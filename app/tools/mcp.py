@@ -200,8 +200,19 @@ def render_result(result: Any) -> str:
     there is no text; a line for each part that is not text (first version:
     text only). An error result is a tool error, not a result."""
 
-    texts = [part.text for part in result.content if getattr(part, "text", None)]
-    others = [type(part).__name__ for part in result.content if not getattr(part, "text", None)]
+    texts: list[str] = []
+    others: list[str] = []
+    for part in result.content:
+        if getattr(part, "text", None):
+            texts.append(part.text)
+            continue
+        # A file the server hands over as a resource (GitHub's
+        # `get_file_contents`, ISS-0073): its text is the file.
+        resource = getattr(part, "resource", None)
+        if resource is not None and getattr(resource, "text", None):
+            texts.append(resource.text)
+            continue
+        others.append(type(part).__name__)
     if getattr(result, "isError", False):
         raise ToolError("\n".join(texts) or "the server reported an error", code=MCP_ERROR)
     text = "\n".join(texts)

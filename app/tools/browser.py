@@ -174,6 +174,8 @@ class Pages:
 
     browser: Path | None = None
     idle_seconds: float = IDLE_SECONDS
+    # The person's own machine: localhost and private addresses open too.
+    open_addresses: bool = False
     _open: dict[Path, _Open] = field(default_factory=dict)
 
     def get(self, root: Path) -> _Open | None:
@@ -186,10 +188,12 @@ class Pages:
                 self.browser,
                 offline=True,
                 serve=serve_directory(root),
-                allow=public_request_policy(),
+                allow=public_request_policy(open=self.open_addresses),
             )
         else:
-            context = open_browser(self.browser, offline=False, allow=public_request_policy())
+            context = open_browser(
+                self.browser, offline=False, allow=public_request_policy(open=self.open_addresses)
+            )
         session = await context.__aenter__()
         held = _Open(session=session, context=context)
         self._open[root] = held

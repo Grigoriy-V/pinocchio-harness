@@ -305,7 +305,7 @@ _credits = CreditsWatch()
 async def status_route() -> JSONResponse:
     agent: Agent | None = _current.get("agent")
     thread_id: str | None = _current.get("thread_id")
-    if agent is None or thread_id is None:
+    if agent is None or thread_id is None or agent.closed:
         return JSONResponse({"error": "no session"}, status_code=404)
     credits = await _credits.read()
     # `context_report` lists the toolbox, and the first listing of a process
@@ -429,10 +429,22 @@ async def resume(thread: dict[str, Any]) -> None:
         await drive(agent, thread_id)
 
 
+async def session_agent() -> tuple[Agent, str]:
+    """The session's agent, made again when the one it had was closed: a
+    websocket disconnect ends the chat for Chainlit and closes the agent,
+    and the same session then goes on with its next message (ISS-0072)."""
+
+    agent: Agent | None = cl.user_session.get("agent")
+    thread_id: str = cl.user_session.get("thread_id")
+    if agent is None or agent.closed:
+        agent, stops = create_runtime_with_stops()
+        await open_session(agent, stops, thread_id)
+    return agent, thread_id
+
+
 @cl.on_message
 async def on_message(incoming: cl.Message) -> None:
-    agent: Agent = cl.user_session.get("agent")
-    thread_id: str = cl.user_session.get("thread_id")
+    agent, thread_id = await session_agent()
 
     if await handle_command(agent, thread_id, incoming):
         return

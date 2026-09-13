@@ -614,7 +614,7 @@ _VIEW_EVIDENCE = """
 
 
 def public_request_policy(
-    resolve: Resolver = socket.getaddrinfo,
+    resolve: Resolver = socket.getaddrinfo, *, open: bool = False
 ) -> Callable[[str], Awaitable[bool]]:
     """The rule applied to every request a browser makes on a page's behalf.
 
@@ -628,6 +628,14 @@ def public_request_policy(
     async def allow(candidate: str) -> bool:
         if candidate.startswith(("data:", "about:", "blob:")):
             return True
+        if open:
+            # The person's own machine (ISS-0074): a dev server on localhost
+            # is what a code agent's browser is for. The scheme rule stands.
+            try:
+                scheme = urlsplit(candidate).scheme.lower()
+            except ValueError:
+                return False
+            return scheme in ALLOWED_SCHEMES
         try:
             await asyncio.to_thread(check_public_url, candidate, resolve)
         except WebError:

@@ -94,7 +94,7 @@ class CapabilityRegistry:
         self.mcp = mcp
         # The open page, kept between the calls of one turn whichever toolbox
         # they come through (a toolbox is built per thread, and more than once).
-        self.pages = Pages()
+        self.pages = Pages(open_addresses=open)
         configured = (
             capabilities
             if capabilities is not None

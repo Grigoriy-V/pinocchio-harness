@@ -164,6 +164,8 @@ TOOL_ACTIVITY = {
     "edit_file": "Editing file…",
     "send_file": "Sending file…",
     "run_command": "Running a command…",
+    "command_output": "Reading a command's output…",
+    "stop_command": "Stopping a command…",
     "todo_write": "Planning…",
     "set_goal": "Noting what you asked for…",
     "remember_fact": "Saving to memory…",

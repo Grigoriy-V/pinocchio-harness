@@ -131,3 +131,17 @@ async def test_the_policy_the_renderer_installs_refuses_what_the_fetch_check_ref
     assert await allow("http://169.254.169.254/latest/meta-data/") is False
     assert await allow("file:///etc/passwd") is False
     assert await allow("https://example.com:8080/") is False
+
+
+async def test_an_open_policy_admits_localhost_and_still_only_http() -> None:
+    """The person's own machine (ISS-0074): a dev server on localhost opens;
+    the scheme rule stands."""
+
+    from app.web import public_request_policy
+
+    allow = public_request_policy(open=True)
+
+    assert await allow("http://localhost:8080/index.html") is True
+    assert await allow("http://127.0.0.1:3000/") is True
+    assert await allow("https://example.com/page") is True
+    assert await allow("file:///etc/passwd") is False

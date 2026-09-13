@@ -126,7 +126,10 @@ async def test_native_history_hides_observation_media_and_names_what_was_sent(la
     thread = await layer.get_thread("chat")
 
     assert thread is not None
-    assert [step["output"] for step in thread["steps"]] == ["Completed.", "Completed."]
+    # The turn's calls sit under one collapsed step (ISS-0076).
+    assert [step["name"] for step in thread["steps"] if step["type"] == "run"] == ["2 tool calls"]
+    assert [step["output"] for step in thread["steps"] if step["type"] != "run"] == ["Completed.", "Completed."]
+    assert {step["parentId"] for step in thread["steps"] if step["type"] != "run"} == {thread["steps"][0]["id"]}
     # The sent picture is in the history by name, not as an element: the
     # store keeps the delivery, not the bytes (ISS-0065).
     assert thread["elements"] == []

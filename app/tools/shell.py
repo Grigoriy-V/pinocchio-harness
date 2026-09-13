@@ -193,6 +193,32 @@ class Runner(Protocol):
     async def run(self, command: str, cwd: Path, timeout: float) -> Finished: ...
 
 
+@dataclass
+class Running:
+    """A command left running in the background (ISS-0075): a dev server, a
+    watcher. Hidden, its output in a file of the runner's temp, stopped by
+    `stop_command`, or with the runner when the conversation's app closes."""
+
+    id: str
+    command: str
+    process: Any
+    output: Path
+    started: float
+
+    def alive(self) -> bool:
+        return self.process.poll() is None
+
+    def read(self) -> str:
+        try:
+            return decoded(self.output.read_bytes())
+        except OSError:
+            return ""
+
+
+STARTED_ID = "bg"
+BACKGROUND_SETTLE = 2.0
+
+
 def command_environment(
     workspace: Path, source: dict[str, str] | None = None, *, home: Path, tmp: Path
 ) -> dict[str, str]:
@@ -322,6 +348,7 @@ class LocalRunner:
         )
         self._runs = 0
         self._tmp: Path | None = None
+        self._background: dict[str, Running] = {}
 
     @property
     def tmp(self) -> Path:
@@ -342,6 +369,78 @@ class LocalRunner:
 
     def environment(self, cwd: Path) -> dict[str, str]:
         return command_environment(cwd, home=self.home, tmp=self.tmp)
+
+    def _start_detached(self, command: str, cwd: Path) -> tuple[Any, Path]:
+        """Like `_start`, with the output in a file the runner can read while
+        the process lives. Windows already writes to a file; elsewhere the
+        file is the process's stdout, hidden the way every command is."""
+
+        env = self.environment(cwd)
+        self._runs += 1
+        output = self.tmp / f"background-{os.getpid()}-{self._runs}.out"
+        if self.bounded:
+            shell_windows.grant_workspace(cwd)
+            shell_windows.grant_workspace(self.tmp)
+            return shell_windows.RestrictedProcess(command, cwd, env, output), output
+        handle = open(output, "wb")  # noqa: SIM115 - the process owns it
+        try:
+            process = subprocess.Popen(  # noqa: S602 - the command is the point
+                command,
+                shell=True,
+                cwd=str(cwd),
+                env=env,
+                stdin=subprocess.DEVNULL,
+                stdout=handle,
+                stderr=subprocess.STDOUT,
+                start_new_session=sys.platform != "win32",
+                creationflags=(
+                    subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
+                    if sys.platform == "win32"
+                    else 0
+                ),
+            )
+        finally:
+            handle.close()
+        return process, output
+
+    async def start(self, command: str, cwd: Path) -> Running:
+        """Start a command and leave it running; `peek` and `stop` follow it."""
+
+        await asyncio.to_thread(self.prepare, cwd)
+        try:
+            process, output = await asyncio.to_thread(self._start_detached, command, cwd)
+        except Exception as error:  # noqa: BLE001 - as `run`: never silently unbounded
+            raise ToolError(
+                f"the command could not be started: {getattr(error, 'strerror', None) or error}",
+                code=COMMAND_NOT_STARTED,
+            ) from error
+        running = Running(
+            id=f"{STARTED_ID}-{len(self._background) + 1}",
+            command=command,
+            process=process,
+            output=output,
+            started=time.monotonic(),
+        )
+        self._background[running.id] = running
+        return running
+
+    def peek(self, id: str) -> Running | None:
+        return self._background.get(id)
+
+    def stop(self, id: str) -> Running | None:
+        running = self._background.get(id)
+        if running is None:
+            return None
+        _kill_tree(running.process)
+        return running
+
+    def close(self) -> None:
+        """Every background command ends with the runner: nothing the
+        conversation started outlives the app that started it."""
+
+        for running in list(self._background.values()):
+            _kill_tree(running.process)
+        self._background.clear()
 
     def _start(self, command: str, cwd: Path):
         env = self.environment(cwd)
@@ -465,12 +564,57 @@ def describe(finished: Finished) -> str:
     return "\n".join(lines)
 
 
+def _background_report(running: Running, *, stopped: bool = False) -> str:
+    alive = running.alive()
+    state = (
+        "stopped"
+        if stopped
+        else ("running" if alive else f"exited with code {running.process.returncode}")
+    )
+    output, cut = bounded(running.read(), TAIL_CHARS, TAIL_CHARS // 2)
+    lines = [f"{running.id}: {state}   ({time.monotonic() - running.started:.0f} s since start)"]
+    if cut:
+        lines.append("(older output cut)")
+    lines.append(f"output:\n{output.rstrip()}" if output.strip() else "output: (nothing yet)")
+    return "\n".join(lines)
+
+
 def shell_tools(root: Path, runner: Runner) -> list[Tool]:
     resolved = Path(root).resolve()
+    # A runner without `start` (a remote one) cannot keep a process; the
+    # tool says so rather than pretending.
+    can_background = callable(getattr(runner, "start", None))
 
-    async def run_command(command: str, timeout_seconds: int = DEFAULT_TIMEOUT) -> str:
+    async def run_command(
+        command: str, timeout_seconds: int = DEFAULT_TIMEOUT, background: bool = False
+    ) -> str:
+        if background:
+            if not can_background:
+                raise ToolError(
+                    "a background command is not possible here: run it in the foreground",
+                    code=COMMAND_NOT_STARTED,
+                )
+            running = await runner.start(str(command), resolved)  # type: ignore[attr-defined]
+            await asyncio.sleep(BACKGROUND_SETTLE)
+            return (
+                _background_report(running)
+                + "\nIt keeps running: read its output later with command_output, end it "
+                "with stop_command; it ends with this app in any case."
+            )
         limit = max(1, min(int(timeout_seconds), MAX_TIMEOUT))
         return describe(await runner.run(str(command), resolved, float(limit)))
+
+    async def command_output(id: str) -> str:
+        running = runner.peek(str(id)) if can_background else None  # type: ignore[attr-defined]
+        if running is None:
+            raise ToolError(f"no background command {id!r}", code=BAD_ARGUMENTS)
+        return _background_report(running)
+
+    async def stop_command(id: str) -> str:
+        running = runner.stop(str(id)) if can_background else None  # type: ignore[attr-defined]
+        if running is None:
+            raise ToolError(f"no background command {id!r}", code=BAD_ARGUMENTS)
+        return _background_report(running, stopped=True)
 
     return [
         Tool(
@@ -486,7 +630,10 @@ def shell_tools(root: Path, runner: Runner) -> list[Tool]:
                 "is missing here, check with a command. The command cannot read from the "
                 "terminal: pass answers on the command line or with flags. "
                 f"`timeout_seconds` (default {DEFAULT_TIMEOUT}, at most {MAX_TIMEOUT}) "
-                "kills it if it runs longer."
+                "kills it if it runs longer. A command that should keep running, a dev "
+                "server or a watcher, is started with background=true: it runs hidden, "
+                "you get its id at once, command_output reads what it wrote and "
+                "stop_command ends it. Never use start, nohup or & for that."
             ),
             returns=(
                 "the exit code and the output (stdout and stderr), cut with a note when "
@@ -505,6 +652,10 @@ def shell_tools(root: Path, runner: Runner) -> list[Tool]:
                         "type": "integer",
                         "description": f"Seconds before the command is killed; default {DEFAULT_TIMEOUT}.",
                     },
+                    "background": {
+                        "type": "boolean",
+                        "description": "Leave the command running and return its id at once. Default false.",
+                    },
                 },
                 "required": ["command"],
                 "additionalProperties": False,
@@ -514,5 +665,37 @@ def shell_tools(root: Path, runner: Runner) -> list[Tool]:
             # The executor's own deadline, above the longest the tool allows, so
             # a runner that hangs is still stopped.
             timeout_seconds=MAX_TIMEOUT + 30,
+        ),
+        Tool(
+            name="command_output",
+            replay_safe=True,
+            description=(
+                "What a background command (run_command with background=true) has "
+                "written so far, and whether it still runs."
+            ),
+            returns="the command's id, running or its exit code, the tail of its output.",
+            leaves="nothing.",
+            parameters={
+                "type": "object",
+                "properties": {"id": {"type": "string", "description": "The id run_command gave, like bg-1."}},
+                "required": ["id"],
+                "additionalProperties": False,
+            },
+            run=command_output,
+        ),
+        Tool(
+            name="stop_command",
+            description="End a background command (run_command with background=true) and everything it started.",
+            returns="the command's id, stopped, and the tail of its output.",
+            leaves="nothing running under that id.",
+            parameters={
+                "type": "object",
+                "properties": {"id": {"type": "string", "description": "The id run_command gave, like bg-1."}},
+                "required": ["id"],
+                "additionalProperties": False,
+            },
+            run=stop_command,
+            # Ending what this conversation started changes nothing in the
+            # workspace: careful mode does not ask for it.
         ),
     ]

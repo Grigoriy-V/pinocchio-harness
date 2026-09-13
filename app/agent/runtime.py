@@ -264,6 +264,9 @@ class Agent:
             raise ValueError("a text-only interface cannot grant file presentation")
         self.capability_grant = capability_grant
         self._graphs: dict[str, CompiledStateGraph] = {}
+        # Set by `aclose`: an interface that kept a reference learns here
+        # that the agent is gone (ISS-0071, ISS-0072).
+        self.closed = False
         self._checkpoint_handle = (
             CheckpointHandle(
                 checkpoints,
@@ -784,7 +787,11 @@ class Agent:
         sessions = getattr(self.capability_registry, "mcp", None)
         if sessions is not None:
             await asyncio.to_thread(sessions.close)
+        runner_close = getattr(self.capability_registry.runner, "close", None)
+        if runner_close is not None:
+            await asyncio.to_thread(runner_close)
         self.store.close()
+        self.closed = True
 
 
 def text_message(text: str, role: str = "user") -> Message:

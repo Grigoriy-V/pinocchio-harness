@@ -22,12 +22,12 @@ authorizes nothing; `ROADMAP.md` alone orders work. Evidence lives in
 
 | Id | Status | Defect | Related |
 |---|---|---|---|
-| ISS-0076 | open, local | after a page reload a turn's tool calls come back as separate rows: the one collapsed step per turn is not kept | 0071, roadmap 27 |
-| ISS-0075 | open, local | a server the model starts with `start` opens a console window on the person's desktop and outlives the conversation untracked; `run_command` has no background mode | roadmap 27 |
-| ISS-0074 | open, local | `use_page open http://localhost:…` is refused (`ERR_ACCESS_DENIED`): the browser's public-only policy also holds on the person's own machine | roadmap 27 |
-| ISS-0073 | open | a GitHub MCP file's content comes back as `EmbeddedResource` and is dropped by the renderer: the model reads "1 non-text part(s) not shown" and fetches the file again from the web | roadmap 26 |
-| ISS-0072 | open, local | after the websocket reconnects a message runs on a closed agent: `Cannot send a request, as the client has been closed`; the turn dies | 0071 |
-| ISS-0071 | open, local | the status route holds the agent of a closed session: `/status` after a tab is closed fails on a closed database | 0072 |
+| ISS-0076 | fixed 2026-09-14 | after a page reload a turn's tool calls come back as separate rows: the one collapsed step per turn is not kept | 0071, roadmap 27 |
+| ISS-0075 | fixed 2026-09-14 | a server the model starts with `start` opens a console window on the person's desktop and outlives the conversation untracked; `run_command` has no background mode | roadmap 27 |
+| ISS-0074 | fixed 2026-09-14 | `use_page open http://localhost:…` is refused (`ERR_ACCESS_DENIED`): the browser's public-only policy also holds on the person's own machine | roadmap 27 |
+| ISS-0073 | fixed 2026-09-14 | a GitHub MCP file's content comes back as `EmbeddedResource` and is dropped by the renderer: the model reads "1 non-text part(s) not shown" and fetches the file again from the web | roadmap 26 |
+| ISS-0072 | fixed 2026-09-14 | after the websocket reconnects a message runs on a closed agent: `Cannot send a request, as the client has been closed`; the turn dies | 0071 |
+| ISS-0071 | fixed 2026-09-14 | the status route holds the agent of a closed session: `/status` after a tab is closed fails on a closed database | 0072 |
 | ISS-0070 | open | the first turn on a fresh deployed worker spends ~150 s building the graph before the first model call; the next turns 33 ms | roadmap 18, 26 |
 | ISS-0069 | open | after the repeat guard Gemma answers nothing: the request goes out with no tools, the model emits 16–171 tokens, the harness receives no text and no call | 0068, roadmap 24 |
 | ISS-0068 | open, local Windows only | the sandboxed `run_command` kills every Cygwin tool (`sh`, `ls`, `find`, `cat`, `awk`): `CreateFileMapping … Win32 error 5` | 0053, roadmap 24 |
@@ -108,7 +108,9 @@ in use since 2026-09-06; it is not seen on the hosted model.
 
 ### ISS-0076 — after a reload a turn's tool calls are separate rows again
 
-- **Status:** open; local Chainlit.
+- **Status:** fixed 2026-09-14: the history layer builds one collapsed
+  step per turn with the calls as tool steps under it; the same thread
+  reopened shows "Used 4 tool calls".
 - **Seen:** 2026-09-13, the `Pixel_CV` thread reopened after a page
   reload: every `run_command` and `use_page` call of the turn stands as
   its own row, each with its own "Used Tool" line, where the live turn
@@ -124,7 +126,10 @@ in use since 2026-09-06; it is not seen on the hosted model.
 
 ### ISS-0075 — a server the model starts opens a console window and outlives the conversation
 
-- **Status:** open; local Windows.
+- **Status:** fixed 2026-09-14: `run_command` has `background=true`
+  (hidden, an id at once, `command_output` and `stop_command`, ended with
+  the app), and the brief says never to use `start`. Offline tests; not
+  yet seen in a live turn.
 - **Seen:** 2026-09-13, "запусти сайт чтобы я открыл" in the `Pixel_CV`
   thread: `start "" cmd /c "python -m http.server 8080"` failed
   ("перенаправление ввода не поддерживается": the restricted command has no
@@ -145,7 +150,9 @@ in use since 2026-09-06; it is not seen on the hosted model.
 
 ### ISS-0074 — locally the browser refuses localhost
 
-- **Status:** open; local profile.
+- **Status:** fixed 2026-09-14: the local profile's `open` flag admits
+  localhost and private addresses to the browser (`public_request_policy(open=True)`);
+  offline test, not yet seen in a live turn.
 - **Seen:** 2026-09-13, the same turn: `use_page open
   http://localhost:8080/index.html` → `the page could not be opened
   (net::ERR_ACCESS_DENIED)`; the model told the person to open it
@@ -161,7 +168,8 @@ in use since 2026-09-06; it is not seen on the hosted model.
 
 ### ISS-0073 — a GitHub MCP file's content is dropped as a non-text part
 
-- **Status:** open.
+- **Status:** fixed 2026-09-14: `render_result` reads an
+  `EmbeddedResource`'s text; offline test.
 - **Seen:** 2026-09-13, the `Pixel_CV` thread: three
   `github_get_file_contents` calls each returned "successfully downloaded
   text file (SHA …) (1 non-text part(s) not shown: EmbeddedResource)"; the
@@ -178,7 +186,8 @@ in use since 2026-09-06; it is not seen on the hosted model.
 
 ### ISS-0072 — after a reconnect a message runs on a closed agent
 
-- **Status:** open; local Chainlit.
+- **Status:** fixed 2026-09-14: the agent knows it is closed and the
+  session makes a new one before a message runs.
 - **Seen:** 2026-09-13 23:37, the server log: `on_message` →
   `agent.steps` → `Cannot send a request, as the client has been closed`
   in the backend's `stream`; the turn died before the model.
@@ -193,7 +202,7 @@ in use since 2026-09-06; it is not seen on the hosted model.
 
 ### ISS-0071 — the status route keeps the agent of a closed session
 
-- **Status:** open; local Chainlit.
+- **Status:** fixed 2026-09-14: the route answers 404 for a closed agent.
 - **Seen:** 2026-09-13 23:35, the server log: `GET /status` →
   `status_of` → `context_report` → `sqlite3.ProgrammingError: Cannot
   operate on a closed database`, a traceback in the log for every poll of

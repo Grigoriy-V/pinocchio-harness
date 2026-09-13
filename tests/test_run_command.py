@@ -248,7 +248,7 @@ def test_the_runners_failure_reaches_the_model_typed(workspace: Path) -> None:
 
 
 def test_run_command_is_declared_as_it_is(workspace: Path) -> None:
-    (tool,) = shell_tools(workspace, Scripted(Finished(0, "", False, 0.0)))
+    tool = {t.name: t for t in shell_tools(workspace, Scripted(Finished(0, "", False, 0.0)))}["run_command"]
 
     assert tool.mutates and not tool.replay_safe and not tool.requires_approval
     assert tool.timeout_seconds is not None and tool.timeout_seconds > MAX_TIMEOUT
@@ -526,3 +526,37 @@ def test_a_non_zero_exit_carries_the_harness_own_line_and_a_zero_does_not() -> N
     assert failed.endswith(UNWANTED_EXIT) and "Traceback ..." in failed
     assert UNWANTED_EXIT not in fine
     assert "pdf" not in UNWANTED_EXIT.lower() and "font" not in UNWANTED_EXIT.lower()
+
+
+# --- a command left running (ISS-0075) ---------------------------------------
+
+
+def test_a_background_command_runs_hidden_is_read_and_stopped(workspace: Path) -> None:
+    runner = LocalRunner()
+    tools = Toolbox(shell_tools(workspace, runner))
+    script = workspace / "tick.py"
+    script.write_text(
+        "import sys, time\nfor i in range(100):\n    print('tick', i, flush=True)\n    time.sleep(0.2)\n",
+        encoding="utf-8",
+    )
+
+    started, _ = executed(tools, "run_command", command=f"{sys.executable} tick.py", background=True)
+    text = started.content[0].text
+    assert "bg-1: running" in text and "tick 0" in text
+    peeked, _ = executed(tools, "command_output", id="bg-1")
+    assert "bg-1: running" in peeked.content[0].text
+    stopped, _ = executed(tools, "stop_command", id="bg-1")
+    assert stopped.content[0].text.startswith("bg-1: stopped")
+    assert not runner.peek("bg-1").alive()
+
+    # A second one ends with the runner.
+    executed(tools, "run_command", command=f"{sys.executable} tick.py", background=True)
+    assert runner.peek("bg-2").alive()
+    runner.close()
+    assert runner.peek("bg-2") is None
+
+
+def test_a_runner_without_start_says_so(workspace: Path) -> None:
+    tools = Toolbox(shell_tools(workspace, Scripted(Finished(0, "", False, 0.0))))
+    outcome, _ = executed(tools, "run_command", command="x", background=True)
+    assert outcome.failure is not None and "not possible here" in outcome.failure.message

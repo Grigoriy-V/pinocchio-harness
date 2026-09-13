@@ -151,3 +151,25 @@ def test_the_toolbox_validates_the_servers_schema_like_its_own(tmp_path: Path, s
     toolbox = registry.toolbox(registry.grant(capabilities=registry.mcp_names))
     assert toolbox.validation_error(ToolCall(id="1", name="clock_set_alarm", arguments={})) is not None
     assert toolbox.validation_error(ToolCall(id="2", name="clock_set_alarm", arguments={"at": "7:00"})) is None
+
+
+def test_a_file_handed_over_as_a_resource_is_read_as_text() -> None:
+    """GitHub's `get_file_contents` puts the file in an `EmbeddedResource`;
+    its text is the result, not a part to leave out (ISS-0073)."""
+
+    from mcp.types import CallToolResult, EmbeddedResource, TextContent, TextResourceContents
+
+    from app.tools.mcp import render_result
+
+    result = CallToolResult(
+        content=[
+            TextContent(type="text", text="successfully downloaded text file (SHA: abc)"),
+            EmbeddedResource(
+                type="resource",
+                resource=TextResourceContents(uri="file:///README.md", mimeType="text/plain", text="# Pixel CV"),
+            ),
+        ]
+    )
+
+    rendered = render_result(result)
+    assert "# Pixel CV" in rendered and "not shown" not in rendered
