@@ -19,7 +19,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
-from app.memory.base import Compaction, LOCAL_USER_ID, ConversationStore, Hit, Thread
+from app.memory.base import Compaction, LOCAL_USER_ID, ConversationStore, Hit, Note, Thread
 from app.memory.records import (
     dump_failure,
     dump_content,
@@ -35,7 +35,7 @@ from app.models import Message
 # Bumped whenever the schema changes. `PRAGMA user_version` is SQLite's own
 # integer on the file, so the database states its shape rather than the code
 # guessing it from which columns happen to exist.
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS threads (
@@ -77,6 +77,19 @@ CREATE TABLE IF NOT EXISTS compactions (
 );
 
 CREATE INDEX IF NOT EXISTS compactions_by_thread ON compactions(thread_id, id);
+
+-- What the harness said in a conversation and the model never reads: a
+-- command's answer, a fold's notice. Shown where it was said. Schema 5.
+CREATE TABLE IF NOT EXISTS notes (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    thread_id  TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+    position   INTEGER NOT NULL,
+    role       TEXT NOT NULL,
+    text       TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS notes_by_thread ON notes(thread_id, id);
 
 CREATE TABLE IF NOT EXISTS facts (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -167,6 +180,8 @@ def migrate(db: sqlite3.Connection) -> int:
     and filled from what each row already holds, then the FTS table is built
     from it. `text` is derived, so this is the one migration that writes to
     every message row, and what it writes is nothing the row did not say.
+
+    Version 4 has no `notes` table; it appears from the schema.
     """
 
     found = int(db.execute("PRAGMA user_version").fetchone()[0])
@@ -435,6 +450,27 @@ class SqliteStore(ConversationStore):
             (thread_id,),
         ).fetchall()
         return [Compaction(**dict(row)) for row in rows]
+
+    # --- notes ---------------------------------------------------------------
+
+    def add_note(self, thread_id: str, role: str, text: str, user_id: str) -> Note:
+        self.ensure_thread(thread_id, user_id)
+        note = Note(thread_id, self.message_count(thread_id), role, text, now())
+        self._db.execute(
+            "INSERT INTO notes (thread_id, position, role, text, created_at)"
+            " VALUES (?, ?, ?, ?, ?)",
+            (note.thread_id, note.position, note.role, note.text, note.created_at),
+        )
+        self._db.commit()
+        return note
+
+    def notes(self, thread_id: str) -> list[Note]:
+        rows = self._db.execute(
+            "SELECT thread_id, position, role, text, created_at"
+            " FROM notes WHERE thread_id = ? ORDER BY id",
+            (thread_id,),
+        ).fetchall()
+        return [Note(**dict(row)) for row in rows]
 
     # --- facts ---------------------------------------------------------------
 

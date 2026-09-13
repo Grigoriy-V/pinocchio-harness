@@ -176,3 +176,32 @@ async def test_native_delete_removes_chat_and_resumable_state_but_keeps_memory(
     assert layer.store.search("approved", LOCAL_USER_ID) == ["Keep this approved fact"]
     assert not await has_checkpoint(checkpoint_path, "chat")
     assert await has_checkpoint(checkpoint_path, "other")
+
+
+@pytest.mark.asyncio
+async def test_native_history_shows_the_harness_own_lines_where_they_were_said(layer) -> None:
+    """A command's answer or a fold's notice is kept as a note and shown in
+    place; the model's messages are untouched."""
+
+    layer.store.add_note("chat", "user", "/plan on", LOCAL_USER_ID)
+    layer.store.add_note("chat", "assistant", "Planning is on", LOCAL_USER_ID)
+    layer.store.append(
+        "chat",
+        [
+            Message(role="user", content=[ContentPart("text", text="hello")]),
+            Message(role="assistant", content=[ContentPart("text", text="hi")]),
+        ],
+        LOCAL_USER_ID,
+    )
+    layer.store.add_note("chat", "assistant", "Compacted conversation · saved 1.2k tokens", LOCAL_USER_ID)
+
+    thread = await layer.get_thread("chat")
+
+    assert [step["output"] for step in thread["steps"]] == [
+        "/plan on",
+        "Planning is on",
+        "hello",
+        "hi",
+        "Compacted conversation · saved 1.2k tokens",
+    ]
+    assert layer.store.message_count("chat") == 2

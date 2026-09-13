@@ -152,8 +152,8 @@ async def compact_reply(agent: Agent, thread_id: str) -> str:
     if not folded:
         return "Nothing to compact"
     after = agent.context_report(thread_id).layers["history"]
-    return f"Compacted conversation · saved {_short(max(0, before - after))} tokens"
+    return f"Compacted conversation · saved {short(max(0, before - after))} tokens"
 
 
-def _short(tokens: int) -> str:
+def short(tokens: int) -> str:
     return f"{tokens / 1000:.1f}k" if tokens >= 1000 else str(tokens)

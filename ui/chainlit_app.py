@@ -57,6 +57,7 @@ from app.agent.commands import (
     context_reply,
     mode_reply,
     plan_reply,
+    short,
 )
 from app.agent.runtime import Agent, create_agent, user_workspace
 from app.agent.status import CreditsWatch, status_of
@@ -330,6 +331,17 @@ def command_of(incoming: cl.Message) -> tuple[str, str] | None:
     return None
 
 
+async def say(agent: Agent, thread_id: str, text: str, asked: str | None = None) -> None:
+    """A line of the harness's own, shown now and kept in the thread's notes
+    so a reopened conversation shows it where it was said; the model never
+    reads it. `asked` is the command it answers, kept the same way."""
+
+    if asked:
+        agent.store.add_note(thread_id, "user", asked, agent.user_id)
+    agent.store.add_note(thread_id, "assistant", text, agent.user_id)
+    await cl.Message(content=text).send()
+
+
 async def handle_command(agent: Agent, thread_id: str, incoming: cl.Message) -> bool:
     """Answer a command without a turn. True when the message was one."""
 
@@ -347,7 +359,7 @@ async def handle_command(agent: Agent, thread_id: str, incoming: cl.Message) -> 
         reply = await compact_reply(agent, thread_id)
     else:
         reply = f"No such command: {head}. Commands: {COMMAND_NAMES}."
-    await cl.Message(content=reply).send()
+    await say(agent, thread_id, reply, asked=incoming.content or head)
     return True
 
 
@@ -361,11 +373,19 @@ async def drive(
     """
 
     turn = Turn()
+    _, covered = agent.store.summary(thread_id)
+    history_before = agent.context_report(thread_id).layers["history"]
     if produced is not None:
         await render(produced, turn)
     while (question := await agent.pending(thread_id)) is not None:
         await render(agent.resume(thread_id, await confirm(question)), turn)
     await turn.close()
+    _, now_covered = agent.store.summary(thread_id)
+    if now_covered > covered:
+        # The turn folded older conversation on its own; said the way the
+        # references say it, and kept.
+        freed = max(0, history_before - agent.context_report(thread_id).layers["history"])
+        await say(agent, thread_id, f"Compacted conversation · saved {short(freed)} tokens")
 
 
 async def open_session(agent: Agent, stops: MemoryStopRequests, thread_id: str) -> None:

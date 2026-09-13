@@ -394,3 +394,18 @@ def test_a_filename_the_model_wrote_is_found_where_it_wrote_it(store: Conversati
 
     assert (hit.position, hit.role) == (1, "assistant")
     assert "write_file" in hit.text and "board/index.html" in hit.text
+
+
+def test_a_note_sits_after_the_messages_the_thread_had(store: ConversationStore) -> None:
+    """What the harness said, kept where it was said and never in the
+    messages the model reads."""
+
+    first = store.add_note("t9", "assistant", "Planning is on", "u1")
+    assert (first.position, first.role) == (0, "assistant")
+    store.append("t9", [user("hello"), user("hi")], "u1")
+    second = store.add_note("t9", "assistant", "Compacted conversation · saved 1.2k tokens", "u1")
+    assert second.position == 2
+
+    assert [note.text for note in store.notes("t9")] == [first.text, second.text]
+    assert store.message_count("t9") == 2
+    assert store.notes("never-seen") == []

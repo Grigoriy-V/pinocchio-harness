@@ -48,7 +48,7 @@ from psycopg import sql
 from psycopg.pq import TransactionStatus
 from psycopg.rows import dict_row
 
-from app.memory.base import Compaction, ConversationStore, Hit, Thread, TurnContextRecords
+from app.memory.base import Compaction, ConversationStore, Hit, Note, Thread, TurnContextRecords
 from app.memory.records import (
     dump_failure,
     dump_content,
@@ -64,7 +64,7 @@ from app.models import Message
 # Bumped whenever the schema changes, and stored in the database rather than
 # inferred from which columns happen to exist. Postgres has no `user_version`,
 # so the row below is this project's own equivalent.
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -109,6 +109,18 @@ CREATE TABLE IF NOT EXISTS compactions (
 );
 
 CREATE INDEX IF NOT EXISTS compactions_by_thread ON compactions (thread_id, id);
+
+-- What the harness said and the model never reads. Schema 5.
+CREATE TABLE IF NOT EXISTS notes (
+    id         BIGSERIAL PRIMARY KEY,
+    thread_id  TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+    position   INTEGER NOT NULL,
+    role       TEXT NOT NULL,
+    text       TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS notes_by_thread ON notes (thread_id, id);
 
 CREATE TABLE IF NOT EXISTS facts (
     id         BIGSERIAL PRIMARY KEY,
@@ -192,7 +204,7 @@ def migrate(connection: psycopg.Connection, schema: str) -> int:
     existing row, and the `compactions` table. Version 4 adds `text`, filled
     once from what each row holds, and the search vector and index over it:
     the one migration that writes to every message row, and what it writes is
-    nothing the row did not say. This runs from
+    nothing the row did not say. Version 5 adds the `notes` table. This runs from
     `tools/setup_control_plane.py`, never from a worker starting up.
     """
 
@@ -636,6 +648,32 @@ class PostgresStore(ConversationStore):
             )
             rows = cursor.fetchall()
         return [Compaction(**row) for row in rows]
+
+    # --- notes ---------------------------------------------------------------
+
+    def add_note(self, thread_id: str, role: str, text: str, user_id: str) -> Note:
+        self.ensure_thread(thread_id, user_id)
+        stamp = now()
+        with self._cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO notes (thread_id, position, role, text, created_at)"
+                " SELECT %s, (SELECT COUNT(*) FROM messages WHERE thread_id = %s),"
+                " %s, %s, %s RETURNING position",
+                (thread_id, thread_id, role, text, stamp),
+            )
+            position = int(cursor.fetchone()["position"])
+            cursor.connection.commit()
+        return Note(thread_id, position, role, text, stamp)
+
+    def notes(self, thread_id: str) -> list[Note]:
+        with self._cursor() as cursor:
+            cursor.execute(
+                "SELECT thread_id, position, role, text, created_at"
+                " FROM notes WHERE thread_id = %s ORDER BY id",
+                (thread_id,),
+            )
+            rows = cursor.fetchall()
+        return [Note(**row) for row in rows]
 
     # --- facts ---------------------------------------------------------------
 

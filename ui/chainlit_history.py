@@ -28,7 +28,7 @@ from chainlit.types import (
 from chainlit.user import PersistedUser, User
 
 from app.conversations import delete_conversation
-from app.memory import LOCAL_USER_ID, ConversationStore, Thread
+from app.memory import LOCAL_USER_ID, ConversationStore, Note, Thread
 from app.models import ContentPart, Message
 
 LOCAL_USER_IDENTIFIER = "local"
@@ -130,6 +130,23 @@ def _step(thread_id: str, position: int, message: Message, created_at: str) -> S
         "createdAt": created_at,
         "start": created_at,
         "end": created_at,
+    }
+
+
+def _note_step(index: int, note: Note) -> StepDict:
+    """A line the harness said, shown where it was said."""
+
+    return {
+        "id": _id(note.thread_id, note.position, f"note-{index}"),
+        "threadId": note.thread_id,
+        "parentId": None,
+        "name": "You" if note.role == "user" else "Assistant",
+        "type": "user_message" if note.role == "user" else "assistant_message",
+        "input": "",
+        "output": note.text,
+        "createdAt": note.created_at,
+        "start": note.created_at,
+        "end": note.created_at,
     }
 
 
@@ -256,7 +273,13 @@ class MemoryStoreDataLayer(BaseDataLayer):
         elements: list[ElementDict] = []
         if include_content:
             messages = self.store.messages(thread.id)
+            # The harness's own lines, each after the messages it followed.
+            notes = self.store.notes(thread.id)
+            noted = 0
             for position, message in enumerate(messages):
+                while noted < len(notes) and notes[noted].position <= position:
+                    steps.append(_note_step(noted, notes[noted]))
+                    noted += 1
                 step = _step(thread.id, position, message, thread.created_at)
                 steps.append(step)
                 for part_index, part in enumerate(message.content):
@@ -268,6 +291,8 @@ class MemoryStoreDataLayer(BaseDataLayer):
                         elements.extend(
                             _saved_files(thread.id, step["id"], position, part_index, part.name, self.workspace)
                         )
+            for index in range(noted, len(notes)):
+                steps.append(_note_step(index, notes[index]))
         return {
             "id": thread.id,
             "createdAt": thread.created_at,

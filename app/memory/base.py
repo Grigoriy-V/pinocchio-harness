@@ -48,6 +48,20 @@ class Thread:
 
 
 @dataclass(frozen=True)
+class Note:
+    """A line the harness said in a conversation that the model never reads:
+    a command's answer, a fold's notice. Kept so a reopened conversation
+    shows it where it was said; `position` is how many messages the thread
+    had when it was said, so it sits after them."""
+
+    thread_id: str
+    position: int
+    role: str
+    text: str
+    created_at: str
+
+
+@dataclass(frozen=True)
 class Compaction:
     """One fold: which messages the summary came to stand for, and why.
 
@@ -192,6 +206,17 @@ class ConversationStore(ABC):
     @abstractmethod
     def compactions(self, thread_id: str) -> list[Compaction]:
         """Every fold of a thread, oldest first."""
+
+    # --- notes ---------------------------------------------------------------
+
+    @abstractmethod
+    def add_note(self, thread_id: str, role: str, text: str, user_id: str) -> Note:
+        """Keep one line the harness said, after the messages the thread has
+        now; creates the thread under `user_id` if it is new."""
+
+    @abstractmethod
+    def notes(self, thread_id: str) -> list[Note]:
+        """Every note of a thread, oldest first."""
 
     # --- facts ---------------------------------------------------------------
 

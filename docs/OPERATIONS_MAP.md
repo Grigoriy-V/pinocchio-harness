@@ -123,11 +123,12 @@ provider console.
 It creates or migrates the store schema, the LangGraph checkpoint tables,
 the `telegram_updates` inbox (`conversation_key`, `control`, `run_id`),
 `turn_stops`, and the telemetry tables (`telemetry_version` 1). Every step is
-additive. Store schema version is **4** in both implementations (`user_version`
+additive. Store schema version is **5** in both implementations (`user_version`
 in SQLite, `schema_version` in PostgreSQL): 2 `user_state`, 3 `messages.failure`
 and `compactions`, 4 the derived `text` column with a full-text index (FTS5 /
-`simple` tsvector + GIN) that `search_history` reads. The deployed database is
-at 4. Every connection the store and the inbox open carries libpq's bounds
+`simple` tsvector + GIN) that `search_history` reads, 5 `notes` (what the
+harness said in a conversation, shown by an interface, never read by the
+model). The deployed database is at 4; 5 waits for the migration run. Every connection the store and the inbox open carries libpq's bounds
 (`app/memory/postgres.py` `CONNECTION_GUARDS`: `connect_timeout` 10 s, TCP
 keepalives and `tcp_user_timeout` that declare an unanswered socket dead in
 about a minute; ISS-0064). Migrating or resetting a populated database is a human gate; there is no
