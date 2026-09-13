@@ -149,8 +149,36 @@ Items of the 2026-09-07 order, closed:
 
 ## Queue
 
-The order approved 2026-09-07. One item
+The order approved 2026-09-07; item 27 put first on 2026-09-13. One item
 at a time; research first where noted; the human's word starts each.
+
+27. **The local profile as the references.** Approved 2026-09-13 (the
+    human): the local Chainlit app is to give what Claude Code and Codex
+    give, and the model, the tools and the harness are the same ones the
+    deployed profile runs. Chainlit stays for now; a UI of the project's own
+    over `app/api/` is the option when Chainlit binds (diffs, a file tree,
+    approvals with the change in view). Three steps, each accepted by a
+    short check of the app itself:
+    1. **The app.** Any file is accepted the way the harness accepts it
+       (documents to `inbox/`; today Chainlit's own list admits images and
+       audio only). The commands Telegram has — `/status`, `/compact`,
+       `/plan`, `/mode` — and `/workspace`, offered in the composer. A
+       status panel (Chainlit's element sidebar) open beside the chat and
+       kept current after every tool call and turn: thread, model set,
+       context used against the budget, mode, plan, the working folder;
+       the "context …" message after each turn goes. One collapsed step
+       per turn holds all its tool calls, so a finished turn is one line.
+    2. **The working folder, per conversation.** The workspace becomes
+       the thread's, not the process's: `/workspace <path>` and the panel
+       set it, the thread keeps it, a new thread inherits the last one.
+       Every path tool and the command boundary keep validating against
+       the thread's root. Designed first as a boundary change; the human's
+       word before it is built.
+    3. **Coding locally, without crutches.** ISS-0068 (the Windows
+       boundary kills every Cygwin tool), the automatic workspace venv
+       removed as agreed in the isolated-execution review §11, `python3`
+       and other Linux-isms out of the brief on Windows; then the mini
+       set locally, beside its deployed numbers.
 
 21. **One browser tool, and the page rendered apart from the secrets.**
     Approved 2026-09-07 (the human). Deployed, `use_page open url` runs a
@@ -174,7 +202,8 @@ Waiting, not in the order above:
    one-method `Runner`, the two modes and `/mode`, on Windows a
    write-restricted token. Open: the automatic workspace venv hides the
    machine's own packages (goes with 17); no way to choose the project folder in the UI;
-   Chainlit has no `/mode` or `/plan`; no boundary outside Windows.
+   Chainlit has no `/mode` or `/plan`; no boundary outside Windows. The
+   first three of these are item 27's.
    `reports/2026-09-04_v2_isolated_execution_review.md` §10–§11.
 
 8. **The plan and the goal together.** With `/plan on` the model is offered
@@ -235,9 +264,6 @@ Recorded, not approved, not begun. One line each.
   when a filename is the design.
 - **Answer a Telegram album as one turn.**
   `reports/2026-08-30_v2_album_burst_incident.md`.
-- **The local interface as a product path.** Chainlit and the agent on the
-  person's machine, the model hosted; the adapter is covered by tests only
-  and has not been run live since the 4.5 changes.
 - **An HTTP API (`app/api/`)** waits for a UI hosted apart from the
   application; see the amended FastAPI decision in `DECISIONS.md`.
 
