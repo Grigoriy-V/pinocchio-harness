@@ -229,6 +229,13 @@ Recorded, not approved, not begun. One line each.
 
 - **A deadline per tool** (ISS-0033), drafted inside item 14 and not
   approved: a hung tool holds the worker and no health check can reach it.
+- **The local profile on three operating systems, behind one platform
+  seam** (discussed 2026-09-14, `reports/2026-09-14_profiles_and_platforms.md`):
+  the OS asked about once, in named modules (the runner and its boundary,
+  the browser, the event loop, paths and temp), a profile matrix in the
+  operations map, checks by row; a macOS or Linux command boundary when the
+  machine exists. What the model may run through `run_command` is to be
+  discussed (§3 there).
 - **A tool that finds tools, and MCP servers opened on demand** (the
   human, 2026-09-13). Today every turn sends the model the whole toolbox,
   the MCP servers' tools included, and a configured server is connected
