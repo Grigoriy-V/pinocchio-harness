@@ -15,6 +15,7 @@ import itertools
 import json
 import os
 import secrets
+import tempfile
 from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
@@ -127,18 +128,27 @@ def uploads_of(incoming: cl.Message) -> list[AttachmentBytes]:
     return uploads
 
 
-def to_message(incoming: cl.Message, workspace: Path) -> Message:
+def uploads_dir(session_id: str) -> Path:
+    """Where a file sent through the app lies on this machine: a folder of
+    the session's under the machine's temp, never the workspace, never the
+    working folder (no inbox locally, as the references: a file is a path).
+    """
+
+    return Path(tempfile.gettempdir()) / "assistant-uploads" / session_id
+
+
+def to_message(incoming: cl.Message, workspace: Path, session_id: str = "session") -> Message:
     """One message as the turn's input.
 
-    A picture or a sound goes to the model; any other file is saved under
-    `inbox/` in the workspace and named in the turn. The admission is
-    `app.attachments`, the same one Telegram has.
+    A picture or a sound goes to the model; any other file is kept in the
+    session's upload folder and named to the model by its absolute path.
+    The admission is `app.attachments`, the same one Telegram has.
     """
 
     parts: list[ContentPart] = []
     if incoming.content:
         parts.append(ContentPart(kind="text", text=incoming.content))
-    parts.extend(admit_uploads(uploads_of(incoming), workspace))
+    parts.extend(admit_uploads(uploads_of(incoming), workspace, into=uploads_dir(session_id)))
     if not parts:
         raise AttachmentError("the message has no text or usable attachments")
     return Message(role="user", content=parts)
@@ -449,7 +459,7 @@ async def on_message(incoming: cl.Message) -> None:
     if await handle_command(agent, thread_id, incoming):
         return
     try:
-        message = to_message(incoming, agent.workspace)
+        message = to_message(incoming, agent.workspace, thread_id)
     except AttachmentError as exc:
         await cl.Message(content=f"Upload refused: {exc}.").send()
         return

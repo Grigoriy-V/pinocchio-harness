@@ -74,7 +74,7 @@ def _saved_files(
 
     shown: list[ElementDict] = []
     for index, relative in enumerate(listed.splitlines()):
-        path = workspace / relative
+        path = Path(relative) if Path(relative).is_absolute() else workspace / relative
         try:
             data = path.read_bytes()
         except OSError:

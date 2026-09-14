@@ -71,9 +71,15 @@ def test_an_audio_attachment_is_carried_as_audio(tmp_path: Path) -> None:
     assert [part.kind for part in message.content] == ["audio"]
 
 
-def test_a_document_is_saved_to_the_inbox_and_named_in_the_turn(tmp_path: Path) -> None:
-    """Any file, the way the harness admits it: not to the model, to `inbox/`."""
+def test_a_document_is_kept_outside_the_workspace_and_named_by_its_path(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """No inbox locally (the human, 2026-09-14): a sent file is a path on
+    this machine, the way a person would give one."""
 
+    import tempfile
+
+    monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path / "temp"))
     upload = tmp_path / "upload"
     upload.mkdir()
     document = upload / "report.pdf"
@@ -82,12 +88,14 @@ def test_a_document_is_saved_to_the_inbox_and_named_in_the_turn(tmp_path: Path) 
     workspace.mkdir()
 
     message = to_message(
-        FakeMessage("read this", [FakeElement(str(document), "application/pdf")]), workspace
+        FakeMessage("read this", [FakeElement(str(document), "application/pdf")]), workspace, "s1"
     )
 
-    assert (workspace / "inbox" / "report.pdf").read_bytes() == b"%PDF"
+    kept = tmp_path / "temp" / "assistant-uploads" / "s1" / "report.pdf"
+    assert kept.read_bytes() == b"%PDF"
+    assert not (workspace / "inbox").exists()
     assert [part.kind for part in message.content] == ["text", "text"]
-    assert "inbox/report.pdf" in (message.content[1].text or "")
+    assert str(kept) in (message.content[1].text or "") and "absolute paths" in (message.content[1].text or "")
 
 
 def test_a_blank_message_does_not_become_an_empty_model_turn(tmp_path: Path) -> None:

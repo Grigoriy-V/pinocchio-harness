@@ -145,18 +145,23 @@ def _free_path(directory: Path, name: str) -> Path:
 
 
 def admit_uploads(
-    uploads: Sequence[AttachmentBytes], workspace: Path
+    uploads: Sequence[AttachmentBytes], workspace: Path, *, into: Path | None = None
 ) -> tuple[ContentPart, ...]:
     """Admit one message's uploads: media becomes input, anything else a file.
 
     A picture is shown to the model directly because that is what a model does
-    with a picture. Everything else is saved under `inbox/` in the person's
-    workspace and named in the turn: a document, a config, a script, an
-    archive. A long document would spend the whole context before the model
-    had decided which part mattered, and the rest are things the model works
-    on with its file and shell tools rather than reads. The folder is its own
-    so a sent file never lands on top of the person's project; moving it into
-    place is the model's decision.
+    with a picture. Everything else is saved and named in the turn: a
+    document, a config, a script, an archive. A long document would spend the
+    whole context before the model had decided which part mattered, and the
+    rest are things the model works on with its file and shell tools rather
+    than reads.
+
+    Where it is saved is the interface's. Deployed (Telegram) the file exists
+    only at Telegram's, so it lands under `inbox/` in the person's workspace,
+    a folder of its own so it never lands on top of the person's project. On
+    the person's own machine (the human, 2026-09-14: as the references) there
+    is no inbox: `into` names a place outside the workspace, and the model is
+    given the absolute path the way a person would give one.
 
     Until 2026-09-07 a file that was neither media nor one of five document
     formats refused the whole message, `sedan_solid.json` among them.
@@ -175,23 +180,32 @@ def admit_uploads(
                 ContentPart(kind=kind, data=upload.data, media_type=upload.media_type)
             )
             continue
-        inbox = workspace / INBOX
-        inbox.mkdir(parents=True, exist_ok=True)
-        target = _free_path(inbox, safe_filename(upload.name))
+        folder = into if into is not None else workspace / INBOX
+        folder.mkdir(parents=True, exist_ok=True)
+        target = _free_path(folder, safe_filename(upload.name))
         target.write_bytes(upload.data)
-        saved.append(f"{INBOX}/{target.name}")
+        saved.append(str(target) if into is not None else f"{INBOX}/{target.name}")
     if saved:
         listed = ", ".join(saved)
+        where = (
+            "Saved in your workspace under exactly those paths. "
+            if into is None
+            else "Those are absolute paths on this machine. "
+        )
+        moving = (
+            "Move a file out of that folder when the work needs it elsewhere."
+            if into is None
+            else "Copy a file into the working folder when the work needs it there."
+        )
         parts.append(
             ContentPart(
                 kind="text",
                 text=(
-                    f"[The person attached {listed}. Saved in your workspace under "
-                    "exactly those paths. Before answering anything about a file, "
+                    f"[The person attached {listed}. {where}"
+                    "Before answering anything about a file, "
                     "read it: read_document for a document, read_file or a "
                     "command for anything else. Unpack an archive with a "
-                    "command. Move a file out of that folder when the work "
-                    "needs it elsewhere.]"
+                    f"command. {moving}]"
                 ),
                 hidden=True,
                 name="\n".join(saved),
