@@ -229,6 +229,13 @@ Recorded, not approved, not begun. One line each.
 
 - **A deadline per tool** (ISS-0033), drafted inside item 14 and not
   approved: a hung tool holds the worker and no health check can reach it.
+- **Two pieces put in `app/` for Chainlit's reload, waiting to move to the
+  adapter** (the human, 2026-09-14: leave them for now, record that they
+  wait): the `notes` table in the store contract (what the harness said in
+  a conversation, shown again on a reload) and `ContentPart.path` (where a
+  sent file lies, shown again from disk). Telegram never rebuilds a
+  conversation and uses neither; both are additive and harmless deployed.
+  `reports/2026-09-14_profiles_and_platforms.md` §1.
 - **The local profile on three operating systems, behind one platform
   seam** (discussed 2026-09-14, `reports/2026-09-14_profiles_and_platforms.md`):
   the OS asked about once, in named modules (the runner and its boundary,
