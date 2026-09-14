@@ -11,10 +11,9 @@ deployed OpenClaw (the human, 2026-09-14). The audit of 2026-09-14
 (`reports/2026-09-14_harness_audit.md`) names what holds it below that;
 the queue below is the order approved for working through it.
 
-**Current approved step:** 27 step 3, approved 2026-09-14 on
-`reports/2026-09-14_item27_step3_references.md`; built and tested offline
-(`reports/2026-09-14_item27_step3_build.md`); the live acceptance, a local
-coding mini set, is a priced run and waits for the human's word.
+**Current approved step:** none; 27 closed 2026-09-14 (the human: the
+smoke stands as the acceptance, the deploy is not touched). Next in the
+queue is 29, on the human's word.
 
 Observed defects are in `ISSUES.md`, which is not a plan and authorizes
 nothing. `docs/PRODUCT.md` is the product contract; `docs/PROJECT_MAP.md`,
@@ -92,6 +91,14 @@ one line each, evidence in the linked report:
   anywhere, write in the folder, elsewhere after a yes); a command kept
   running in the background locally; ISS-0071..0076 fixed on the way.
   `reports/2026-09-14_profiles_and_platforms.md`.
+- **27 step 3, coding locally without crutches** (2026-09-14): the file
+  tools of the references (read by lines, `search_files`, `find_files`,
+  `replace_all`, `apply_patch`, a write that counts its lines), no "use
+  this instead of", `fetch_page` on localhost, PowerShell as the Windows
+  shell (ISS-0068). One live smoke on a real repository, six calls, all
+  succeeded; the deploy untouched, the next deploy a gate.
+  `reports/2026-09-14_item27_step3_references.md`,
+  `reports/2026-09-14_item27_step3_build.md`.
 - **28, the records brought to the current state** (2026-09-14): the goal
   and the references in `AGENTS.md`, a derived-limits rule, gates without
   GPU; `ISSUES.md` fixed entries under Closed; `DECISIONS.md` catalog and
@@ -103,23 +110,6 @@ one line each, evidence in the linked report:
 
 One item at a time; the human's word starts each. Order approved
 2026-09-14 (the human), after the audit.
-
-27. **The local profile as the references**, step 3 (steps 1 and 2 in
-    Done). Approved 2026-09-13; step 3 widened 2026-09-14 (the human) by
-    the audit's coding-tool gaps, because a coding mini set cannot pass
-    without them:
-    3. **Coding locally, without crutches.** The tools a coding agent
-       has: search across a tree, glob, reading by line range with line
-       numbers, a patch or multi-edit, the diff in a write's result,
-       `fetch_page` under the local `open` flag (localhost and any port on
-       the person's machine). The filesystem and shell descriptions state
-       what each tool returns, without "use this instead of ls / cat /
-       sed"; the model chooses. ISS-0068 answered as Codex and Claude Code
-       do, PowerShell as the Windows shell under the same token; the brief
-       names the platform, the shell and `python`. `list_files` gone,
-       `find_files` lists. Built 2026-09-14 (`reports/2026-09-14_item27_step3_build.md`);
-       accepted by a local coding mini set beside its deployed numbers,
-       which waits for the human's word.
 
 29. **The defects the audit found** (`reports/2026-09-14_harness_audit.md`
     §2): `BAD_ARGUMENTS` undefined in `shell.py`, schema validation that
