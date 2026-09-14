@@ -61,8 +61,9 @@ Before a large step is built, research how the references do it, unless
 that research already exists in `reports/` (the human, 2026-09-14): what
 each reference gives, how it is shaped, what it costs, and what of it this
 harness takes; written as a report with options, then the human's word on
-the shape. A step that widens a capability the references have starts
-there, not in the code.
+the shape. The report is then used: the build cites it, and what it built
+is checked against it before the step is called done. A step that widens a
+capability the references have starts there, not in the code.
 
 Within an approved step, own the complete loop:
 
