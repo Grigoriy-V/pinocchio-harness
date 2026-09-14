@@ -34,9 +34,9 @@ from app.web import (
 MAX_VIEWS_KEPT = 20
 
 
-async def _fetch(settings: WebSettings, url: str, offset: int = 0) -> str:
+async def _fetch(settings: WebSettings, url: str, offset: int = 0, *, open: bool = False) -> str:
     try:
-        return (await fetch_page(url, settings)).as_text(offset=offset)
+        return (await fetch_page(url, settings, open=open)).as_text(offset=offset)
     except WebError as error:
         raise ToolError(str(error), code=error.code) from error
 
@@ -142,8 +142,19 @@ def web_search_tools(root: Path, settings: WebSettings | None = None) -> list[To
     ]
 
 
-def web_fetch_tools(root: Path, settings: WebSettings | None = None) -> list[Tool]:
+def web_fetch_tools(
+    root: Path, settings: WebSettings | None = None, *, open: bool = False
+) -> list[Tool]:
+    """`open`: the person's own machine, where localhost and any port are
+    reachable (roadmap 27 step 3); deployed, public addresses only."""
+
     resolved = settings or WebSettings()
+    reach = (
+        "Any http or https address reachable from this machine, localhost and a "
+        "dev server's port included."
+        if open
+        else "Public http and https addresses only."
+    )
     return [
         Tool(
             name="fetch_page",
@@ -153,7 +164,7 @@ def web_fetch_tools(root: Path, settings: WebSettings | None = None) -> list[Too
                 "running its JavaScript. The default for any page on the internet, "
                 "unless you need to see it rendered or act on it. A page that builds "
                 "itself in the browser comes back nearly empty: open those with "
-                "view_web_page. Public http and https addresses only."
+                f"view_web_page. {reach}"
             ),
             returns=(
                 "the page's text, in pages: the end of one says which offset to ask for next."
@@ -165,7 +176,7 @@ def web_fetch_tools(root: Path, settings: WebSettings | None = None) -> list[Too
                     "url": {
                         "type": "string",
                         "minLength": 8,
-                        "description": "The full http/https address of a public page.",
+                        "description": "The full http/https address of the page.",
                     },
                     "offset": {
                         "type": "integer",
@@ -176,7 +187,7 @@ def web_fetch_tools(root: Path, settings: WebSettings | None = None) -> list[Too
                 "required": ["url"],
                 "additionalProperties": False,
             },
-            run=lambda url, offset=0: _fetch(resolved, url, int(offset)),
+            run=lambda url, offset=0: _fetch(resolved, url, int(offset), open=open),
         )
     ]
 

@@ -61,43 +61,17 @@ def test_a_root_that_is_not_a_directory_is_refused(tmp_path: Path) -> None:
 
 
 def test_read_file_returns_the_text(workspace: Path) -> None:
-    assert tools(workspace)["read_file"].run(path="notes.txt") == "kept inside"
+    assert tools(workspace)["read_file"].run(path="notes.txt") == "1: kept inside"
 
 
 def test_read_file_reaches_a_subdirectory(workspace: Path) -> None:
-    assert tools(workspace)["read_file"].run(path="sub/deep.txt") == "deeper"
+    assert tools(workspace)["read_file"].run(path="sub/deep.txt") == "1: deeper"
 
 
 def test_read_file_accepts_an_absolute_path_inside_the_root(workspace: Path) -> None:
     target = workspace / "sub" / "deep.txt"
 
-    assert tools(workspace)["read_file"].run(path=str(target.resolve())) == "deeper"
-
-
-def test_list_files_accepts_the_absolute_workspace_root(workspace: Path) -> None:
-    listing = tools(workspace)["list_files"].run(path=str(workspace.resolve()))
-
-    assert listing.splitlines() == ["notes.txt", "sub/"]
-
-
-def test_read_file_on_a_directory_is_refused(workspace: Path) -> None:
-    with pytest.raises(ToolError, match="not a file"):
-        tools(workspace)["read_file"].run(path="sub")
-
-
-def test_list_files_marks_directories(workspace: Path) -> None:
-    listing = tools(workspace)["list_files"].run().splitlines()
-
-    assert listing == ["notes.txt", "sub/"]
-
-
-def test_list_files_defaults_to_the_root(workspace: Path) -> None:
-    assert tools(workspace)["list_files"].run() == tools(workspace)["list_files"].run(path=".")
-
-
-def test_list_files_on_a_file_is_refused(workspace: Path) -> None:
-    with pytest.raises(ToolError, match="not a directory"):
-        tools(workspace)["list_files"].run(path="notes.txt")
+    assert tools(workspace)["read_file"].run(path=str(target.resolve())) == "1: deeper"
 
 
 # --- writing -----------------------------------------------------------------
@@ -112,7 +86,7 @@ def test_writing_the_same_content_again_says_nothing_changed(workspace: Path) ->
     again = write.run(path="page.html", content="<p>hi</p>")
     changed = write.run(path="page.html", content="<p>hi!</p>")
 
-    assert again.startswith("unchanged: page.html already had exactly this content")
+    assert again.startswith("unchanged: page.html already has exactly this content")
     assert 'send_file(path="page.html")' in again
     assert changed.startswith("overwrote page.html")
     assert (workspace / "page.html").read_text(encoding="utf-8") == "<p>hi!</p>"
@@ -122,7 +96,7 @@ def test_write_file_creates_a_file(workspace: Path) -> None:
     result = tools(workspace)["write_file"].run(path="fresh.txt", content="hello")
 
     assert (workspace / "fresh.txt").read_text(encoding="utf-8") == "hello"
-    assert result == 'created fresh.txt (5 characters); to hand it to the person: send_file(path="fresh.txt"); nothing is sent otherwise'
+    assert result == 'created fresh.txt (1 line); to hand it to the person: send_file(path="fresh.txt"); nothing is sent otherwise'
 
 
 def test_write_file_accepts_an_absolute_path_inside_the_root(workspace: Path) -> None:
@@ -137,7 +111,7 @@ def test_write_file_says_when_it_replaced_something(workspace: Path) -> None:
     result = tools(workspace)["write_file"].run(path="notes.txt", content="replaced")
 
     assert (workspace / "notes.txt").read_text(encoding="utf-8") == "replaced"
-    assert result.startswith("overwrote")
+    assert result.startswith("overwrote notes.txt (+1 -1 lines, now 1 line)")
 
 
 def test_write_file_makes_the_directories_it_needs(workspace: Path) -> None:
@@ -192,14 +166,14 @@ def test_edit_file_replaces_one_exact_match(workspace: Path) -> None:
     )
 
     assert (workspace / "notes.txt").read_text(encoding="utf-8") == "stayed inside"
-    assert result == "edited notes.txt (replaced 1 match; 13 characters)"
+    assert result == "edited notes.txt: replaced 1 match at line 1; now 1 line"
 
 
 @pytest.mark.parametrize("text", ["absent", "e"])
 def test_edit_file_refuses_non_unique_matches(workspace: Path, text: str) -> None:
     before = (workspace / "notes.txt").read_text(encoding="utf-8")
 
-    with pytest.raises(ToolError, match="must occur exactly once"):
+    with pytest.raises(ToolError, match="was not found|occurs 2 times"):
         tools(workspace)["edit_file"].run(path="notes.txt", old_text=text, new_text="x")
 
     assert (workspace / "notes.txt").read_text(encoding="utf-8") == before
@@ -262,12 +236,11 @@ def test_schemas_describe_every_tool(workspace: Path) -> None:
     schemas = toolbox(workspace).schemas()
 
     assert [schema["function"]["name"] for schema in schemas] == [
-        "list_files",
         "read_file",
         "write_file",
         "edit_file",
     ]
-    assert schemas[1]["function"]["parameters"]["required"] == ["path"]
+    assert schemas[0]["function"]["parameters"]["required"] == ["path"]
     assert all(schema["type"] == "function" for schema in schemas)
 
 
@@ -278,7 +251,7 @@ def test_a_call_becomes_a_tool_message_carrying_its_id(workspace: Path) -> None:
 
     assert message.role == "tool"
     assert message.tool_call_id == "call_1"
-    assert message.content[0].text == "kept inside"
+    assert message.content[0].text == "1: kept inside"
 
 
 def test_a_refused_path_reaches_the_model_instead_of_raising(workspace: Path) -> None:
@@ -422,17 +395,33 @@ def test_a_path_wrapped_in_quotes_or_carrying_a_delimiter_is_refused(tmp_path: P
 def test_a_long_file_comes_in_pages(workspace: Path) -> None:
     """Until 2026-09-03 a file was cut at the limit with no way to the rest."""
 
-    (workspace / "big.txt").write_text("a" * 25_000, encoding="utf-8")
+    (workspace / "big.txt").write_text("\n".join(f"line {n}" for n in range(1, 701)) + "\n", encoding="utf-8")
     read = tools(workspace)["read_file"]
 
     first = read.run(path="big.txt")
-    rest = read.run(path="big.txt", offset=20_000)
+    rest = read.run(path="big.txt", offset=501)
+    some = read.run(path="big.txt", offset=10, limit=2)
 
-    assert first.startswith("a" * 20_000)
-    assert first.endswith("showing characters 0-20000 of 25000; for the rest, read_file 'big.txt' again with offset=20000")
-    assert rest == "a" * 5_000
+    assert first.startswith("  1: line 1\n  2: line 2\n")
+    assert first.endswith("500: line 500\n(showing lines 1-500 of 700; for the rest, read_file 'big.txt' again with offset=501)")
+    assert rest.startswith("501: line 501\n") and rest.endswith("700: line 700\n(end of file, 700 lines)")
+    assert some == "10: line 10\n11: line 11\n(showing lines 10-11 of 700; for the rest, read_file 'big.txt' again with offset=12)"
+
+
+def test_a_very_long_line_is_cut_and_a_page_stops_under_the_result_cap(workspace: Path) -> None:
+    from app.tools.filesystem import LINE_CHARS, PAGE_CHARS
+
+    (workspace / "wide.txt").write_text("x" * (LINE_CHARS + 50) + "\n" + "y\n", encoding="utf-8")
+    (workspace / "dense.txt").write_text("".join(f"{'z' * 1000}\n" for _ in range(60)), encoding="utf-8")
+    read = tools(workspace)["read_file"]
+
+    wide = read.run(path="wide.txt")
+    dense = read.run(path="dense.txt")
+
+    assert f"… (line cut at {LINE_CHARS} chars)" in wide.splitlines()[0] and wide.splitlines()[1] == "2: y"
+    assert len(dense) <= PAGE_CHARS and "for the rest, read_file 'dense.txt' again with offset=" in dense
 
 
 def test_an_offset_past_the_end_is_refused(workspace: Path) -> None:
-    with pytest.raises(ToolError, match="offset 99 is past the end: the text is 11 characters"):
+    with pytest.raises(ToolError, match="offset 99 is past the end: the file has 1 lines"):
         tools(workspace)["read_file"].run(path="notes.txt", offset=99)

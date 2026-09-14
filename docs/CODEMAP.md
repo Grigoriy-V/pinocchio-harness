@@ -63,11 +63,13 @@ are not reachable by following imports from `app/`.
 | Add/change a capability/grant | `app/tools/capabilities.py` | `CapabilityRegistry`, `CapabilityGrant`, `DEFAULT_CAPABILITIES` |
 | Add an MCP server as tools | `config.toml` `[mcp.servers.<name>]`, `app/tools/mcp.py` | `McpSessions`, `mcp_tools`, `contract_of`, `render_result`; `McpSettings` in `app/config.py` |
 | Change what the assistant says it can do, `/can` | `app/capabilities.py` | `system_message`, `capability_report`, `tool_inventory` |
-| Change filesystem tools | `app/tools/filesystem.py` | `resolve_in_root`, `filesystem_tools` |
+| Change filesystem tools | `app/tools/filesystem.py` | `resolve_in_root`, `resolve_path`, `filesystem_tools`, `numbered_page`, `tests/test_tools.py` |
+| Search a tree or find files | `app/tools/search.py` | `search_files`, `find_files`, `glob_regex`, `ripgrep_argv`, `tests/test_search_tools.py` |
+| Patch several files in one call | `app/tools/patch.py` | `apply_patch`, `parse_patch`, `apply_hunks`, `tests/test_apply_patch.py` |
 | Change attachment admission | `app/attachments.py` | `admit_uploads`, `load_attachments` |
 | Change document parsing / tools | `app/documents.py`, `app/tools/documents.py` | `read_sections`, `render_pages`, `read_document`, `view_pages` |
 | Change file delivery | `app/tools/presentation.py` | `send_file`, `outbound=True` |
-| Run a command or change where commands run | `app/tools/shell.py`, `app/tools/shell_windows.py`, `deploy/modal/control_app.py` | `run_command`, `Runner`, `LocalRunner`, `ContainerRunner`, `ModalRunner`, `command_environment`, `own_venv_bin`, `_start_detached`, `Running`, `RestrictedProcess`, `BASE_TOOLS`, `tests/test_run_command.py` |
+| Run a command or change where commands run | `app/tools/shell.py`, `app/tools/shell_windows.py`, `deploy/modal/control_app.py` | `run_command`, `Runner`, `LocalRunner`, `ContainerRunner`, `ModalRunner`, `command_environment`, `own_venv_bin`, `_start_detached`, `Running`, `powershell_argv`, `command_line`, `RestrictedProcess`, `BASE_TOOLS`, `tests/test_run_command.py` |
 | Change the two modes | `app/agent/mode.py`, `app/tools/base.py` | `CAREFUL_SWITCH`, `set_mode`, `Tool.mutates`, `Toolbox.ask_for_changes` |
 | Change what a command answers, in every interface | `app/agent/commands.py` | `plan_reply`, `mode_reply`, `context_reply`, `workspace_reply` |
 | Change the conversation's working folder | `app/agent/folder.py` | `FOLDERS`, `folder_of`, `set_folder`, `last_folder`, `tests/test_working_folder.py` |

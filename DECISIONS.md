@@ -63,6 +63,7 @@ and says what replaced it.
 | 2026-09-11 | A fine-tune of an open model is an experiment for experience, not a product step | standing |
 | 2026-09-11 | The training loop lives outside the harness | standing |
 | 2026-09-13 | Locally a conversation works in a named folder: read anywhere, write inside, elsewhere after a yes | standing |
+| 2026-09-14 | The coding tools are the references': read by lines, search and find, edit and patch; PowerShell is the Windows shell | standing |
 
 ---
 
@@ -797,3 +798,37 @@ land and where the switches live, so nothing of the harness is written
 into a project folder. Supersedes, locally, the 2026-08-02 confinement of
 reads to the workspace.
 
+## 2026-09-14 — The coding tools are the references': read by lines, search and find, edit and patch; PowerShell is the Windows shell
+
+Decision (the human, 2026-09-14, roadmap 27 step 3, on
+`reports/2026-09-14_item27_step3_references.md`): the file tools take the
+shape the four local references share. `read_file` reads by lines, numbered,
+with `offset` and `limit`; `search_files` (a regular expression over a tree,
+ripgrep where installed and a Python walk otherwise, `.gitignore` honoured)
+and `find_files` (a glob, newest first) replace `list_files`; `edit_file`
+gains `replace_all` and names the lines it changed; `apply_patch` applies the
+V4A patch Codex, Hermes and OpenClaw share, several files and hunks in one
+call, all or nothing. A write's result counts the lines added and removed;
+the full diff is the interface's to show. A tool description states what the
+tool returns, never "use this instead of"; the brief names the platform, the
+shell and the Python executable. On Windows `run_command` hands the line to
+PowerShell under the same write-restricted token. Locally `fetch_page` reaches
+any host and port, as `use_page` already did.
+
+Why: a coding agent reads by line numbers, searches a tree and patches
+several places at once, and this harness had none of the three; every
+reference pages by lines and returns the paths it changed. Under the
+restricted token the Cygwin tools Git Bash carries die at start (ISS-0068);
+Codex and Claude Code answer with PowerShell rather than by opening the
+token, and PowerShell's own cmdlets and any `python`, `git`, `node` do what
+the Cygwin ones did. Descriptions written as routes ("use this instead of
+ls") were coaching from one small model's habits and forbade the shell
+where it was right.
+
+Consequences: `app/tools/search.py` and `app/tools/patch.py`; the read and
+write capabilities split by what a tool does (`mutates`), not by position;
+deployed, the same tools inside the root with the Python search engine and
+`sh` unchanged; Telegram gains three tool labels and nothing else. The
+constants a page and a search are cut at stay until roadmap 31 derives them
+from the budget. Making Cygwin run under the token (option B of the report)
+is recorded in the roadmap as not started.

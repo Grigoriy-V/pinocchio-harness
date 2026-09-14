@@ -49,17 +49,14 @@ def test_the_schema_the_model_reads_carries_the_three_parts(tmp_path: Path) -> N
         assert "\nLeaves: " in described, tool.name
 
 
-def test_a_file_tool_says_what_shell_command_it_replaces(tmp_path: Path) -> None:
-    """Hermes's rule, taken: the tool that overlaps with the shell says so,
-    and the shell says the reverse, so the model does not pick by habit."""
+def test_no_tool_tells_the_model_which_tool_to_use_instead(tmp_path: Path) -> None:
+    """A description is a contract, not a route (AGENTS.md, 2026-09-14): what
+    the tool returns, never "use this instead of"."""
 
-    by_name = {tool.name: tool for tool in every_wired_tool(tmp_path)}
-
-    assert "instead of cat" in by_name["read_file"].description
-    assert "instead of sed" in by_name["edit_file"].description
-    assert "instead of ls" in by_name["list_files"].description
-    assert "instead of echo" in by_name["write_file"].description
-    assert "not cat, echo, sed or ls" in by_name["run_command"].description
+    for tool in every_wired_tool(tmp_path):
+        described = tool.schema()["function"]["description"].lower()
+        assert "use this instead of" not in described, tool.name
+        assert "not cat" not in described and "never invoke" not in described, tool.name
 
 
 def test_the_page_tool_teaches_its_use_through_what_the_model_knows(tmp_path: Path) -> None:

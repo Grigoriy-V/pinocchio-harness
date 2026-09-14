@@ -49,7 +49,8 @@ A capability should expose a real action or source of evidence. It should not en
 
 Examples of the current shape:
 
-- `list_files` / `read_file` expose workspace observation;
+- `read_file`, `search_files` and `find_files` expose workspace observation;
+- `write_file`, `edit_file` and `apply_patch` expose change, the last over several files at once;
 - `read_document` exposes bounded document text;
 - `view_pages` exposes visual page evidence;
 - `search_web`, `fetch_page`, `view_web_page` and `use_page` expose distinct web and browser actions;

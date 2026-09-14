@@ -40,7 +40,8 @@ from app.tools.shell import (
     describe,
 )
 
-PY = f'"{sys.executable}"'
+# PowerShell calls a quoted path with `&`; sh does not (roadmap 27 step 3).
+PY = ('& ' if sys.platform == 'win32' else '') + f'"{sys.executable}"'
 
 
 @pytest.fixture
@@ -293,12 +294,12 @@ def test_careful_mode_makes_the_changing_tools_ask(workspace: Path) -> None:
     careful = registry.toolbox(registry.grant(), ask_for_changes=True)
 
     assert needs_approval(full) == ()
-    assert set(needs_approval(careful)) == {"write_file", "edit_file", "run_command"}
+    assert set(needs_approval(careful)) == {"write_file", "edit_file", "apply_patch", "run_command"}
     assert not careful.requires_approval("read_file")
     assert not careful.requires_approval("send_file")
     assert "approve every change" in capability_brief(careful)
     assert "approve every change" not in capability_brief(full)
-    assert "Ask first: write_file, edit_file, run_command" in capability_report(careful)
+    assert "Ask first: write_file, edit_file, apply_patch, run_command" in capability_report(careful)
 
 
 def test_the_mode_is_a_marker_in_the_workspace(workspace: Path) -> None:
@@ -387,7 +388,7 @@ def test_a_venv_the_model_makes_under_the_boundary_has_pip(workspace: Path) -> N
 
     finished = run(
         LocalRunner().run(
-            "python -m venv task\.venv && task\.venv\Scripts\python -m pip --version",
+            "python -m venv task\.venv; task\.venv\Scripts\python -m pip --version",
             workspace,
             180,
         )
@@ -403,7 +404,7 @@ def test_a_venv_the_model_makes_under_the_boundary_has_pip(workspace: Path) -> N
 def test_what_the_command_starts_still_reaches_the_output(workspace: Path) -> None:
     """A grandchild's stdout was the thing that got lost; see shell_windows.py."""
 
-    finished = run(LocalRunner().run("git --version & python -c \"print('grandchild ok')\"", workspace, 120))
+    finished = run(LocalRunner().run("git --version; python -c \"print('grandchild ok')\"", workspace, 120))
 
     assert finished.exit_code == 0, finished.output
     assert "git version" in finished.output and "grandchild ok" in finished.output
@@ -540,7 +541,7 @@ def test_a_background_command_runs_hidden_is_read_and_stopped(workspace: Path) -
         encoding="utf-8",
     )
 
-    started, _ = executed(tools, "run_command", command=f"{sys.executable} tick.py", background=True)
+    started, _ = executed(tools, "run_command", command=f"{PY} tick.py", background=True)
     text = started.content[0].text
     assert "bg-1: running" in text and "tick 0" in text
     peeked, _ = executed(tools, "command_output", id="bg-1")
@@ -550,7 +551,7 @@ def test_a_background_command_runs_hidden_is_read_and_stopped(workspace: Path) -
     assert not runner.peek("bg-1").alive()
 
     # A second one ends with the runner.
-    executed(tools, "run_command", command=f"{sys.executable} tick.py", background=True)
+    executed(tools, "run_command", command=f"{PY} tick.py", background=True)
     assert runner.peek("bg-2").alive()
     runner.close()
     assert runner.peek("bg-2") is None

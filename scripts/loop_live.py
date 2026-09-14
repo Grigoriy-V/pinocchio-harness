@@ -733,9 +733,9 @@ async def run_scenarios(
                     text_message("Read config.ini, then list the workspace twice so I can compare."),
                     Message(role="assistant", tool_calls=(ToolCall(id="i1", name="read_file", arguments={"path": "config.ini"}),)),
                     Message(role="tool", tool_call_id="i1", content=[ContentPart(kind="text", text=config)]),
-                    Message(role="assistant", tool_calls=(ToolCall(id="i2", name="list_files", arguments={"path": "."}),)),
+                    Message(role="assistant", tool_calls=(ToolCall(id="i2", name="find_files", arguments={"pattern": "*"}),)),
                     Message(role="tool", tool_call_id="i2", content=[ContentPart(kind="text", text=listing)]),
-                    Message(role="assistant", tool_calls=(ToolCall(id="i3", name="list_files", arguments={"path": "."}),)),
+                    Message(role="assistant", tool_calls=(ToolCall(id="i3", name="find_files", arguments={"pattern": "*"}),)),
                     Message(role="tool", tool_call_id="i3", content=[ContentPart(kind="text", text=listing)]),
                     Message(role="assistant", content=[ContentPart(kind="text", text="Read config.ini (40 settings) and listed the workspace twice; the listings match.")]),
                 ],
@@ -822,7 +822,7 @@ async def run_scenarios(
             resumed = j.events("turn_resumed")
             first_write = j.tools.index("write_file") if "write_file" in j.tools else None
             looked_first = first_write is None or any(
-                tool in ("read_file", "list_files") for tool in j.tools[:first_write]
+                tool in ("read_file", "find_files", "search_files") for tool in j.tools[:first_write]
             )
             done(
                 "J", "J a worker killed mid-turn, taken up", j,

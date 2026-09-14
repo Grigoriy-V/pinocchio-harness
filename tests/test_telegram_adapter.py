@@ -888,15 +888,15 @@ async def test_a_batch_of_tool_calls_arrives_as_one_message_of_readable_labels(
         content=[],
         tool_calls=(
             ToolCall(id="a", name="read_file", arguments={}),
-            ToolCall(id="b", name="list_files", arguments={}),
+            ToolCall(id="b", name="find_files", arguments={}),
         ),
     )
 
     await adapter._deliver(CHAT, produced)
 
-    assert telegram.sent == ["Reading file…\nListing files…"]
+    assert telegram.sent == ["Reading file…\nFinding files…"]
     assert "read_file" not in telegram.sent[0]
-    assert "list_files" not in telegram.sent[0]
+    assert "find_files" not in telegram.sent[0]
 
 
 async def test_a_formatted_message_marks_its_own_headings_and_escapes_the_rest(
@@ -1676,15 +1676,15 @@ async def test_a_whole_turn_that_uses_a_tool_never_shows_its_name(
     telegram: FakeTelegram, settings: TelegramSettings, tmp_path: Path
 ) -> None:
     backend = ScriptedBackend(
-        calls("list_files", path="."), says("Nothing there yet."), default=says("summary")
+        calls("find_files", pattern="*"), says("Nothing there yet."), default=says("summary")
     )
     adapter = build(telegram, settings, tmp_path, backend)
 
     await adapter.handle_update(text_update("what is in my workspace"))
 
     assert "Nothing there yet." in telegram.sent
-    assert not any("list_files" in sent for sent in telegram.sent)
-    assert any("Listing files…" in sent for sent in telegram.sent)
+    assert not any("find_files" in sent for sent in telegram.sent)
+    assert any("Finding files…" in sent for sent in telegram.sent)
     # And it does not survive the turn it belonged to.
     assert "deleteMessage" in [method for method, _ in telegram.calls]
 
@@ -2142,7 +2142,7 @@ async def test_a_tool_step_previews_only_the_answer(
     """A model turn that only calls a tool has nothing to show yet."""
 
     backend = ScriptedBackend(
-        calls("list_files", path="."),
+        calls("find_files", pattern="*"),
         says(LONG_ANSWER),
         default=says("summary"),
     )
@@ -2152,7 +2152,7 @@ async def test_a_tool_step_previews_only_the_answer(
 
     sent = texts(telegram, "sendMessage")
     # Two messages: the tool activity, then the preview that becomes the answer.
-    assert sent[0] == TOOL_ACTIVITY["list_files"]
+    assert sent[0] == TOOL_ACTIVITY["find_files"]
     assert len(sent) == 2
     assert LONG_ANSWER.startswith(sent[1])
     assert texts(telegram, "editMessageText")[-1] == LONG_ANSWER

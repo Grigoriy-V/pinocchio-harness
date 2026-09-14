@@ -30,7 +30,7 @@ authorizes nothing; `ROADMAP.md` alone orders work. Evidence lives in
 | ISS-0071 | fixed 2026-09-14 | the status route holds the agent of a closed session: `/status` after a tab is closed fails on a closed database | 0072 |
 | ISS-0070 | open | the first turn on a fresh deployed worker spends ~150 s building the graph before the first model call; the next turns 33 ms | roadmap 18, 26 |
 | ISS-0069 | open | after the repeat guard Gemma answers nothing: the request goes out with no tools, the model emits 16–171 tokens, the harness receives no text and no call | 0068, roadmap 24 |
-| ISS-0068 | open, local Windows only | the sandboxed `run_command` kills every Cygwin tool (`sh`, `ls`, `find`, `cat`, `awk`): `CreateFileMapping … Win32 error 5` | 0053, roadmap 24 |
+| ISS-0068 | fixed 2026-09-14 | the sandboxed `run_command` kills every Cygwin tool (`sh`, `ls`, `find`, `cat`, `awk`): `CreateFileMapping … Win32 error 5` | 0053, roadmap 24, 27 |
 | ISS-0067 | open, pruned once 2026-09-11 | every checkpoint version of every thread is kept forever; 368 of Neon's 394 MB were old versions | 0066 |
 | ISS-0066 | open | every turn's context load carries the bytes of every image still in history, and then shows the model a stub | 0065, roadmap 18 |
 | ISS-0065 | fixed 2026-09-08 | a `send_file` result carries the file's bytes into the thread's history | 0064, roadmap 23 |
@@ -157,25 +157,6 @@ in use since 2026-09-06; it is not seen on the hosted model.
 - **Belongs to:** the harness (the request shape after the guard, and
   what it does with a completion that has tokens but no content) with the
   serving stack; not the model alone.
-
-### ISS-0068 — the local Windows `run_command` kills every Cygwin tool
-
-- **Status:** open; local profile on Windows only.
-- **Seen:** 2026-09-12, `loop_live --model tuned D V X` locally: `sh
-  tools_task/build.sh`, `ls`, `find`, `cat`, `awk` each die at once with
-  `*** fatal error - CreateFileMapping S-1-5-…, Win32 error 5.
-  Terminating.` and exit code 256, while `python` and `cmd` built-ins
-  run. Five of the six failed cases begin there; the model then improvises
-  (`dir` with a forward slash, `set X=… &&` with cmd's trailing space).
-- **Costs:** the training and measuring scenarios are written for the
-  Linux worker (`python3`, `VAR=… cmd`, `.sh` scripts); on this machine
-  they measure the sandbox, not the model. A local run cannot stand beside
-  the deployed baselines.
-- **Reproduce:** locally, `run_command` with `ls`.
-- **Cause:** the restricted-token sandbox around a command (Windows) denies
-  the shared memory Cygwin/MSYS processes create at start
-  (`CreateFileMapping` on the user's SID). Not investigated further.
-- **Belongs to:** the harness's Windows command boundary.
 
 ### ISS-0067 — every checkpoint version of every thread is kept forever
 
@@ -588,6 +569,18 @@ in use since 2026-09-06; it is not seen on the hosted model.
 
 Shortened to what a later reader needs; the linked report has the rest.
 
+### ISS-0068 — the local Windows `run_command` kills every Cygwin tool
+
+- **What it was:** under the write-restricted token every Cygwin/MSYS
+  process Git Bash puts on `PATH` (`sh`, `ls`, `find`, `cat`, `awk`) died
+  at start with `CreateFileMapping … Win32 error 5`; the model improvised
+  `cmd` idioms and five of six local scenarios began there (2026-09-12).
+- **Fixed** 2026-09-14 (roadmap 27 step 3): `run_command` on Windows hands
+  the line to PowerShell under the same token, the brief says so, and the
+  tree search, file finder and line reads are tools of their own, so the
+  Cygwin route is not needed. Making Cygwin itself run under the token is
+  recorded as not started. `reports/2026-09-14_item27_step3_references.md` §3.7.
+
 ### ISS-0076 — after a reload a turn's tool calls are separate rows again
 
 - **What it was:** a thread reopened after a page reload showed every tool
@@ -611,7 +604,9 @@ Shortened to what a later reader needs; the linked report has the rest.
   started on the person's own machine.
 - **Fixed** 2026-09-14: the local profile's `open` flag admits localhost and
   private addresses (`public_request_policy(open=True)`); offline test, not
-  yet seen in a live turn.
+  yet seen in a live turn. The same day `fetch_page` got the flag too
+  (roadmap 27 step 3): until then the browser could open a dev server and
+  the fetch could not.
 
 ### ISS-0073 — a GitHub MCP file's content is dropped as a non-text part
 

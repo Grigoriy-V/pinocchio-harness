@@ -868,7 +868,7 @@ def create_agent(
     )
     # Each person gets their own root inside the configured workspace. The
     # directory the agent may touch has to exist before it is resolved, or the
-    # first `list_files` fails on a machine that has simply never run it.
+    # first `find_files` fails on a machine that has simply never run it.
     Path(agent_settings.workspace).mkdir(parents=True, exist_ok=True)
     workspace = user_workspace(agent_settings.workspace, user_id)
     workspace.mkdir(parents=True, exist_ok=True)

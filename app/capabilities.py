@@ -126,16 +126,25 @@ def _workspace_lines(tools: Toolbox) -> list[str]:
     model generalised it into writing nothing — and never asked either.
     """
 
-    if not ({"list_files", "read_file", "write_file", "edit_file"} & set(tools.names)):
+    if not ({"find_files", "read_file", "write_file", "edit_file"} & set(tools.names)):
         return []
-    lines = [
+    if open_grant(tools):
+        lines = [
+            "- You work in one named folder on this machine: read, create and change "
+            "files in it as the work needs, without asking first, and refer to them by "
+            "a path relative to it. Reading reaches any path on the machine; a write "
+            "or edit outside the folder waits for the person's yes. If the person "
+            "writes a full path themselves, use it exactly as they wrote it.",
+        ]
+    else:
+        lines = [
         "- You have one workspace directory and it is yours: read, create and change "
         "files in it as the work needs, without asking first. Everything you can reach "
         "is in that one place, so refer to a file by its plain name — castle.html, "
         "notes/plan.md — and never build a path to it. Nothing outside it exists for "
         "you. If the person writes a full path themselves, use it exactly as they "
         "wrote it.",
-    ]
+        ]
     if {"write_file", "edit_file"} & set(tools.names):
         lines.append(
             "- When the person asks for something that is a file and does not name "
@@ -143,6 +152,14 @@ def _workspace_lines(tools: Toolbox) -> list[str]:
             "name you used."
         )
     return lines
+
+
+def open_grant(tools: Toolbox) -> bool:
+    """Whether these tools were built open (the person's own machine): the one
+    property that shows it is a write that asks about its path."""
+
+    write = tools.get("write_file") if "write_file" in tools.names else None
+    return write is not None and write.asks is not None
 
 
 def _shell_lines(tools: Toolbox, where: str | None) -> list[str]:

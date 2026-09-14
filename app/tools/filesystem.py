@@ -1,4 +1,8 @@
-"""File tools, confined to one directory.
+"""File tools on one root: read by lines, write, edit.
+
+Searching the tree and finding files are `app/tools/search.py`; a patch over
+several files is `app/tools/patch.py`; the three share this module's path
+rules (roadmap 27 step 3, `reports/2026-09-14_item27_step3_references.md`).
 
 The root is passed in, never read from the environment by the tool itself, so a
 caller cannot accidentally hand the model the whole disk. Every path the model
@@ -19,16 +23,21 @@ and the operating system's own `strerror` as detail. Nothing platform-specific
 
 from __future__ import annotations
 
+import difflib
 import os
 import tempfile
 from pathlib import Path
 
 from app.models import ContentPart
 from app.tools.base import BAD_ARGUMENTS, Tool, ToolError, handover
-from app.tools.paging import page
 
-MAX_ENTRIES = 200
-MAX_CHARS = 20_000
+# A page of a file, in lines, and the width a line is cut at. Until roadmap
+# 31 derives them from the request budget these are the references' shape:
+# a default of some hundreds of lines and a whole page under the executor's
+# result cap (`MAX_RESULT_CHARS`), so the middle of a page is never cut.
+DEFAULT_LINES = 500
+PAGE_CHARS = 30_000
+LINE_CHARS = 2_000
 
 # The family's codes. Added only when something has to branch on one.
 OUTSIDE_ROOT = "fs.outside_root"
@@ -134,29 +143,6 @@ def _existing_file(root: Path, path: str, *, confined: bool = True) -> Path:
     return target
 
 
-def _list_files(root: Path, path: str = ".", *, confined: bool = True) -> str:
-    target = resolve_path(root, path, confined=confined)
-    if not target.exists():
-        raise ToolError(f"path {path!r} does not exist", code=NOT_FOUND)
-    if not target.is_dir():
-        raise ToolError(f"path {path!r} is not a directory", code=NOT_A_DIRECTORY)
-    try:
-        entries = sorted(
-            f"{entry.name}/" if entry.is_dir() else entry.name for entry in target.iterdir()
-        )
-    except OSError as error:
-        raise ToolError(
-            f"path {path!r} could not be listed", code=IO, detail=_detail(error)
-        ) from error
-    if not entries:
-        return f"{path}: empty"
-    shown = entries[:MAX_ENTRIES]
-    listing = "\n".join(shown)
-    if len(entries) > len(shown):
-        listing += f"\n... {len(entries) - len(shown)} more entries"
-    return listing
-
-
 # A file the model reads is shown in its own kind: text as text, a picture
 # as a picture. Until 2026-09-04 a PNG came back as replacement characters,
 # so a chart the model had just made was the one thing it could not look at
@@ -171,7 +157,7 @@ IMAGE_SUFFIXES = {
 
 
 def _read_file(
-    root: Path, path: str, offset: int = 0, *, confined: bool = True
+    root: Path, path: str, offset: int = 1, limit: int | None = None, *, confined: bool = True
 ) -> str | list[ContentPart]:
     target = _existing_file(root, path, confined=confined)
     media_type = IMAGE_SUFFIXES.get(target.suffix.lower())
@@ -192,7 +178,43 @@ def _read_file(
             ),
             ContentPart(kind="image", data=data, media_type=media_type),
         ]
-    return page(text, offset, MAX_CHARS, f"read_file {path!r} again with offset={{offset}}")
+    return numbered_page(text, int(offset), int(limit) if limit else DEFAULT_LINES, f"read_file {path!r}")
+
+
+def numbered_page(text: str, offset: int, limit: int, call: str) -> str:
+    """`limit` lines of `text` from line `offset` (1-based), each as `N: text`,
+    and a last line that says how to get the rest. A page also stops at
+    `PAGE_CHARS`, so one result never has its middle cut by the executor."""
+
+    if offset < 1 or limit < 1:
+        raise ToolError("offset must be 1 or more and limit at least 1", code=BAD_ARGUMENTS)
+    lines = text.split("\n")
+    if lines and lines[-1] == "":
+        lines.pop()
+    total = len(lines)
+    if total == 0:
+        return "(empty file)"
+    if offset > total:
+        raise ToolError(f"offset {offset} is past the end: the file has {total} lines", code=BAD_ARGUMENTS)
+    width = len(str(min(total, offset + limit - 1)))
+    out: list[str] = []
+    size = 0
+    number = offset
+    while number <= total and number < offset + limit:
+        line = lines[number - 1].rstrip("\r")
+        if len(line) > LINE_CHARS:
+            line = line[:LINE_CHARS] + f"… (line cut at {LINE_CHARS} chars)"
+        rendered = f"{number:>{width}}: {line}"
+        if size + len(rendered) + 1 > PAGE_CHARS and out:
+            break
+        out.append(rendered)
+        size += len(rendered) + 1
+        number += 1
+    last = number - 1
+    body = "\n".join(out)
+    if last >= total:
+        return body if offset == 1 else f"{body}\n(end of file, {total} lines)"
+    return f"{body}\n(showing lines {offset}-{last} of {total}; for the rest, {call} again with offset={last + 1})"
 
 
 def _names_a_directory(path: str) -> bool:
@@ -242,11 +264,42 @@ def _replace_atomically(target: Path, text: str) -> None:
                 pass
 
 
-def _same_content(target: Path, content: str) -> bool:
+def _text_of(target: Path) -> str | None:
     try:
-        return target.read_text(encoding="utf-8") == content
+        return target.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError):
-        return False
+        return None
+
+
+def _lines(n: int) -> str:
+    return f"{n} line{'' if n == 1 else 's'}"
+
+
+def count_lines(text: str) -> int:
+    return len(text.split("\n")) - (1 if text.endswith("\n") or not text else 0)
+
+
+def line_counts(before: str, after: str) -> tuple[int, int]:
+    """Lines added and removed between two texts, as a diff would count them."""
+
+    added = removed = 0
+    for line in difflib.unified_diff(before.split("\n"), after.split("\n"), lineterm="", n=0):
+        if line.startswith("+") and not line.startswith("+++"):
+            added += 1
+        elif line.startswith("-") and not line.startswith("---"):
+            removed += 1
+    return added, removed
+
+
+def _line_numbers(text: str, needle: str) -> list[int]:
+    numbers = []
+    start = 0
+    while True:
+        at = text.find(needle, start)
+        if at < 0:
+            return numbers
+        numbers.append(text.count("\n", 0, at) + 1)
+        start = at + max(len(needle), 1)
 
 
 def _write_file(root: Path, path: str, content: str, *, confined: bool = True) -> str:
@@ -260,14 +313,12 @@ def _write_file(root: Path, path: str, content: str, *, confined: bool = True) -
     if target.is_dir():
         raise ToolError(f"path {path!r} is a directory", code=IS_DIRECTORY)
     existed = target.is_file()
-    if existed and _same_content(target, content):
+    before = _text_of(target) if existed else None
+    if existed and before == content:
         # Seen seven times in one turn on 2026-09-03 (run `9c42241c`): the same
         # page written again and again. A result that says "overwrote" reads as
         # progress; this one does not.
-        return (
-            f"unchanged: {path} already had exactly this content "
-            f"({len(content)} characters), so nothing was written; {handover(path)}"
-        )
+        return f"unchanged: {path} already has exactly this content, so nothing was written; {handover(path)}"
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
         _replace_atomically(target, content)
@@ -283,12 +334,21 @@ def _write_file(root: Path, path: str, content: str, *, confined: bool = True) -
         raise ToolError(
             f"path {path!r} could not be written", code=IO, detail=_detail(error)
         ) from error
-    verb = "overwrote" if existed else "created"
-    return f"{verb} {path} ({len(content)} characters); {handover(path)}"
+    lines = count_lines(content)
+    if existed:
+        added, removed = line_counts(before or "", content)
+        return f"overwrote {path} (+{added} -{removed} lines, now {_lines(lines)}); {handover(path)}"
+    return f"created {path} ({_lines(lines)}); {handover(path)}"
 
 
 def _edit_file(
-    root: Path, path: str, old_text: str, new_text: str, *, confined: bool = True
+    root: Path,
+    path: str,
+    old_text: str,
+    new_text: str,
+    replace_all: bool = False,
+    *,
+    confined: bool = True,
 ) -> str:
     target = _existing_file(root, path, confined=confined)
     if not old_text:
@@ -300,20 +360,29 @@ def _edit_file(
         raise ToolError(
             f"path {path!r} could not be read", code=IO, detail=_detail(error)
         ) from error
-    matches = current.count(old_text)
-    if matches != 1:
+    at = _line_numbers(current, old_text)
+    if not at:
         raise ToolError(
-            f"old_text must occur exactly once in {path!r}; found {matches} matches",
+            f"old_text was not found in {path!r}; read the file and give the text as it is there",
             code=AMBIGUOUS_EDIT,
         )
-    updated = current.replace(old_text, new_text, 1)
+    if len(at) > 1 and not replace_all:
+        places = ", ".join(str(n) for n in at[:10]) + ("…" if len(at) > 10 else "")
+        raise ToolError(
+            f"old_text occurs {len(at)} times in {path!r} (lines {places}); include more "
+            "surrounding lines to name one, or set replace_all",
+            code=AMBIGUOUS_EDIT,
+        )
+    updated = current.replace(old_text, new_text) if replace_all else current.replace(old_text, new_text, 1)
     try:
         _replace_atomically(target, updated)
     except OSError as error:
         raise ToolError(
             f"path {path!r} could not be written", code=IO, detail=_detail(error)
         ) from error
-    return f"edited {path} (replaced 1 match; {len(updated)} characters)"
+    where = ", ".join(str(n) for n in at[:10]) + ("…" if len(at) > 10 else "")
+    plural = "es" if len(at) > 1 else ""
+    return f"edited {path}: replaced {len(at)} match{plural} at line{'s' if len(at) > 1 else ''} {where}; now {_lines(count_lines(updated))}"
 
 
 def filesystem_tools(root: Path, *, open_reads: bool = False) -> list[Tool]:
@@ -330,7 +399,7 @@ def filesystem_tools(root: Path, *, open_reads: bool = False) -> list[Tool]:
         raise ValueError(f"the tool root {root} is not a directory")
     confined = not open_reads
     where = (
-        "Absolute path inside the workspace root, or a path relative to it."
+        "A path inside the workspace root, absolute or relative to it."
         if confined
         else "A path relative to the working folder, or any absolute path on this machine."
     )
@@ -338,86 +407,57 @@ def filesystem_tools(root: Path, *, open_reads: bool = False) -> list[Tool]:
 
     return [
         Tool(
-            name="list_files",
-            replay_safe=True,
-            description=(
-                "List what a directory in your workspace holds. Use this instead of ls "
-                "or dir in run_command."
-            ),
-            returns="one line per entry, a directory with a / after its name; a long listing says how many more there are.",
-            leaves="nothing.",
-            parameters={
-                "type": "object",
-                "properties": {
-                    "path": {
-                        "type": "string",
-                        "description": where + " Defaults to the working folder.",
-                    }
-                },
-                "required": [],
-                "additionalProperties": False,
-            },
-            run=lambda path=".": _list_files(resolved, path, confined=confined),
-        ),
-        Tool(
             name="read_file",
             replay_safe=True,
             description=(
-                "Read a file in your workspace: a text file as text, an image (png, jpg, "
-                "webp) as a picture you look at. Use this instead of cat, head, tail or "
-                "type in run_command."
+                "Read a file: a text file as numbered lines, an image (png, jpg, webp) "
+                "as a picture you look at."
             ),
             returns=(
-                "the text, in pages: the end of a page says which offset to ask for next; "
-                "for an image, the picture itself."
+                "the lines as `number: text`, a page at a time; the last line of a page "
+                "says which offset to ask for next. For an image, the picture itself."
             ),
             leaves="nothing.",
             parameters={
                 "type": "object",
                 "properties": {
-                    "path": {
-                        "type": "string",
-                        "description": (
-                            "Absolute path inside the workspace root, or a path relative to it."
-                        ),
-                    },
+                    "path": {"type": "string", "description": where},
                     "offset": {
                         "type": "integer",
-                        "minimum": 0,
-                        "description": "Character offset to continue a long file from. Defaults to 0.",
+                        "minimum": 1,
+                        "description": "The first line to show, 1-based. Defaults to 1.",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "description": f"How many lines to show. Defaults to {DEFAULT_LINES}.",
                     },
                 },
                 "required": ["path"],
                 "additionalProperties": False,
             },
-            run=lambda path, offset=0: _read_file(resolved, path, int(offset), confined=confined),
+            run=lambda path, offset=1, limit=None: _read_file(
+                resolved, path, int(offset), int(limit) if limit else None, confined=confined
+            ),
         ),
         Tool(
             name="write_file",
             description=(
-                "Write a UTF-8 text file in your workspace, replacing it if it exists. "
-                "Missing directories are created. Use this instead of echo, cat or a "
-                "heredoc in run_command. Give `path` first and `content` last. `content` "
-                "is the exact bytes of the file and nothing else: never wrap it in a "
-                "markdown code fence and never add ``` before or after it."
+                "Write a UTF-8 text file, replacing it if it exists; missing directories "
+                "are created."
             ),
-            returns="the path written and its size; a refusal names why.",
-            leaves="the file, at that path in your workspace.",
+            returns=(
+                "created or overwrote, the path, and for an overwrite the lines added and "
+                "removed; a refusal names why."
+            ),
+            leaves="the file, at that path.",
             parameters={
                 "type": "object",
                 "properties": {
-                    "path": {
-                        "type": "string",
-                        "description": (
-                            "Absolute path inside the workspace root, or a path relative to it."
-                        ),
-                    },
+                    "path": {"type": "string", "description": where},
                     "content": {
                         "type": "string",
-                        "description": (
-                            "The complete new contents of the file, with no markdown "
-                            "fence around them."
-                        ),
+                        "description": "The complete new contents of the file.",
                     },
                 },
                 "required": ["path", "content"],
@@ -430,40 +470,40 @@ def filesystem_tools(root: Path, *, open_reads: bool = False) -> list[Tool]:
         Tool(
             name="edit_file",
             description=(
-                "Replace one exact, unique text fragment in an existing UTF-8 file in your "
-                "workspace. Use this instead of sed or awk in run_command. `old_text` must "
-                "occur exactly once: include enough surrounding lines to make it unique."
+                "Replace one exact text fragment in an existing UTF-8 file, or every "
+                "occurrence of it with replace_all. `old_text` is matched exactly, "
+                "indentation included, and must occur once unless replace_all is set. "
+                "For several places or several files at once, apply_patch."
             ),
             returns=(
-                "that the replacement was made; when `old_text` occurs zero or several "
-                "times, a refusal with the count, and the file is untouched."
+                "the number of replacements and the line numbers where they were made; "
+                "when `old_text` is missing or occurs several times, a refusal naming the "
+                "lines, and the file is untouched."
             ),
             leaves="the changed file.",
             parameters={
                 "type": "object",
                 "properties": {
-                    "path": {
-                        "type": "string",
-                        "minLength": 1,
-                        "description": (
-                            "Absolute path inside the workspace root, or a path relative to it."
-                        ),
-                    },
+                    "path": {"type": "string", "minLength": 1, "description": where},
                     "old_text": {
                         "type": "string",
                         "minLength": 1,
-                        "description": "Exact text that must occur once in the file.",
+                        "description": "Exact text as it is in the file; enough lines to be unique.",
                     },
                     "new_text": {
                         "type": "string",
                         "description": "Replacement text; may be empty to delete the match.",
                     },
+                    "replace_all": {
+                        "type": "boolean",
+                        "description": "Replace every occurrence. Default false.",
+                    },
                 },
                 "required": ["path", "old_text", "new_text"],
                 "additionalProperties": False,
             },
-            run=lambda path, old_text, new_text: _edit_file(
-                resolved, path, old_text, new_text, confined=confined
+            run=lambda path, old_text, new_text, replace_all=False: _edit_file(
+                resolved, path, old_text, new_text, bool(replace_all), confined=confined
             ),
             asks=asks,
             mutates=True,

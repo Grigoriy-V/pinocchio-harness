@@ -122,8 +122,17 @@ def test_a_sent_file_is_kept_by_name_and_not_by_its_bytes(store: SqliteStore) ->
     store.append("t1", [Message(role="tool", content=[part], tool_call_id="send")], LOCAL_USER_ID)
 
     [message] = store.messages("t1")
+    # The bytes are gone; the name, the type and the outbound mark stay, so
+    # an interface that re-reads the store can show the file again from
+    # disk (`ContentPart.path`, ui/chainlit_history.py).
     assert list(message.content) == [
-        ContentPart(kind="text", text="Sent report.pdf (application/pdf, 6 bytes).")
+        ContentPart(
+            kind="text",
+            text="Sent report.pdf (application/pdf, 6 bytes).",
+            media_type="application/pdf",
+            name="report.pdf",
+            outbound=True,
+        )
     ]
 
 

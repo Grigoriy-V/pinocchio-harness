@@ -127,7 +127,10 @@ def restricted_token():
 class RestrictedProcess:
     """Enough of `subprocess.Popen` for the runner: `pid`, `poll`, `kill`, `communicate`."""
 
-    def __init__(self, command: str, cwd: Path, env: dict[str, str], output: Path) -> None:
+    def __init__(self, command_line: str, cwd: Path, env: dict[str, str], output: Path) -> None:
+        """`command_line` is the whole line for `CreateProcess`, shell included
+        (`app/tools/shell.py::command_line`)."""
+
         ensure_console()
         self._output = output
         inheritable = pywintypes.SECURITY_ATTRIBUTES()
@@ -149,12 +152,11 @@ class RestrictedProcess:
         startup.hStdInput = devnull
         startup.hStdOutput = out
         startup.hStdError = out
-        comspec = env.get("COMSPEC", "cmd.exe")
         try:
             handle, thread, self.pid, _ = win32process.CreateProcessAsUser(
                 restricted_token(),
                 None,
-                f'{comspec} /c "{command}"',
+                command_line,
                 None,
                 None,
                 True,

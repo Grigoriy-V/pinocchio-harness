@@ -259,6 +259,54 @@ def command_environment(
     return env
 
 
+def powershell_name() -> str:
+    """`pwsh` (PowerShell 7) when installed, else Windows PowerShell 5.1."""
+
+    import shutil
+
+    return "pwsh" if shutil.which("pwsh") else "powershell"
+
+
+def powershell_argv(command: str, shell: str = "powershell") -> list[str]:
+    """PowerShell with the command carried as base64, so no quote in it is
+    parsed twice and a syntax error in it is a runtime message, not CLIXML on
+    a redirected stderr. Errors and progress join stdout as text; the last
+    native command's exit code, or 1 after an error record, is the process's.
+    Output as UTF-8."""
+
+    import base64
+
+    carried = base64.b64encode(command.encode("utf-8")).decode("ascii")
+    script = (
+        "[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; "
+        "$OutputEncoding=[System.Text.Encoding]::UTF8; "
+        "$ErrorActionPreference='Continue'; $ProgressPreference='SilentlyContinue'; "
+        f"$__text=[System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{carried}')); "
+        "try { $__block=[ScriptBlock]::Create($__text) } catch { Write-Output $_.Exception.Message; exit 1 }; "
+        "& $__block 2>&1 | Out-String -Stream -Width 4096; "
+        "if ($LASTEXITCODE -ne $null) { exit $LASTEXITCODE } elseif ($Error.Count -gt 0) { exit 1 }"
+    )
+    encoded = base64.b64encode(script.encode("utf-16-le")).decode("ascii")
+    return [shell, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-EncodedCommand", encoded]
+
+
+def command_line(command: str, shell: str) -> str:
+    """One command line for `CreateProcess`, PowerShell or `cmd /c`."""
+
+    if shell in ("powershell", "pwsh"):
+        return subprocess.list2cmdline(powershell_argv(command, shell))
+    return f'{shell} /c "{command}"'
+
+
+def _popen_command(command: str, shell: str) -> tuple[list[str] | str]:
+    """What `Popen` gets: PowerShell as an argv (no shell), else the line for the
+    platform's shell."""
+
+    if shell in ("powershell", "pwsh"):
+        return (powershell_argv(command, shell),)
+    return (command,)
+
+
 def decoded(raw: bytes) -> str:
     """A command's bytes as text: UTF-8 when it is, else the console's own code page.
 
@@ -283,10 +331,18 @@ def bounded(text: str, limit: int = MAX_OUTPUT_CHARS, tail: int = TAIL_CHARS) ->
 
 
 def _kill_tree(process: subprocess.Popen) -> None:
-    """Stop the command and everything it started."""
+    """Stop the command and everything it started, and wait for it to be gone."""
 
     if process.poll() is not None:
         return
+    _terminate_tree(process)
+    waited = 0.0
+    while process.poll() is None and waited < 3.0:
+        time.sleep(0.05)
+        waited += 0.05
+
+
+def _terminate_tree(process: subprocess.Popen) -> None:
     try:
         if sys.platform == "win32":
             subprocess.run(
@@ -327,7 +383,11 @@ class LocalRunner:
 
     def __init__(self) -> None:
         system = platform.system() or "this machine"
-        shell = "cmd" if sys.platform == "win32" else "sh"
+        # PowerShell on Windows, as Codex and Claude Code default to (roadmap 27
+        # step 3): the Cygwin tools Git Bash carries die under the restricted
+        # token (ISS-0068), and PowerShell's own cmdlets do what they did.
+        shell = powershell_name() if sys.platform == "win32" else "sh"
+        self.shell = shell
         self.bounded = sys.platform == "win32" and shell_windows is not None
         # Honest either way: the model should know whether a command can change
         # the machine before it writes one.
@@ -339,8 +399,14 @@ class LocalRunner:
             else "; there is no write boundary here, so keep every change inside your "
             "workspace"
         )
+        dialect = (
+            " Windows PowerShell 5.1: separate commands with ; (not &&), quote paths with "
+            "spaces, and call this machine's Python as `python`, not python3."
+            if shell == "powershell"
+            else (" PowerShell 7." if shell == "pwsh" else "")
+        )
         self.where = (
-            f"on this machine ({system}), through {shell}{boundary}. Your home directory "
+            f"on this machine ({system}), through {shell}{boundary}.{dialect} Your home directory "
             f"is {self.home}. `python` and `pip` are this machine's own and nothing is "
             "activated for you: to install a package, make a virtual environment in "
             "the task's folder and run its python. Everything in the workspace "
@@ -381,12 +447,11 @@ class LocalRunner:
         if self.bounded:
             shell_windows.grant_workspace(cwd)
             shell_windows.grant_workspace(self.tmp)
-            return shell_windows.RestrictedProcess(command, cwd, env, output), output
+            return shell_windows.RestrictedProcess(command_line(command, self.shell), cwd, env, output), output
         handle = open(output, "wb")  # noqa: SIM115 - the process owns it
         try:
             process = subprocess.Popen(  # noqa: S602 - the command is the point
-                command,
-                shell=True,
+                *_popen_command(command, self.shell),
                 cwd=str(cwd),
                 env=env,
                 stdin=subprocess.DEVNULL,
@@ -449,10 +514,9 @@ class LocalRunner:
             shell_windows.grant_workspace(self.tmp)
             self._runs += 1
             output = self.tmp / f"run-{os.getpid()}-{self._runs}.out"
-            return shell_windows.RestrictedProcess(command, cwd, env, output)
+            return shell_windows.RestrictedProcess(command_line(command, self.shell), cwd, env, output)
         return subprocess.Popen(  # noqa: S602 - the command is the point
-            command,
-            shell=True,
+            *_popen_command(command, self.shell),
             cwd=str(cwd),
             env=env,
             stdin=subprocess.DEVNULL,
@@ -579,6 +643,12 @@ def _background_report(running: Running, *, stopped: bool = False) -> str:
     return "\n".join(lines)
 
 
+def runner_shell(runner: Runner) -> str:
+    """The shell a runner hands a command line to, as it tells the model."""
+
+    return getattr(runner, "shell", None) or "the shell"
+
+
 def shell_tools(root: Path, runner: Runner) -> list[Tool]:
     resolved = Path(root).resolve()
     # A runner without `start` (a remote one) cannot keep a process; the
@@ -620,11 +690,10 @@ def shell_tools(root: Path, runner: Runner) -> list[Tool]:
         Tool(
             name="run_command",
             description=(
-                "Run one shell command in your workspace: python, pip, node, npm, git, a "
-                "build, a test, an install. Use it to run, test and check what you make "
-                "and to install what that needs; use read_file, write_file, edit_file and "
-                "list_files for files, not cat, echo, sed or ls. A non-zero exit code "
-                "means the command did not do what you meant: read the whole output "
+                f"Run one command line through {runner_shell(runner)} in your working folder: "
+                "python, pip, node, npm, git, a build, a test, an install. Written for "
+                "that shell and this operating system (the brief names them). A non-zero "
+                "exit code means the command did not do what you meant: read the whole output "
                 "before your next step; a traceback names the file, the line and the "
                 "cause, and what it tells you to do is the fix. Before you say something "
                 "is missing here, check with a command. The command cannot read from the "

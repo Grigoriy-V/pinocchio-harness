@@ -191,7 +191,7 @@ async def test_an_async_tool_is_probed_through_the_path_it_actually_takes(
     from app.tools import Toolbox, web_fetch_tools
     from app.web import Fetched
 
-    async def fetched(url, settings=None, client=None, resolve=None):
+    async def fetched(url, settings=None, client=None, resolve=None, open=False):
         return Fetched(url, 200, "text/html", "Example", "Example Domain", False)
 
     monkeypatch.setattr("app.tools.web.fetch_page", fetched)

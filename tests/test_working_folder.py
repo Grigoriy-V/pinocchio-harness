@@ -80,8 +80,11 @@ def test_open_tools_read_any_path_and_confined_ones_do_not(
     open_tools = {tool.name: tool for tool in filesystem_tools(workspace, open_reads=True)}
     confined = {tool.name: tool for tool in filesystem_tools(workspace)}
 
-    assert open_tools["read_file"].run(path=str(project / "README.md")) == "the project"
-    assert "README.md" in open_tools["list_files"].run(path=str(project))
+    assert open_tools["read_file"].run(path=str(project / "README.md")) == "1: the project"
+    from app.tools import search_tools
+
+    finder = {tool.name: tool for tool in search_tools(workspace, open_reads=True)}["find_files"]
+    assert "README.md" in finder.run(pattern="*", path=str(project))
     with pytest.raises(ToolError, match="outside the allowed root"):
         confined["read_file"].run(path=str(project / "README.md"))
 

@@ -167,8 +167,15 @@ class Destination:
         return {"Host": host_header}, {"sni_hostname": self.host}
 
 
-def check_destination(url: str, resolve: Resolver = socket.getaddrinfo) -> Destination:
+def check_destination(
+    url: str, resolve: Resolver = socket.getaddrinfo, *, open: bool = False
+) -> Destination:
     """Refuse anything that is not a plain public web address, and pin it.
+
+    With `open` (the person's own machine, roadmap 27 step 3) the address
+    may be any host on any port, localhost and a private network included:
+    a dev server the conversation started is what a code agent fetches. The
+    scheme rule stands.
 
     Every address the hostname resolves to must be public, not merely the first:
     a name that answers with one public and one internal address would otherwise
@@ -195,7 +202,7 @@ def check_destination(url: str, resolve: Resolver = socket.getaddrinfo) -> Desti
     if not host:
         raise WebError(f"{url!r} has no host", code=REFUSED)
     port = port or (443 if scheme == "https" else 80)
-    if port not in ALLOWED_PORTS:
+    if not open and port not in ALLOWED_PORTS:
         raise WebError(f"port {port} is not one of the public web ports 80 and 443", code=REFUSED)
 
     bare = host.strip("[]")
@@ -208,7 +215,9 @@ def check_destination(url: str, resolve: Resolver = socket.getaddrinfo) -> Desti
         except ValueError:
             pass
         else:
-            raise WebError(f"{host} is not a public internet address", code=REFUSED)
+            if not open:
+                raise WebError(f"{host} is not a public internet address", code=REFUSED)
+            chosen = bare
         try:
             answers = resolve(host, port)
         except OSError as error:
@@ -349,6 +358,8 @@ async def fetch_page(
     settings: WebSettings | None = None,
     client: httpx.AsyncClient | None = None,
     resolve: Resolver = socket.getaddrinfo,
+    *,
+    open: bool = False,
 ) -> Fetched:
     """Fetch one page over plain HTTP, checking every hop and bounding the rest.
 
@@ -377,7 +388,7 @@ async def fetch_page(
     }
     try:
         async with asyncio.timeout(settings.fetch_total_timeout):
-            return await _fetch_hops(url, settings, http, resolve, headers)
+            return await _fetch_hops(url, settings, http, resolve, headers, open=open)
     except TimeoutError as error:
         raise WebError(
             f"{url} was still being fetched after {settings.fetch_total_timeout:g}s "
@@ -394,10 +405,12 @@ async def _fetch_hops(
     http: httpx.AsyncClient,
     resolve: Resolver,
     headers: dict[str, str],
+    *,
+    open: bool = False,
 ) -> Fetched:
     """The redirect loop itself, so its caller can put one deadline around it."""
 
-    destination = check_destination(url, resolve)
+    destination = check_destination(url, resolve, open=open)
     redirects = 0
     named_itself = False
     while True:

@@ -157,7 +157,7 @@ def test_a_rejected_call_is_told_the_shape_it_should_have_had(
 def test_an_optional_argument_is_marked_as_one(workspace: Path) -> None:
     box = Toolbox(filesystem_tools(workspace))
 
-    assert box.signature("list_files") == "list_files takes: path (string, optional)"
+    assert box.signature("read_file") == "read_file takes: path (string), offset (integer, optional), limit (integer, optional)"
 
 
 # --- and the loop stops paying for it ----------------------------------------

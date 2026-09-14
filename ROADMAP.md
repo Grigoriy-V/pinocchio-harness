@@ -11,8 +11,10 @@ deployed OpenClaw (the human, 2026-09-14). The audit of 2026-09-14
 (`reports/2026-09-14_harness_audit.md`) names what holds it below that;
 the queue below is the order approved for working through it.
 
-**Current approved step:** 28 done 2026-09-14 (commit `60dcdaa`); next is
-27 step 3, on the human's word.
+**Current approved step:** 27 step 3, approved 2026-09-14 on
+`reports/2026-09-14_item27_step3_references.md`; built and tested offline
+(`reports/2026-09-14_item27_step3_build.md`); the live acceptance, a local
+coding mini set, is a priced run and waits for the human's word.
 
 Observed defects are in `ISSUES.md`, which is not a plan and authorizes
 nothing. `docs/PRODUCT.md` is the product contract; `docs/PROJECT_MAP.md`,
@@ -112,10 +114,12 @@ One item at a time; the human's word starts each. Order approved
        `fetch_page` under the local `open` flag (localhost and any port on
        the person's machine). The filesystem and shell descriptions state
        what each tool returns, without "use this instead of ls / cat /
-       sed"; the model chooses. ISS-0068 (the Windows boundary kills every
-       Cygwin tool); `python3` and other Linux-isms out of the brief on
-       Windows. Accepted by a local coding mini set beside its deployed
-       numbers. (The automatic workspace venv is already gone.)
+       sed"; the model chooses. ISS-0068 answered as Codex and Claude Code
+       do, PowerShell as the Windows shell under the same token; the brief
+       names the platform, the shell and `python`. `list_files` gone,
+       `find_files` lists. Built 2026-09-14 (`reports/2026-09-14_item27_step3_build.md`);
+       accepted by a local coding mini set beside its deployed numbers,
+       which waits for the human's word.
 
 29. **The defects the audit found** (`reports/2026-09-14_harness_audit.md`
     §2): `BAD_ARGUMENTS` undefined in `shell.py`, schema validation that
@@ -222,6 +226,13 @@ Recorded, not approved, not begun. One line each.
   `app/telemetry/vllm.py`, the six one-shot scripts, the retired model
   sets in `config.toml` and the localhost default; removed on the human's
   word, since the sets are still deployed.
+- **Cygwin tools under the Windows token** (option B of
+  `reports/2026-09-14_item27_step3_references.md` §3.7): a time-boxed try
+  at letting Git Bash's tools start under the restricted token; PowerShell
+  is the route until then.
+- **A `notify` on a background command** (Hermes: on exit or on an output
+  pattern) and **a tool that says how much context is left** (Codex's
+  `get_context_remaining`); two small ideas from the same research.
 - **A deadline per tool** (ISS-0033).
 - **Finish the `todo` tool**; **let a plan be corrected by the person**;
   **`ask_user`** for a missing decision through the consent seam.

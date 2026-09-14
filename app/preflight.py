@@ -169,9 +169,9 @@ def tool_probes(tools: Toolbox, root: Path) -> list[Probe]:
         marker = uuid.uuid4().hex
         call("write_file", path=name, content=marker)
         try:
-            if call("read_file", path=name).strip() != marker:
+            if not call("read_file", path=name).strip().endswith(marker):
                 raise RuntimeError("the file did not read back as written")
-            call("list_files")
+            call("find_files", pattern="*")
         finally:
             (root / name).unlink(missing_ok=True)
         return f"write, read and list inside {root}"
@@ -335,7 +335,7 @@ def tool_probes(tools: Toolbox, root: Path) -> list[Probe]:
 
     available = set(tools.names)
     probes: list[Probe] = []
-    if {"write_file", "read_file", "list_files"} <= available:
+    if {"write_file", "read_file", "find_files"} <= available:
         probes.append(Probe("filesystem", "free", files))
     if "use_page" in available:
         probes.append(Probe("browser.page", "free", browser))

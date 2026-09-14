@@ -154,7 +154,8 @@ is refused once as `bad_arguments`; the request is never failed.
 Capabilities (`app/tools/capabilities.py`) and their tools:
 
 ```text
-filesystem.read / write   list_files, read_file, write_file, edit_file   (app/tools/filesystem.py)
+filesystem.read           read_file, search_files, find_files            (app/tools/filesystem.py, search.py)
+filesystem.write          write_file, edit_file, apply_patch             (app/tools/filesystem.py, patch.py)
 shell.run                 run_command                                    (app/tools/shell.py)
 documents.read            read_document, view_pages                      (app/tools/documents.py)
 browser.page              use_page                                       (app/tools/browser.py)
@@ -195,7 +196,7 @@ mcp.<server>              <server>_<tool> for each allowed tool       (app/tools
   Results are text; a non-text part is named, not shown; an error result is
   `mcp.error`, a transport failure `mcp.unreachable`.
 - **Modes:** `full` (default) runs everything inside the workspace without
-  asking; `careful` makes `write_file`, `edit_file` and `run_command` ask
+  asking; `careful` makes `write_file`, `edit_file`, `apply_patch` and `run_command` ask
   (`app/agent/mode.py`, `Toolbox.ask_for_changes`).
 - **Documents:** `app/attachments.py` admits uploads (image/audio become
   model parts; any other file is written where the adapter says — the

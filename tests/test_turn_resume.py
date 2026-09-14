@@ -23,6 +23,8 @@ from app.telemetry import TurnRun
 from app.telemetry.sqlite import SqliteTelemetry
 from app.telemetry.trace import Telemetry
 from app.tools import (
+    patch_tools,
+    search_tools,
     INTERRUPTED,
     Tool,
     Toolbox,
@@ -302,6 +304,8 @@ def test_reading_tools_are_replay_safe_and_changing_ones_are_not(tmp_path: Path)
     store = SqliteStore()
     everything = [
         *filesystem_tools(tmp_path),
+        *search_tools(tmp_path),
+        *patch_tools(tmp_path),
         *web_tools(tmp_path),
         *document_tools(tmp_path),
         *browser_tools(tmp_path),
@@ -313,8 +317,9 @@ def test_reading_tools_are_replay_safe_and_changing_ones_are_not(tmp_path: Path)
     safe = {tool.name for tool in everything if tool.replay_safe}
     # `search_web` is only wired with a search key, which a test has none of.
     assert safe | {"search_web"} == {
-        "list_files",
         "read_file",
+        "search_files",
+        "find_files",
         "search_web",
         "fetch_page",
         "view_web_page",
@@ -327,4 +332,4 @@ def test_reading_tools_are_replay_safe_and_changing_ones_are_not(tmp_path: Path)
     unsafe = {tool.name for tool in everything if not tool.replay_safe}
     # A page action is not run again after a worker died: the page went with
     # the worker, and a click may already have counted.
-    assert {"write_file", "edit_file", "send_file", "remember_fact", "use_page"} <= unsafe
+    assert {"write_file", "edit_file", "apply_patch", "send_file", "remember_fact", "use_page"} <= unsafe

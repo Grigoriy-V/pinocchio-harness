@@ -32,6 +32,8 @@ from app.tools.capabilities import (
 from app.tools.documents import document_tools
 from app.tools.execution import PreparedToolCall, ToolExecutor, refusal_message
 from app.tools.filesystem import filesystem_tools
+from app.tools.patch import patch_tools
+from app.tools.search import search_tools
 from app.tools.history import history_tools
 from app.tools.memory import memory_tools
 from app.tools.presentation import presentation_tools, send_file
@@ -75,6 +77,8 @@ __all__ = [
     "browser_tools",
     "document_tools",
     "filesystem_tools",
+    "patch_tools",
+    "search_tools",
     "find_chromium_browser",
     "Pages",
     "history_tools",

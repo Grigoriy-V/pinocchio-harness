@@ -30,6 +30,7 @@ from app.telemetry.base import TraceEvent, TurnRun
 from app.telemetry.inspect import render_run
 from app.telemetry.trace import TurnTrace
 from app.tools import (
+    search_tools,
     Tool,
     Toolbox,
     ToolError,
@@ -165,7 +166,7 @@ async def test_a_name_another_harness_taught_the_model_is_resolved(
     message = await run(Toolbox(filesystem_tools(workspace)), name, path="notes.txt")
 
     assert message.failure is None
-    assert body(message) == "kept inside"
+    assert body(message) == "1: kept inside"
 
 
 async def test_a_near_miss_is_not_resolved(workspace: Path) -> None:
@@ -398,8 +399,8 @@ def test_a_failure_survives_the_checkpoint() -> None:
         ("read_file", {"path": "../secret.txt"}, "fs.outside_root"),
         ("read_file", {"path": "missing.txt"}, "fs.not_found"),
         ("read_file", {"path": "sub"}, "fs.not_a_file"),
-        ("list_files", {"path": "notes.txt"}, "fs.not_a_directory"),
-        ("list_files", {"path": "nowhere"}, "fs.not_found"),
+        ("find_files", {"pattern": "*", "path": "notes.txt"}, "fs.not_a_directory"),
+        ("search_files", {"pattern": "x", "path": "nowhere"}, "fs.not_found"),
         ("write_file", {"path": "sub", "content": "x"}, "fs.is_directory"),
         ("write_file", {"path": "Board/", "content": "x"}, "fs.is_directory"),
         ("write_file", {"path": "notes.txt/index.html", "content": "x"}, "fs.blocked_by_file"),
@@ -410,7 +411,7 @@ def test_a_failure_survives_the_checkpoint() -> None:
 async def test_filesystem_failures_carry_the_family_code(
     workspace: Path, name: str, arguments: dict[str, Any], code: str
 ) -> None:
-    message = await run(Toolbox(filesystem_tools(workspace)), name, **arguments)
+    message = await run(Toolbox([*filesystem_tools(workspace), *search_tools(workspace)]), name, **arguments)
 
     failure = failure_of(message)
     assert failure.code == code

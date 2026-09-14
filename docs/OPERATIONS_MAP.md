@@ -155,7 +155,11 @@ a conversation writes in is chosen with `/workspace <path>` and kept per
 thread in `.agent/folders.json` in the workspace (`app/agent/folder.py`).
 Reading reaches any path on the machine; a write outside the folder asks the
 person first. `/status`, which the status card polls, is an HTTP route the
-app adds to Chainlit's own server, not a command.
+app adds to Chainlit's own server, not a command. On Windows `run_command`
+hands the line to PowerShell (`pwsh` when installed, else Windows PowerShell
+5.1) under the write-restricted token, as Codex and Claude Code do; the Cygwin
+tools Git Bash carries are not on that route (ISS-0068). `fetch_page` reaches
+localhost and any port on the machine, like `use_page`.
 
 ## Deploying `assistant-control`
 

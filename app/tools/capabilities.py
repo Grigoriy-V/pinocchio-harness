@@ -10,8 +10,10 @@ from app.tools.base import Tool, Toolbox
 from app.tools.browser import Pages, browser_tools
 from app.tools.documents import document_tools
 from app.tools.filesystem import filesystem_tools
+from app.tools.patch import patch_tools
 from app.tools.mcp import CAPABILITY_PREFIX, McpSessions, mcp_tools
 from app.tools.presentation import presentation_tools
+from app.tools.search import search_tools
 from app.tools.shell import LocalRunner, Runner, shell_tools
 from app.tools.web import web_fetch_tools, web_search_tools, web_view_tools
 
@@ -63,11 +65,21 @@ class CapabilityGrant:
 
 
 def _filesystem_read(root: Path, open_reads: bool = False) -> list[Tool]:
-    return filesystem_tools(root, open_reads=open_reads)[:2]
+    """The file tools that change nothing: reading, searching, finding."""
+
+    return [
+        *(tool for tool in filesystem_tools(root, open_reads=open_reads) if not tool.mutates),
+        *search_tools(root, open_reads=open_reads),
+    ]
 
 
 def _filesystem_write(root: Path, open_reads: bool = False) -> list[Tool]:
-    return filesystem_tools(root, open_reads=open_reads)[2:]
+    """The file tools that change the tree: write, edit, a patch."""
+
+    return [
+        *(tool for tool in filesystem_tools(root, open_reads=open_reads) if tool.mutates),
+        *patch_tools(root, open_reads=open_reads),
+    ]
 
 
 class CapabilityRegistry:
@@ -105,7 +117,7 @@ class CapabilityRegistry:
                 Capability(DOCUMENTS_READ, lambda root: document_tools(root, open_reads=self.open)),
                 Capability(PRESENT_FILES, lambda root: presentation_tools(root, open_reads=self.open)),
                 Capability(WEB_SEARCH, web_search_tools),
-                Capability(WEB_FETCH, web_fetch_tools),
+                Capability(WEB_FETCH, lambda root: web_fetch_tools(root, open=self.open)),
                 Capability(WEB_VIEW, web_view_tools),
                 Capability(SHELL_RUN, lambda root: shell_tools(root, self.runner)),
             )
