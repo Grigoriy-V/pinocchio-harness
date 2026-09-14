@@ -56,6 +56,10 @@ class ContentPart:
     # was attached and where it was saved): sent, stored, never shown as
     # the person's own text. `name` then lists the saved paths, one per line.
     hidden: bool = False
+    # Where a sent file lies on disk, for an outbound part and for what the
+    # history keeps of it: a reopened conversation shows the file again from
+    # there (the bytes themselves are never stored, ISS-0065).
+    path: str | None = None
 
     def __post_init__(self) -> None:
         if self.kind == "text":

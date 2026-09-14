@@ -37,6 +37,10 @@ def delivered(part: ContentPart) -> ContentPart:
     return ContentPart(
         kind="text",
         text=f"Sent {part.name or part.kind} ({part.media_type}, {size} bytes).",
+        name=part.name,
+        media_type=part.media_type,
+        outbound=True,
+        path=part.path,
     )
 
 
@@ -50,6 +54,7 @@ def dump_content(parts: Sequence[ContentPart]) -> str:
             "name": part.name,
             "outbound": part.outbound,
             "hidden": part.hidden,
+            "path": part.path,
         }
         for part in (delivered(part) if part.outbound else part for part in parts)
     ]
@@ -66,6 +71,7 @@ def load_content(raw: str) -> list[ContentPart]:
             name=item.get("name"),
             outbound=bool(item.get("outbound", False)),
             hidden=bool(item.get("hidden", False)),
+            path=item.get("path"),
         )
         for item in json.loads(raw)
     ]

@@ -71,6 +71,7 @@ def _outbound(root: Path, path: str, *, confined: bool = True) -> ContentPart:
         media_type=media_type,
         name=target.name,
         outbound=True,
+        path=str(target),
     )
 
 

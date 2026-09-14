@@ -128,11 +128,40 @@ async def test_native_history_hides_observation_media_and_names_what_was_sent(la
     assert thread is not None
     # The turn's calls sit under one collapsed step (ISS-0076).
     assert [step["name"] for step in thread["steps"] if step["type"] == "run"] == ["2 tool calls"]
-    assert [step["output"] for step in thread["steps"] if step["type"] != "run"] == ["Completed.", "Completed."]
-    assert {step["parentId"] for step in thread["steps"] if step["type"] != "run"} == {thread["steps"][0]["id"]}
-    # The sent picture is in the history by name, not as an element: the
-    # store keeps the delivery, not the bytes (ISS-0065).
+    assert [step["output"] for step in thread["steps"] if step["type"] == "tool"] == ["Completed.", "Completed."]
+    assert {step["parentId"] for step in thread["steps"] if step["type"] == "tool"} == {thread["steps"][0]["id"]}
+    # The sent picture is in the history by name, not as bytes (ISS-0065);
+    # with no file on disk to show it from, nothing is shown.
     assert thread["elements"] == []
+    assert [step["type"] for step in thread["steps"]].count("assistant_message") == 1, "the sent message"
+
+
+@pytest.mark.asyncio
+async def test_a_sent_file_is_shown_again_from_the_disk(layer, tmp_path: Path) -> None:
+    shot = tmp_path / "page.png"
+    shot.write_bytes(b"\x89PNG")
+    layer.store.append(
+        "chat",
+        [
+            Message(
+                role="tool",
+                content=[
+                    ContentPart("text", text="selected"),
+                    ContentPart("image", data=b"\x89PNG", media_type="image/png", name="page.png", outbound=True, path=str(shot)),
+                ],
+                tool_call_id="send",
+            ),
+        ],
+        LOCAL_USER_ID,
+    )
+
+    thread = await layer.get_thread("chat")
+
+    [element] = thread["elements"]
+    assert element["type"] == "image" and element["name"] == "page.png"
+    assert element["url"].startswith("data:image/png;base64,")
+    sent = next(step for step in thread["steps"] if step["type"] == "assistant_message")
+    assert element["forId"] == sent["id"] and sent["parentId"] is None
 
 
 @pytest.mark.asyncio

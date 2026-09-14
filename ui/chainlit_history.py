@@ -173,6 +173,54 @@ def _call_step(
     }
 
 
+def _sent_element(
+    thread_id: str, step_id: str, position: int, part_index: int, part: ContentPart
+) -> ElementDict | None:
+    """A sent file as the chat shows it again: from its bytes while the turn
+    is live, from the disk once only the delivery is stored (ISS-0065);
+    nothing when the file is gone."""
+
+    if part.data:
+        return _element(thread_id, step_id, position, part_index, part)
+    if not part.path:
+        return None
+    try:
+        data = Path(part.path).read_bytes()
+    except OSError:
+        return None
+    media_type = part.media_type or mimetypes.guess_type(part.path)[0] or "application/octet-stream"
+    kind = "image" if media_type.startswith("image/") else ("audio" if media_type.startswith("audio/") else "file")
+    encoded = base64.b64encode(data).decode("ascii")
+    return {
+        "id": _id(thread_id, position, f"part-{part_index}"),
+        "threadId": thread_id,
+        "forId": step_id,
+        "type": kind,
+        "name": part.name or Path(part.path).name,
+        "display": "inline",
+        "size": "medium" if kind == "image" else None,
+        "mime": media_type,
+        "url": f"data:{media_type};base64,{encoded}",
+    }
+
+
+def _sent_step(thread_id: str, position: int, created_at: str) -> StepDict:
+    """The message that carries what a tool sent to the person."""
+
+    return {
+        "id": _id(thread_id, position, "sent"),
+        "threadId": thread_id,
+        "parentId": None,
+        "name": "Assistant",
+        "type": "assistant_message",
+        "input": "",
+        "output": "",
+        "createdAt": created_at,
+        "start": created_at,
+        "end": created_at,
+    }
+
+
 def _note_step(index: int, note: Note) -> StepDict:
     """A line the harness said, shown where it was said."""
 
@@ -355,9 +403,21 @@ class MemoryStoreDataLayer(BaseDataLayer):
                         steps.append(child)
                     else:
                         child["output"] = _step(thread.id, position, message, thread.created_at)["output"]
-                    for part_index, part in enumerate(message.content):
-                        if part.kind != "text" and part.outbound:
-                            elements.append(_element(thread.id, child["id"], position, part_index, part))
+                    # What the tool sent to the person (a screenshot, a file)
+                    # stands on its own in the chat, as the live turn showed it,
+                    # not inside the collapsed step.
+                    sent = [
+                        (part_index, part)
+                        for part_index, part in enumerate(message.content)
+                        if part.outbound
+                    ]
+                    if sent:
+                        shown = _sent_step(thread.id, position, thread.created_at)
+                        steps.append(shown)
+                        for part_index, part in sent:
+                            element = _sent_element(thread.id, shown["id"], position, part_index, part)
+                            if element is not None:
+                                elements.append(element)
                     continue
                 step = _step(thread.id, position, message, thread.created_at)
                 steps.append(step)
