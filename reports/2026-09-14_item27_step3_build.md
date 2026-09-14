@@ -53,13 +53,33 @@ does (`Tool.mutates`) rather than by list position (audit §D item 68).
 - The affected suites: 247 passed. The whole offline suite: see the commit
   message of this step.
 
+## 3a. The live smoke (the human's word, 2026-09-14)
+
+One turn in the Chainlit app on `D:\ML\Test_pinokio\Pixel_CV` (a clean git
+repository), GLM 5.3 Flash via OpenRouter: "find every console.log in js/
+as file:line; in one patch add `// Pixel CV` as the first line of
+js/config.js and js/main.js; show lines 1-6 of js/config.js after the
+change; run a PowerShell command that prints the number of .js files".
+Six tool calls, in this order: `set_goal` and `find_files("js/*")` in one
+batch, `search_files("console\.log", path="js")`, `apply_patch` (two
+`Update File` hunks, `@@` with no context, a `+` line each: inserted at the
+top of both files), `read_file(limit=6)` and `run_command` in one batch.
+Every call succeeded. Checked on disk afterwards: `grep` finds the same
+three lines; `git diff` shows exactly `+// Pixel CV` at line 1 of the two
+files; `js/*.js` counts 11. The edit was reverted with `git checkout`.
+The whole process's spend on the status card after the turn: $0.0027.
+Seen on the way, not this step's: Novita answered 429 three times before
+every call and the fallback to Z.ai cost ~8 s per step; `/status`
+reported the thread of the previous conversation, not the one in the tab
+(audit §F item 49).
+
 ## 4. Limitations and what is left
 
-- The live acceptance has not run: a local coding mini set (tree search,
-  multi-file patch, a long file by lines, a dev server fetched on
-  localhost, a PowerShell command) beside the deployed numbers is a priced
-  run and waits for the human's word. ISS-0074's fetch half and the
-  PowerShell route are therefore seen offline only.
+- The full local coding mini set beside the deployed numbers has not run;
+  the one live smoke above covers a tree search, a multi-file patch, a
+  line read and a PowerShell command, not a dev server fetched on
+  localhost. Whether the smoke stands as the acceptance is the human's
+  call.
 - A cmdlet's non-terminating error gives exit 1 through `$Error.Count`;
   a script that writes an error record and then succeeds natively keeps the
   native code. Codex and Claude Code carry the same ambiguity.
