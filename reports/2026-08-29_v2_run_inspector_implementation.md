@@ -1,7 +1,7 @@
 # Inspectable agent trace (item 3B) — implementation and offline evidence
 
 **Date:** 2026-08-29
-**Task input:** `docs/baseline_measurement_metrics_logs.md`
+**Task input:** `reports/archive/baseline_measurement_metrics_logs.md`
 **Preparation and approved decisions:**
 `reports/2026-08-29_v2_run_inspector_and_gpu_baseline_preparation.md`
 **Builds on:** `reports/2026-08-29_v2_turn_telemetry_implementation.md` (3A)

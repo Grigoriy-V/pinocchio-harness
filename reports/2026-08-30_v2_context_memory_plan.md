@@ -1,7 +1,7 @@
 # Context and memory: reading the addendum against the repository
 
 **Date:** 2026-08-30
-**Subject:** `docs/step4_context_memory_addendum_ru.md`, and what it changes in
+**Subject:** `reports/archive/step4_context_memory_addendum_ru.md`, and what it changes in
 the Step 4 plan.
 **Status:** the analysis is complete; the two plan changes it proposed were
 approved by the human on 2026-08-30 and are recorded in `ROADMAP.md` and

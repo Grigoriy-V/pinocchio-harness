@@ -72,7 +72,7 @@ all stay literal and readable.
 `TOOL_ACTIVITY` in `ui/telegram/adapter.py` maps every tool the agent can
 currently call to a concise English label (`search_web → Searching the web…`),
 with `Working…` for anything unknown. The mapping in
-`docs/telegram_baseline_chat_product.md` is used verbatim; the four remaining
+`reports/archive/telegram_baseline_chat_product.md` is used verbatim; the four remaining
 real tools (`inspect_page`, `list_files`, `remember_fact`, `search_memory`) were
 given labels in the same style, because `Working…` is the safety net for a tool
 that does not exist yet, not the plan for four that do. A test asserts every
@@ -208,7 +208,7 @@ four remaining real tools.
 2. Deploying `assistant-control` so the deployed worker serves the new
    presentation.
 3. The live scenarios that actually close 2A —
-   `docs/telegram_baseline_chat_product.md` §15 A–F: onboarding, formatting,
+   `reports/archive/telegram_baseline_chat_product.md` §15 A–F: onboarding, formatting,
    tool activity, inline settlement, capability truth, and an ordinary
    tool-capable answer. Each of these wakes a product-runtime worker and needs
    its own explicit permission.

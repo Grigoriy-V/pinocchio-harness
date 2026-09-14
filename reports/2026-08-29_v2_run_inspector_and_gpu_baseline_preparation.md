@@ -1,7 +1,7 @@
 # The rest of item 3 — run inspector, task-stage detail, GPU baseline
 
 **Date:** 2026-08-29
-**Task input:** `docs/baseline_measurement_metrics_logs.md`
+**Task input:** `reports/archive/baseline_measurement_metrics_logs.md`
 **Builds on:** `reports/2026-08-29_v2_turn_telemetry_implementation.md` (3A, closed
 and accepted live)
 **Roadmap item:** queue 3, remaining bullets.

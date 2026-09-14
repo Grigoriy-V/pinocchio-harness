@@ -52,7 +52,7 @@ Examples of the current shape:
 - `list_files` / `read_file` expose workspace observation;
 - `read_document` exposes bounded document text;
 - `view_pages` exposes visual page evidence;
-- `search_web`, `fetch_page`, and `view_web_page` expose distinct web actions;
+- `search_web`, `fetch_page`, `view_web_page` and `use_page` expose distinct web and browser actions;
 - `send_file` exposes presentation to the person.
 
 The agent combines these actions. The adapter should not automatically turn an observation into a user-visible result unless the application explicitly marked it outbound.
@@ -126,7 +126,10 @@ The default should be the safe answer:
 
 - no allowed Telegram users means nobody is admitted;
 - model/page/tool output is untrusted data rather than instructions;
-- path-taking tools stay inside their granted root;
+- path-taking tools stay inside their granted root deployed; on the person's
+  own machine the root is the conversation's working folder, reading reaches
+  any path, writing goes inside the folder, and a write elsewhere runs only
+  after the person's yes;
 - work inside the granted workspace root and explicit presentation back to the
   same person in the current conversation are autonomous; sending to another
   person or system, publishing, spending money or changing infrastructure
@@ -156,7 +159,8 @@ The current accepted deployed baseline includes:
 - document upload, structured reading and PDF page viewing in the Telegram path;
 - autonomous filesystem read/write/edit inside scoped per-user workspace paths;
 - commands run in the person's workspace, in a container that holds no secret
-  when deployed;
+  when deployed; a command may be left running in the background locally and
+  is ended with the app;
 - a real browser page the agent opens and drives (open, click, type, press, evaluate, screenshot);
 - public web search, bounded text fetch and isolated visual browser view;
 - explicit agent-controlled file/media delivery;

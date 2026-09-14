@@ -1,7 +1,7 @@
 # Telegram conversation selection — implementation and offline evidence
 
 **Date:** 2026-08-29
-**Task input:** `docs/telegram_conversation_selection_task.md`
+**Task input:** `reports/archive/telegram_conversation_selection_task.md`
 **Roadmap item:** queue 2, before 2B.
 
 ## What changed and why

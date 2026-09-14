@@ -1,292 +1,252 @@
 # Roadmap
 
-**Updated:** 2026-09-07
+**Updated:** 2026-09-14
 
 **Project status:** the assistant is deployed and used over Telegram on a
-hosted model. The stage that begins now is cleaning defects and polishing
-the base: the model is cheap, so the seconds to fight are the harness's
-own, and what a tool tells the model it does. The order below was approved
-by the human on 2026-09-07; each item still gets its own start signal, and
-research before code where the item says so.
+hosted model, and the same harness runs locally in Chainlit on the owner's
+machine. The goal since 2026-09-13 (the human): a harness that gives what
+the references give, in capability and in the app, with nothing
+artificially reduced: locally Claude Code, Codex, DeepSeek and Hermes;
+deployed OpenClaw (the human, 2026-09-14). The audit of 2026-09-14
+(`reports/2026-09-14_harness_audit.md`) names what holds it below that;
+the queue below is the order approved for working through it.
 
-**Current approved step:** 14, 15 and 20 are in Done (2026-09-07). 16 researched (`reports/2026-09-07_item16_research.md`), the page tool's shape approved; 17 absorbs the folder-per-task rule. 16 deployed and run on both sides, in Done. 21 added (one browser tool on the renderer; ISS-0060 is the breach it closes). 17, 22 and 23 in Done (2026-09-08). 18 started, its first half built (the harness's seconds named), deploy pending; 21 waits for its research.
+**Current approved step:** 28, the records brought to the current state
+before any code changes, approved 2026-09-14 (the human: "до начала
+работы обновить доки, AGENTS и все читаемые файлы, иначе опять будем
+упираться в старую архитектуру"). Then 27 step 3.
 
 Observed defects are in `ISSUES.md`, which is not a plan and authorizes
-nothing. `docs/PRODUCT.md` is the product contract (it carries the rule that
-media is delivered only by an explicit `send_file`, never by the adapter);
-`docs/PROJECT_MAP.md`, `docs/CODEMAP.md` and `docs/OPERATIONS_MAP.md`
-describe the system, ownership and operations; `AGENTS.md` holds execution
-rules; `DECISIONS.md` preserves approved durable choices. This file alone
-owns current work, order and authorization.
+nothing. `docs/PRODUCT.md` is the product contract; `docs/PROJECT_MAP.md`,
+`docs/CODEMAP.md` and `docs/OPERATIONS_MAP.md` describe the system,
+ownership and operations; `AGENTS.md` holds execution rules; `DECISIONS.md`
+preserves approved durable choices. This file alone owns current work,
+order and authorization.
 
 ## Current state
 
 - **Model:** GLM 5.3 Flash through OpenRouter, Novita first, Z.ai as the
-  fallback, thinking off (`MODEL=or`; DECISIONS 2026-09-06). Model sets
-  switch the whole deployment by one line, `MODEL=<name>`; every set is in
-  the control secret. The three GPU Apps (`assistant-llm-v2` Gemma 4 12B,
-  `assistant-llm-qwen` and `assistant-llm-qwen-int4`) stay deployed as
-  sets, scaled to zero, not in use; so do `tuned` and `base`, the
-  fine-tune experiment's Gemma on the owner's second Modal workspace,
-  where a copy of `assistant-control` runs the scenarios (item 24).
-- **Control plane:** `assistant-control` on Modal serves the webhook, the
-  update worker, `render_web_page`, `run_command` and `scenarios`; the
-  database is Neon at schema version 4; secrets are published from the
-  owner's `.env` by `tools/sync_control_secret.py`.
-- **Local profile:** the same `app/` runs on the owner's machine with
-  Chainlit; the boundary for commands exists on Windows only (item 7).
+  fallback, thinking off (`MODEL=or`; DECISIONS 2026-09-06); a model set is
+  one line, `MODEL=<name>`, every set in the control secret. The GPU Apps
+  of the self-hosted era (`assistant-llm-v2`, `assistant-llm-qwen`,
+  `assistant-llm-qwen-int4`) and the fine-tune sets `tuned`/`base` stay
+  deployed, scaled to zero, not in use.
+- **Deployed profile:** `assistant-control` on Modal serves the webhook,
+  the update worker, `render_web_page`, `run_command` and `scenarios`; the
+  database is Neon, code at schema 5, the deployed database at 4 until the
+  migration gate; secrets are published from the owner's `.env` by
+  `tools/sync_control_secret.py`. The git tag `deployed` marks the commit
+  the running deploy was built from (`c4694b8`); `git log deployed..HEAD`
+  is what a deploy would carry. `tests/test_profiles.py` holds the
+  deployed wiring shut.
+- **Local profile:** the same `app/` in Chainlit (`.claude/launch.json`,
+  port 8100), opened with `open=True`: a working folder per conversation
+  (`/workspace`), reading anywhere, a write outside the folder after a
+  yes, localhost in the browser, a command kept running in the background;
+  the status card with the session's spend and the account's credits; the
+  commands `/compact`, `/plan`, `/mode`, `/context`, `/workspace`; no
+  inbox, a sent file is a path on the machine. The command boundary exists
+  on Windows only.
 - **MCP:** the harness is an MCP server (`python -m tools.mcp_server`,
-  `.mcp.json`) for the operator tools; the priced two ask in the protocol.
-  The assistant uses MCP servers as tools: `time` (stdio) and GitHub
-  (HTTP, read-only) from `config.toml`, locally and deployed.
+  `.mcp.json`); the assistant uses MCP servers as tools (`time`, GitHub
+  read-only) from `config.toml`, locally and deployed.
+- **Measurement:** the mini set (`scripts/loop_live.py`), the seven
+  scenario families (`scripts/training_scenarios.py`), blind Sonnet judges
+  over `tools/judge_pack.py`.
 
 ## Done
 
-Versions 1–1.5 (local multimodal product, autonomous harness) and Version
-2 (deployable personal assistant over Telegram, serverless, no GPU while
-idle) are closed; the reports under `reports/` carry the evidence, one per
-step. The last stages closed: the agent harness and loop (2026-09-04,
-`reports/2026-08-30_v2_one_loop.md` and the 4.x reports), isolated
-execution deployed (2026-09-05,
-`reports/2026-09-04_v2_isolated_execution_review.md`), the second model
-Qwen3.8-27B as GPU Apps (2026-09-05,
-`reports/2026-09-05_qwen38_second_model.md`), and the hosted model with
-model sets and the OpenRouter default (2026-09-06,
-`reports/2026-09-06_hosted_model_cometapi.md`).
+Versions 1–1.5 and Version 2 are closed; the reports under `reports/`
+carry the evidence, one per step. Items of the 2026-09-07 order, closed,
+one line each, evidence in the linked report:
 
-Items of the 2026-09-07 order, closed:
-
-- **14, the turn bounded by health** (2026-09-07): no step or tool-call
-  ceiling; a health check between steps after a set time; a fold only when
-  the request would not fit; one provider, the next only after retries
-  failed; settings in `config.toml`. Deployed, seen live on B and G.
-  `reports/2026-09-07_turn_bounds_context_provider.md`.
-- **15, the mini scenario set** (2026-09-07): eight scenarios, bare on both
-  sides, `--local`/`--deployed`/`--both`; 16/16 on the first run; the
-  after-deploy check. `reports/2026-09-07_mini_set.md`.
-- **20, a message in the middle of a turn** (2026-09-07): taken at the tools
-  boundary as the person's words, memory lane locally, the inbox deployed;
-  seen live. `reports/2026-09-07_mid_turn_message.md`.
-- **16, tools with contracts, a page with hands, the prompt reviewed**
-  (2026-09-07): every tool states what it does, returns and leaves, an
-  offline test refuses one that does not; `use_page` (open, snapshot, click,
-  type, press, select, evaluate, screenshot, console, one page kept per
-  turn) replaces `inspect_page`; the brief and the prompt cut to what is
-  true of the grant, figures of speech replaced by conditions, the plan
-  line Codex's; one routing line for fetch / view / use. Mini set after it:
-  local 30/32 (W on its old check shape), deployed 31/32 (H on stale
-  memory, now cleared by a bare run); F opens, clicks twice and reads 2 on
-  both sides. `reports/2026-09-07_item16_research.md`,
-  `reports/2026-09-07_item16_build.md`, `reports/2026-09-07_mini_set.md` §3–4.
-  ISS-0008, ISS-0010, ISS-0016 stay open until the wider set measures them.
-- **Any sent file reaches the workspace** (2026-09-07, out of order, on the
-  human's word after `sedan_solid.json` was refused): over Telegram a file
-  that is not a picture or a sound is saved under the workspace's `inbox/`,
-  never its root, and the turn names it; archives are the model's to unpack
-  with a command, moving a file into place is its decision. Offline tests.
-- **17, the command environment is a place to develop, and a folder per
-  task** (2026-09-08): home is the person's (the container's, deployed),
-  temp is the runner's own and never the workspace, the agent's venv off
-  the command's `PATH`, nothing made or activated; the folder-per-task
-  line in the brief; the "new environment" line gone. Scenario C with a
-  venv and an install 7/7 on both sides; Chrome launches from the deployed
-  workspace. ISS-0053, ISS-0058 fixed; two boundary defects found and
-  fixed on the way (a venv's `ensurepip`, pip's cache).
+- **14, the turn bounded by health** (2026-09-07): no step or call ceiling,
+  a health check after a set time, a fold only when the request would not
+  fit. `reports/2026-09-07_turn_bounds_context_provider.md`.
+- **15, the mini scenario set** (2026-09-07). `reports/2026-09-07_mini_set.md`.
+- **20, a message in the middle of a turn** (2026-09-07).
+  `reports/2026-09-07_mid_turn_message.md`.
+- **16, tools with contracts, `use_page`, the prompt reviewed**
+  (2026-09-07). `reports/2026-09-07_item16_build.md`.
+- **Any sent file reaches the workspace** (2026-09-07): over Telegram under
+  `inbox/`.
+- **17, the command environment is a place to develop** (2026-09-08).
   `reports/2026-09-08_item17_research.md`.
-- **22, the worker outlives the turn, and a live worker is known by its
-  heartbeat** (2026-09-07): a four-hour worker timeout as a guard, a 60 s
-  lease extended every 20 s, every queued update starts a worker that
-  waits out a lease, what was delivered before a death is not sent again.
-  Seen live the same evening (ISS-0061..0063 fixed).
-  `reports/2026-09-08_persist_hang_logs.txt`.
-- **23, a store write that nobody answers ends, and a sent file is kept by
-  name** (2026-09-08): libpq bounds on every store and inbox connection; an
-  outbound part stored as its delivery in words. Seen live: a sent file's
-  row is 313 characters, `persist` 3.5 s (ISS-0065 fixed; ISS-0064 stays
-  open in `ISSUES.md` until a hang is seen ending).
-- **18, the harness's own seconds** (2026-09-10): every thing the harness
-  spends time on names itself on the turn's active trace with a duration;
-  measured on the mini set and on two real Telegram turns. On a normal
-  turn the harness costs 2–4 s in half-seconds; the one block a person
-  feels is the cold worker per message (5.7–6.7 s, the worker's 60 s
-  scaledown), a platform choice set aside for later on the human's word.
-  Nothing removed; the candidates stay measured in the report. ISS-0056
-  fixed as named; ISS-0066 recorded.
+- **22, the worker outlives the turn, known by its heartbeat** (2026-09-07).
+- **23, a store write that nobody answers ends** (2026-09-08).
+- **18, the harness's own seconds** (2026-09-10).
   `reports/2026-09-08_item18_harness_seconds.md`.
-- **24, the fine-tune experiment** (closed 2026-09-12, the human): Gemma 4
-  12B-IT with a LoRA r=16 on 782 of this harness's own GLM turns, trained,
-  merged and served from the training repository `pinocchio-finetune`,
-  measured blind beside the untuned model on Linux workers — GLM 9.81,
-  untuned bf16 9.25, tuned 8.67, int4 QAT 8.15: the fine-tune did not help.
-  Left in the harness: trajectory capture, the seven scenario families with
-  outcome checks and held-out cases, the export, the blind-judge pack and
-  unblind tools, the sets `tuned` and `base`; found ISS-0068, ISS-0069, and
-  the int4 endpoint a point below bf16.
-  `reports/2026-09-11_gemma_finetune_experiment.md` §5; further
-  experiments live in that repository's own roadmap.
-- **25, the harness as an MCP server** (2026-09-12): `tools/mcp_server.py`
-  on stdio, registered by `.mcp.json`; thirteen tools over the operator
-  scripts, `run_scenarios` and `run_turn` gated in the protocol twice
-  (the ask-every-time flag, then the server's own question with scope
-  and price). Claude Code headless used the read tools and was stopped
-  at the priced one; `run_turn` on GLM locally; the mini set deployed on
-  the second workspace through it, 43 checks passed, progress streamed.
+- **24, the fine-tune experiment** (closed 2026-09-12): the fine-tune did
+  not help; further experiments in `pinocchio-finetune`.
+  `reports/2026-09-11_gemma_finetune_experiment.md` §5.
+- **25, the harness as an MCP server** (2026-09-12).
   `reports/2026-09-12_item25_mcp_server.md`.
-- **26, MCP servers as the assistant's tools** (2026-09-12):
-  `[mcp.servers.<name>]` in `config.toml` is a capability `mcp.<name>`,
-  its allowed tools wired with the contract from what the server declared,
-  the owner's `read_only` list deciding approval and replay; sessions on
-  their own loop (`app/tools/mcp.py`). `time` and GitHub configured; one
-  local and one deployed turn used both; the deployed `ask` Function and
-  `run_turn --deployed` came with it. `reports/2026-09-12_item26_mcp_tools.md`.
-- **19, the scenario suite** (closed 2026-09-12, the human): checks read
-  outcomes, never a route the prompt did not name; seven families D L N T
-  U V X with seeds, variants and held-out cases; `--model`,
-  `--temperature`, `--repeat`, `--parallel`, a probe user per call. Not
-  built, dropped with it: the time split into model, tool and wait (18
-  named the harness's seconds instead) and a batch that survives its
-  container (a preempted call restarted itself in the volume run).
+- **26, MCP servers as the assistant's tools** (2026-09-12).
+  `reports/2026-09-12_item26_mcp_tools.md`.
+- **19, the scenario suite** (closed 2026-09-12): checks read outcomes,
+  never a route the prompt did not name.
+- **27 steps 1 and 2, the local app and the working folder** (2026-09-14):
+  any file accepted without an inbox, the commands in the composer, the
+  status card, one collapsed step per turn, notes kept on reload; the
+  working folder per conversation with the references' rule (read
+  anywhere, write in the folder, elsewhere after a yes); a command kept
+  running in the background locally; ISS-0071..0076 fixed on the way.
+  `reports/2026-09-14_profiles_and_platforms.md`.
 
 ## Queue
 
-The order approved 2026-09-07; item 27 put first on 2026-09-13. One item
-at a time; research first where noted; the human's word starts each.
+One item at a time; the human's word starts each. Order approved
+2026-09-14 (the human), after the audit.
 
-27. **The local profile as the references.** Approved 2026-09-13 (the
-    human): the local Chainlit app is to give what Claude Code and Codex
-    give, and the model, the tools and the harness are the same ones the
-    deployed profile runs. Chainlit stays for now; a UI of the project's own
-    over `app/api/` is the option when Chainlit binds (diffs, a file tree,
-    approvals with the change in view). Three steps, each accepted by a
-    short check of the app itself:
-    1. **The app.** Any file is accepted the way the harness accepts it
-       (documents to `inbox/`; today Chainlit's own list admits images and
-       audio only). The commands Telegram has — `/status`, `/compact`,
-       `/plan`, `/mode` — and `/workspace`, offered in the composer. A
-       status panel (Chainlit's element sidebar) open beside the chat and
-       kept current after every tool call and turn: thread, model set,
-       context used against the budget, mode, plan, the working folder;
-       the "context …" message after each turn goes. One collapsed step
-       per turn holds all its tool calls, so a finished turn is one line.
-    2. **The working folder, per conversation.** Approved 2026-09-13 (the
-       human), the references' rule: read anywhere, write in the folder,
-       write elsewhere after a yes. `/workspace <absolute path>` names the
-       folder a conversation works in (`off` goes back), kept in
-       `.agent/folders.json` of the personal workspace; a new conversation
-       starts in the last folder named. The tools of that conversation are
-       built on the folder: reading reaches any path on the machine, a
-       write or edit outside the folder waits for the person's yes through
-       the same buttons careful mode uses, a command runs in the folder and
-       on Windows its token is granted the folder. Deployed nothing of this
-       applies (`CapabilityRegistry(open=False)`): several people share one
-       Volume, so reading and writing stay inside the root. `inbox/`, the
-       switches and the document previews stay in the personal workspace.
-    3. **Coding locally, without crutches.** ISS-0068 (the Windows
-       boundary kills every Cygwin tool), the automatic workspace venv
-       removed as agreed in the isolated-execution review §11, `python3`
-       and other Linux-isms out of the brief on Windows; then the mini
-       set locally, beside its deployed numbers.
+28. **The records brought to the current state.** Approved 2026-09-14.
+    Every document an agent reads first says what the code is today:
+    `ROADMAP.md` (this rewrite), `AGENTS.md` (the vLLM gate gone, the
+    one-application assumption replaced by a concurrency rule, the
+    literal-instructions rule without its case), `ISSUES.md` (fixed
+    entries under Closed, Closed shortened), `DECISIONS.md` (catalog and
+    order regenerated, the fresh-shell entry amended by the background
+    fact, duplicates of rules replaced by links), the four maps (schema 5
+    in code and 4 deployed, context sizes in tokens, the Chainlit adapter
+    as built, the runner with its background mode, localhost locally, the
+    new owners in `CODEMAP`, the Model Apps section cut), `README.md`,
+    `chainlit.md`, the sixteen orphaned documents moved to
+    `reports/archive/`. Accepted when `grep` over the read documents finds
+    no `context_fraction`, no inbox locally, no vLLM as current, no schema
+    4 in code, and every symbol `CODEMAP` names exists.
+
+27. **The local profile as the references**, step 3 (steps 1 and 2 in
+    Done). Approved 2026-09-13; step 3 widened 2026-09-14 (the human) by
+    the audit's coding-tool gaps, because a coding mini set cannot pass
+    without them:
+    3. **Coding locally, without crutches.** The tools a coding agent
+       has: search across a tree, glob, reading by line range with line
+       numbers, a patch or multi-edit, the diff in a write's result,
+       `fetch_page` under the local `open` flag (localhost and any port on
+       the person's machine). The filesystem and shell descriptions state
+       what each tool returns, without "use this instead of ls / cat /
+       sed"; the model chooses. ISS-0068 (the Windows boundary kills every
+       Cygwin tool); `python3` and other Linux-isms out of the brief on
+       Windows. Accepted by a local coding mini set beside its deployed
+       numbers. (The automatic workspace venv is already gone.)
+
+29. **The defects the audit found** (`reports/2026-09-14_harness_audit.md`
+    §2): `BAD_ARGUMENTS` undefined in `shell.py`, schema validation that
+    ignores `enum`/`minimum`/`maximum`/`items`, the telemetry store without
+    connection guards, SQLite without WAL, `TracedBackend` not forwarding
+    `warm`/`estimate_tokens`, a silent decline without a checkpointer,
+    `edit_message` keeping the last piece, the read/write split by list
+    position, filesystem descriptions saying "inside the root" when open.
+    No model needed; offline tests for each.
+
+30. **Briefs and descriptions say what, not how.** Every text the model
+    reads (`app/context/window.py`, `app/capabilities.py`, every tool's
+    description and error text) rewritten to what a tool returns and
+    reaches, the incident coaching removed (fence rules, traceback
+    coaching, "one screenshot is not a run", "there are no others",
+    "answer briefly", "say nothing", "change one thing then run it", the
+    fixed web-tool ranking, the folder-and-venv layout). In the same step,
+    so the measurement does not reward the old shape: `met()` in
+    `tools/prompt_scenarios.py` for empty expectations, rubric items (b)
+    and (e) in `tools/judge_pack.py` reworded to redundancy given what
+    was known, the route checks in `loop_live` G/I/B replaced by
+    outcomes. Measured on the mini set and by blind judges before and
+    after. Touches the tests that pin wording (audit §4).
+
+31. **Limits derived from the budget.** The context and output constants
+    (`keep_results`, `keep_turns`, `STUB_MIN_CHARS`, the summary's words,
+    `SUMMARY_ALLOWANCE`, `MEDIA_BUDGET`, `SIZES`, `max_tokens`,
+    `MAX_INSTRUCTION_BYTES`, `retrieved_facts`) become functions of the
+    model's window and the request budget; the remaining caps become
+    settings; every cut gets a paging path or a spill file
+    (`list_files`, `run_command`, `use_page`, screenshots, `select`,
+    CSV, pages per view); the command timeout no longer clamps silently
+    and has no ceiling where the runner can wait.
+
+32. **The graph.** Independent tool calls run in parallel, a tool
+    declaring `mutates` serialised; tool output streams while it runs;
+    approval per call with the safe calls run first; stop and an
+    interjection read between stream chunks; schemas read per step so a
+    `find_tools` and MCP-on-demand can widen the set inside a turn (the
+    Not-started item of 2026-09-13 joins here); plan mode as a third mode
+    that withholds mutating tools; the repeat counters demoted to
+    information in the result; an empty completion still ends with a
+    line.
+
+33. **The model layer and telemetry.** A per-model-family profile so the
+    system-message flattening, the `<|"|>` repair and the end-marker
+    stripping run only where the family needs them; a provider profile
+    instead of a URL substring; `tool_choice`, `parallel_tool_calls`,
+    cache hints, reasoning passthrough, per-call overrides, `Retry-After`;
+    `usage.cost` stored on the run and in `model_finished`; telemetry
+    opened in Chainlit; the A10 cost model retired.
+
+34. **The adapters.** One command registry with properties (needs a
+    model, its reply), one fold notice, one turn driver shared by
+    Chainlit, Telegram and the scripts; `inbox/`, the album limit, the
+    Telegram marker text, `telegram_*` events, `ContentPart.hidden`,
+    `notes` and `ContentPart.path` moved out of `app/`; `/workspace` in
+    Telegram. Chainlit: the answer streamed, tool output shown live and
+    on reload, a diff on approval, approve-all and a remembered decision,
+    `/help`, the plan in view.
 
 21. **One browser tool, and the page rendered apart from the secrets.**
-    Approved 2026-09-07 (the human). Deployed, `use_page open url` runs a
-    stranger's page in the worker's own Chromium, beside the bot token, the
-    model key and the database URL — the arrangement the separate renderer
-    exists to avoid, reintroduced by item 16 without a word (ISS-0060).
-    Build: `page_session`, a Function in the renderer image (no secret, the
-    workspaces Volume read-only), spawned once at the turn's first `open`
-    and running until told to close or idle for a set time; the worker
-    sends actions through a `modal.Queue` and reads results, screenshots as
-    bytes, from another. Locally `BrowserSession` stays in-process with the
-    same idle timeout; no end-of-turn close on either side. `view_web_page`
-    and `render_web_page` go; the routing line becomes "read with
-    fetch_page, everything else with use_page". Accepted by F and W on both
-    sides, and a deployed W that opens the page with `use_page` and is
-    served from the renderer, not the worker.
+    Approved 2026-09-07 (the human); place in the order to be set when
+    its turn comes. Deployed, `use_page open url` runs a stranger's page
+    in the worker's own Chromium beside the secrets (ISS-0060). Build:
+    `page_session` in the renderer image, actions over a `modal.Queue`;
+    locally `BrowserSession` in-process; `view_web_page` and
+    `render_web_page` go.
 
 Waiting, not in the order above:
 
-7. **The local profile as a place to work.** Built: `run_command` over a
-   one-method `Runner`, the two modes and `/mode`, on Windows a
-   write-restricted token. Open: the automatic workspace venv hides the
-   machine's own packages (goes with 17); no way to choose the project folder in the UI;
-   Chainlit has no `/mode` or `/plan`; no boundary outside Windows. The
-   first three of these are item 27's.
-   `reports/2026-09-04_v2_isolated_execution_review.md` §10–§11.
+7. **The local profile as a place to work.** Built: `run_command`, the two
+   modes, on Windows a write-restricted token, the working folder and the
+   commands (27). Open: no boundary outside Windows (the platform seam
+   below). `reports/2026-09-04_v2_isolated_execution_review.md` §10–§11.
 
-8. **The plan and the goal together.** With `/plan on` the model is offered
-   both `todo_write` and `set_goal`; whether the plan replaces the goal or
-   both stand is decided by a measurement, after 16 rewrites the brief line
-   that kept GLM from ever calling `todo_write`.
+8. **The plan and the goal together.** Whether `todo_write` replaces
+   `set_goal` or both stand is decided by a measurement; joins 32 when
+   plan mode is built.
 
 13. **The model chosen from Telegram; Gemini's cache.** (a) Gemini 3.1
-    Flash-Lite with thinking against without, B and G; (b) OpenRouter
-    `cache_control` breakpoints so Gemini's cache lands; (c) the Telegram
-    command that switches between published sets.
+    Flash-Lite with thinking against without; (b) `cache_control`
+    breakpoints (joins 33); (c) the Telegram command that switches sets.
 
 ## Not started
 
 Recorded, not approved, not begun. One line each.
 
-- **A deadline per tool** (ISS-0033), drafted inside item 14 and not
-  approved: a hung tool holds the worker and no health check can reach it.
-- **Two pieces put in `app/` for Chainlit's reload, waiting to move to the
-  adapter** (the human, 2026-09-14: leave them for now, record that they
-  wait): the `notes` table in the store contract (what the harness said in
-  a conversation, shown again on a reload) and `ContentPart.path` (where a
-  sent file lies, shown again from disk). Telegram never rebuilds a
-  conversation and uses neither; both are additive and harmless deployed.
-  `reports/2026-09-14_profiles_and_platforms.md` §1.
+- **Decisions the audit questions, waiting for the human's word**
+  (`reports/2026-09-14_harness_audit.md` §A items 25–35): "one owner and
+  a small number of other users" as product scope, the 32k per-result cap,
+  the 8,000-byte instruction bound, "a Modal Sandbox is v2", "one
+  implementation per capability", embeddings waiting for an unscheduled
+  measurement, `app/api/` waiting for a separately hosted caller, "assume
+  only one application works in the repository at a time". None is
+  changed until he says so.
 - **The local profile on three operating systems, behind one platform
-  seam** (discussed 2026-09-14, `reports/2026-09-14_profiles_and_platforms.md`):
-  the OS asked about once, in named modules (the runner and its boundary,
-  the browser, the event loop, paths and temp), a profile matrix in the
-  operations map, checks by row; a macOS or Linux command boundary when the
-  machine exists. What the model may run through `run_command` is to be
-  discussed (§3 there).
-- **A tool that finds tools, and MCP servers opened on demand** (the
-  human, 2026-09-13). Today every turn sends the model the whole toolbox,
-  the MCP servers' tools included, and a configured server is connected
-  at the first toolbox build and held for the life of the process
-  (ISS-0070: 37-155 s on a fresh worker). Wanted: the model is given the
-  core tools and one `find_tools` that returns matching tools by name and
-  description, which are then offered in the following steps of the turn;
-  an MCP server is connected when one of its tools is first called, and
-  closed after an idle time, so a server that a turn does not use costs
-  nothing. What counts as core, and how much prompt this saves per turn,
-  is measured first.
-- **The whole-code review of 2026-09-03**, its items 3 onward:
-  `reports/2026-09-03_v2_whole_code_review.md`.
-- **Finish the `todo` tool.** A turn ending on an item the model does not
-  want to close; a plan and the finished work arriving together.
-  `reports/2026-08-31_v2_todo_live_failure.md`.
-- **Let a plan be corrected by the person**, who can currently only read it.
-- **`ask_user`** for a genuinely missing decision, not for permission,
-  through the same interrupt seam consent uses.
-- **Throttle the edits that write a streamed answer.** How often to edit
-  is a measurement, not a constant to pick.
-- **A message during a long tool is answered while the tool runs.** Seen
-  2026-09-07: "Статус" sent during a four-minute render was read only at the
-  next step boundary (item 20 reads between tools). In the same worker, whose
-  loop is free while a remote command or the renderer runs: listen to the
-  conversation's queue during a tool and answer with a side model call —
-  the model answers, never a harness-written status — carrying the turn so
-  far and what the harness knows of the running tool (which, how long), with
-  no tools of its own — and sent to the person at once, while the render
-  or other long tool is still running, not after it; the message still
-  reaches the turn at the step boundary as now. Not a second worker: it would
-  need the first one's state.
-- **Sound routed by the configuration, and transcribed.** The model does not
-  declare what it hears; audio is admitted and sent regardless, and GLM
-  fails the request. The configuration should say whether the model takes
-  audio directly: if it does, send it; if not, save it under `inbox/` like
-  any file and, later, a transcription tool (Whisper on the local card, a
-  Function like the renderer on Modal) turns it into text.
-- **Keep a picture someone sends.** When the model is shown the image and
-  when a filename is the design.
-- **Answer a Telegram album as one turn.**
-  `reports/2026-08-30_v2_album_burst_incident.md`.
-- **An HTTP API (`app/api/`)** waits for a UI hosted apart from the
-  application; see the amended FastAPI decision in `DECISIONS.md`.
+  seam** (`reports/2026-09-14_profiles_and_platforms.md` §2): the OS asked
+  about once, in named modules; a profile matrix in the operations map;
+  a macOS or Linux command boundary when the machine exists. What the
+  model may run through `run_command` is to be discussed (§3 there).
+- **The dead code and the closed era** (audit §3): the GPU Modal apps,
+  `autoscale.py`, `vllm_baseline.py`, `gemma4_parser.py`,
+  `app/telemetry/vllm.py`, the six one-shot scripts, the retired model
+  sets in `config.toml` and the localhost default; removed on the human's
+  word, since the sets are still deployed.
+- **A deadline per tool** (ISS-0033).
+- **Finish the `todo` tool**; **let a plan be corrected by the person**;
+  **`ask_user`** for a missing decision through the consent seam.
+- **A message during a long tool is answered while the tool runs** (seen
+  2026-09-07): a side model call in the same worker, no tools, sent at
+  once.
+- **Sound routed by the configuration, and transcribed.**
+- **Keep a picture someone sends.** **Answer a Telegram album as one turn.**
+- **Throttle the edits that write a streamed answer** (a measurement).
+- **Scenarios the suite lacks** (audit §G): git, a long-running server,
+  MCP on demand, subagents, a plan proposed then approved.
+- **Subagents, skills, hooks** as the references have them: no item yet;
+  the graph step (32) makes the seam.
 
 ## How this file is kept
 

@@ -1,7 +1,7 @@
 # Real answer streaming — preparation, live stream probe, proposed plan
 
 **Date:** 2026-08-29
-**Task input:** `docs/telegram_real_answer_streaming.md`
+**Task input:** `reports/archive/telegram_real_answer_streaming.md`
 **Roadmap item:** queue 2, deferred. Nothing here is approved work; the plan
 below is an option until the human says the implementation may start.
 
@@ -59,7 +59,7 @@ first line at **9.50 s** on the cold request (GPU wake included), **0.31 s** and
 The raw responses stayed in the scratchpad. They are worth re-capturing as a
 test fixture during implementation, from the recorded shapes above.
 
-**Conclusion: the design in `docs/telegram_real_answer_streaming.md` is
+**Conclusion: the design in `reports/archive/telegram_real_answer_streaming.md` is
 implementable as written, and the one risk that could have changed it is gone.**
 
 ## Decisions taken with the human, 2026-08-29
@@ -119,5 +119,5 @@ authorized probe and nothing else.
 
 ## Files
 
-`docs/telegram_real_answer_streaming.md` (the human's task input, now tracked),
+`reports/archive/telegram_real_answer_streaming.md` (the human's task input, now tracked),
 this report. No source file was changed.

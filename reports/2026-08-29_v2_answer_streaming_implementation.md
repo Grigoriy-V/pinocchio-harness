@@ -1,7 +1,7 @@
 # Real answer streaming — implementation and offline evidence
 
 **Date:** 2026-08-29
-**Task input:** `docs/telegram_real_answer_streaming.md`
+**Task input:** `reports/archive/telegram_real_answer_streaming.md`
 **Preparation and live probe:** `reports/2026-08-29_v2_answer_streaming_preparation.md`
 **Roadmap item:** queue 2.
 

@@ -91,13 +91,12 @@ The deployed default, `[model.sets.or]`: GLM 5.3 Flash through OpenRouter,
 
 ### Turn and context settings
 
-A turn has no ceiling on steps, tool calls or seconds (2026-09-07). After
-`turn_check_seconds` (360 in the file, 600 in code) of work the harness asks the model, between two
-steps, whether it is on track and what is left; the model's answer streams
-to the chat and the decision is the model's; zero asks never. Context:
-the size the person chose (`/context small|normal|large`: 128K, 256K, 512K
-tokens), clamped to the window the server reports, or to the set's
-`context_tokens` where it reports none;
+A turn has no ceiling on steps, tool calls or seconds; the health question
+and its shape are in `docs/PROJECT_MAP.md` ("Agent runtime"). The interval
+is `turn_check_seconds = 360` in `config.toml`; zero asks never. Context:
+the size the person chose (`/context small|normal|large`: 131,072, 262,144
+or 524,288 tokens), clamped to the window the server reports, or to the
+set's `context_tokens` where it reports none;
 a fold happens only when the request would not fit, or on `/compact`;
 `keep_turns` 2. `stream_answers` and `telemetry` are on; telemetry holds
 timings and counts only and can never fail a turn.
@@ -128,7 +127,8 @@ in SQLite, `schema_version` in PostgreSQL): 2 `user_state`, 3 `messages.failure`
 and `compactions`, 4 the derived `text` column with a full-text index (FTS5 /
 `simple` tsvector + GIN) that `search_history` reads, 5 `notes` (what the
 harness said in a conversation, shown by an interface, never read by the
-model). The deployed database is at 4; 5 waits for the migration run. Every connection the store and the inbox open carries libpq's bounds
+model). The code is at 5; the deployed Neon database is still at 4 until a
+migration gate. Every connection the store and the inbox open carries libpq's bounds
 (`app/memory/postgres.py` `CONNECTION_GUARDS`: `connect_timeout` 10 s, TCP
 keepalives and `tcp_user_timeout` that declare an unanswered socket dead in
 about a minute; ISS-0064). Migrating or resetting a populated database is a human gate; there is no
@@ -144,6 +144,18 @@ application path to a reset (`drop_schema` refuses `public`).
   `telegram_webhook` in `control_app.py` over `ui/telegram/webhook.py`.
 - **Polling (local):** `python -m ui.telegram.run`. Telegram refuses polling
   while a webhook is registered.
+
+## Local profile
+
+Chainlit on the person's own machine (`ui/chainlit_app.py`), the same
+`app/` and the same hosted model set. A file sent through the app is saved
+under `%TEMP%\assistant-uploads\<thread>` (`uploads_dir`) and named to the
+model by its absolute path; there is no `inbox/` locally. The working folder
+a conversation writes in is chosen with `/workspace <path>` and kept per
+thread in `.agent/folders.json` in the workspace (`app/agent/folder.py`).
+Reading reaches any path on the machine; a write outside the folder asks the
+person first. `/status`, which the status card polls, is an HTTP route the
+app adds to Chainlit's own server, not a command.
 
 ## Deploying `assistant-control`
 
@@ -181,34 +193,19 @@ sides; `--both` runs it here and deployed and prints the two side by side:
 
 ## Model Apps (not in use since 2026-09-06)
 
-**Owners:** `deploy/modal/model_app.py` (`assistant-llm-v2`: Gemma 4 12B
-QAT, A10, vLLM 0.26.0, ceiling 65,536, utilization 0.80, image=4 audio=1,
-snapshot around a slept vLLM, proxy auth), `model_app_qwen.py`
-(`assistant-llm-qwen`: Qwen3.8-27B FP8, L40S, 131,072, 0.90, `max_num_seqs`
-16, vLLM 0.28.0 / transformers 5.15.0, prefix caching on, thinking off by
-default, `qwen3_xml`/`qwen3` parsers), `model_app_qwen_int4.py`
-(`assistant-llm-qwen-int4`: RedHatAI INT4, A100-40GB, the rest by import;
-restore 20–31 s). Volumes `assistant-hf-cache` (weights) and
-`assistant-vllm-cache` (compile cache; the Qwen Apps do not mount it on the
-server, ISS-0047; `VLLM_USE_AOT_COMPILE=0`, ISS-0050).
-
-The order for a Qwen App, each step a gate: `fetch_weights` (CPU) →
-`preflight` (CPU, `fits` checks the ceiling against the pool) → optional
-`dry_run` (one GPU boot, `retries=0`, ISS-0049) → `modal deploy` → the first
-request creates the snapshot. `MAX_MODEL_LEN` is set once, high; the dial is
-the application's context budget. `deploy/modal/autoscale.py --window N`
-changes the running idle window (12 s default) without a deploy; a deploy
-resets it. Wake measurement: `scripts/measure_endpoint_wake.py --url … --model
-<served name>`. Engine baseline: `tools/vllm_baseline.py --run`. All of these
-start a GPU container.
+Three GPU Apps exist — `assistant-llm-v2`, `assistant-llm-qwen`,
+`assistant-llm-qwen-int4` (`deploy/modal/model_app*.py`) — each a vLLM server
+behind proxy auth, scaled to zero and unused since the hosted set became the
+default. The operational detail is in
+`reports/2026-09-14_model_apps_operations_archive.md`.
 
 ## Storage
 
 ```text
 local     AGENT_DATABASE (SQLite)  AGENT_CHECKPOINTS  AGENT_TELEMETRY_DATABASE  AGENT_WORKSPACE
 deployed  Neon: store, checkpoints, inbox, turn_stops, turn_runs/trace_events
-          Volume assistant-workspaces: /workspaces/<user>/…, /workspaces/.trajectories/<run_id>.jsonl
           Volume assistant-workspaces: /workspaces/<user>/ (files, .agent/ switches, AGENTS.md, .dumps)
+                                       and /workspaces/.trajectories/<run_id>.jsonl
           Volumes assistant-hf-cache, assistant-vllm-cache (GPU Apps)
 ```
 
@@ -231,7 +228,7 @@ configured the deployed worker refuses rather than rendering beside secrets.
 | `/check` | real capability probes | `app/preflight.py`, `Agent.selftest` | no (GPU probe opt in) |
 | `/plan [on\|off]` | the task list; marker `.agent/plan.on` | `app/agent/todo.py` | no |
 | `/mode [full\|careful]` | ask before workspace changes; marker `.agent/careful.on` | `app/agent/mode.py` | no |
-| `/context [small\|normal\|large]` | what the next request is made of, cached tokens, the chosen size (25% / fraction / 95%); marker `.agent/context` | `app/context/choice.py`, `Agent.context_report` | no |
+| `/context [small\|normal\|large]` | what the next request is made of, cached tokens, the chosen size (131,072 / 262,144 / 524,288 tokens); marker `.agent/context` | `app/context/choice.py`, `Agent.context_report` | no |
 | `/compact` | fold now | `Agent.compact` | yes, one summarizer call |
 | `/agents [set\|clear]` | standing instructions, `AGENTS.md` in the workspace | `app/instructions.py` | no |
 | `/new`, `/chats` | conversation choice, stored | `ui/telegram/adapter.py` | no |

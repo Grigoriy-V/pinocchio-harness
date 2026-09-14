@@ -23,7 +23,6 @@ and says what replaced it.
 | 2026-08-01 | Long-term facts require an explicit save | standing (scope by user since 2026-08-27) |
 | 2026-08-01 | Tools declare consequence; the runtime owns consent | consent half superseded 2026-08-30 |
 | 2026-08-01 | Token accounting comes from the model server | standing |
-| 2026-08-01 | Version 1 closed at Stage 3, then reopened | historical |
 | 2026-08-01 | No general project log | standing |
 | 2026-08-02 | Benchmarks do not define the product agent | standing |
 | 2026-08-02 | Workspace confinement accepts absolute paths | standing |
@@ -54,11 +53,16 @@ and says what replaced it.
 | 2026-09-04 | A dead worker's turn is taken up; replay is the tool's to say | standing |
 | 2026-09-04 | The last two exchanges stay verbatim; a fold takes only what must go | standing |
 | 2026-09-04 | Generated code runs where no secret is; installs live in the workspace | standing |
-| 2026-09-13 | Locally a conversation works in a named folder: read anywhere, write inside, elsewhere after a yes | standing |
 | 2026-09-05 | The goal is the request's parts, written once by the model | standing, measured next |
 | 2026-09-05 | A second model is a second App, pointed at by configuration | standing, GPU Apps |
 | 2026-09-06 | A hosted model is a set of lines; default GLM at Novita/Z.ai | standing |
+| 2026-09-07 | The worker outlives the turn; a live worker is known by its heartbeat | standing |
 | 2026-09-07 | Settings in `config.toml`, secrets in `.env`; a turn bounded by health; one host, fallback after failure | standing |
+| 2026-09-08 | Home, temp and the workspace are three places; nothing is made or activated for the model | standing |
+| 2026-09-08 | A store write that nobody answers ends; the history keeps a sent file by name | standing |
+| 2026-09-11 | A fine-tune of an open model is an experiment for experience, not a product step | standing |
+| 2026-09-11 | The training loop lives outside the harness | standing |
+| 2026-09-13 | Locally a conversation works in a named folder: read anywhere, write inside, elsewhere after a yes | standing |
 
 ---
 
@@ -148,15 +152,6 @@ Why: only the serving model counts its text and multimodal tokens correctly.
 Consequences: no duplicated tokenizer; message count is not token count;
 context decisions use the configured fraction of the reported limit (or the
 set's own budget when the server reports none, 2026-09-06).
-
-## 2026-08-01 — Version 1 closed at Stage 3, then reopened for product completion
-
-Historical. Version 1 was first closed at the Stage 3 local product, then
-reopened the same day until persistent chat, bounded attachments,
-recoverable tool failures, honest overflow and a real browser smoke passed
-as a user experience, because first-pass checks had proven narrower
-properties than the closure claimed. The rule that survives: a user-facing
-capability needs short end-to-end evidence (`AGENTS.md`).
 
 ## 2026-08-01 — No general project log
 
@@ -511,87 +506,6 @@ Consequences: `Agent.unfinished`, `Agent.resume_interrupted_events`,
 `Tool.replay_safe`, `LEASE_SECONDS` derived from the Modal timeout.
 `reports/2026-09-04_v2_restart_resume_review.md`.
 
-## 2026-09-08 — Home, temp and the workspace are three places, and nothing is made or activated for the model
-
-Decision: a command's working directory is the workspace; its home is the
-person's real home (the container's, deployed); its temp is a directory of
-the runner's own, never the workspace — a private directory under the
-machine's temp on the person's machine, granted by the write boundary
-beside the workspace, and `/tmp` in the container. The runner passes on
-neither the agent's secrets nor the agent's own virtual environment. No
-venv is made for the model and nothing is activated: `python` is the
-machine's (the image's, deployed), and a venv is the model's, made in the
-task's folder and named by its commands. The brief carries one literal
-rule about where work lives: a folder per piece of work, its files, venv
-and packages inside it, reused when the same work continues. The result
-of a command no longer announces a fresh container; what the container
-keeps is said once in the brief.
-
-Why: with home and temp on the deployed Volume, Chrome could not bind a
-socket (the path is over 108 bytes) and npm refused its own cache (a
-foreign uid), and what the model put in `/tmp` to escape died with the
-container (ISS-0053, ISS-0058); locally the automatic root venv filled
-every workspace and hid the machine's packages. Hermes and DeepSeek keep
-the real home, strip their own venv, make none, and DeepSeek gives a
-private temp per session; OpenClaw's container has its own home and a
-tmpfs `/tmp` with the workspace mounted apart. Amends "what is installed
-goes into the workspace (`HOME` there, a venv there)" of 2026-09-04.
-
-Consequences: `app/tools/shell.py` (`command_environment(home, tmp)`,
-`LocalRunner.tmp`, `own_venv_bin`, no `ensure_venv`), `ContainerRunner`,
-`run_command` in `deploy/modal/control_app.py` (cwd by the mount path),
-the brief's folder line in `app/capabilities.py`, scenario C. Roadmap 17.
-
-## 2026-09-08 — A store write that nobody answers ends; the history keeps a sent file by name
-
-Decision: every connection the store and the update inbox open carries
-libpq's own bounds — a connect that takes longer than ten seconds fails, a
-socket whose peer stops answering is dead after about a minute — so a
-statement can end in an `OperationalError` but never in a wait with no end;
-what follows is the caller's ordinary failure path (the worker's retry
-resumes `persist` from the checkpoint). And the history stores an outbound
-part as its delivery in words (name, type, size), never the bytes: no model
-is shown an outbound part, the file is in the workspace under its name, and
-the local history names what was sent instead of showing it.
-
-Why: on 2026-09-07 `persist` waited for ever on a one-megabyte `send_file`
-row, in two containers that each lived to the four-hour timeout, while a
-third wrote the same row at once (ISS-0064, ISS-0065). The cause was not
-shown by the logs; what the harness owns is that no wait is unbounded and
-that no row carries bytes nobody reads. Amends "Media is stored rather than
-dropped" in `app/memory/records.py`, which now holds for media the model was
-shown.
-
-Consequences: `app/memory/postgres.py` `CONNECTION_GUARDS`,
-`ui/telegram/inbox.py`, `app/memory/records.py` `delivered`; the Chainlit
-history shows no element for a sent file. Roadmap 23.
-
-## 2026-09-07 — The worker outlives the turn; a live worker is known by its heartbeat
-
-Decision: the deployed worker's platform timeout is a guard against a
-container that never ends (four hours), never the bound of a turn; the turn
-is bounded by its health check, as decided on 2026-09-07 for item 14. The
-conversation lease means "a worker is alive": 60 s, extended by the worker
-every 20 s while it answers, so a dead worker frees its conversation within
-a minute. Every queued update starts a worker; one that finds its
-conversation held waits out one lease rather than exiting, because a dead
-holder's lease is the only thing that would ever free the conversation and
-someone has to be there when it does. What the checkpoint holds for the same
-update id was delivered before a death and is not sent again.
-
-Why: on 2026-09-07 a ten-minute turn was killed at 600 s while persisting;
-the platform's retry sent the answer again; the fixed 590 s lease held the
-conversation with nobody alive and the two messages behind it waited for a
-worker nobody would start (ISS-0061..0063). A hand-off to a fresh container
-before the timeout was considered and rejected by the human: the timeout is
-not the turn's clock, so the conflict is removed rather than worked around.
-Replaces "`LEASE_SECONDS` derived from the Modal timeout" (2026-09-04).
-
-Consequences: `ui/telegram/webhook.py` `WORKER_TIMEOUT_SECONDS`,
-`LEASE_SECONDS`, `HEARTBEAT_SECONDS`, `TelegramUpdateWorker._claim` and
-`_heartbeat`; `PostgresUpdateInbox.extend`, `finished`, no spawn
-suppression in `enqueue`; `Agent.delivered_before`. Roadmap 22.
-
 ## 2026-09-04 — What stays verbatim is the last two exchanges, and a fold takes only what has to go
 
 Decision: what always stays verbatim is the last two exchanges (a person's
@@ -620,7 +534,10 @@ and on Windows a write-restricted token so a command writes only inside
 the workspace (`app/tools/shell_windows.py`; a rule about installers was
 a crutch). Two modes per conversation: `full` (default) and `careful`
 (workspace changes ask first); effects beyond the workspace stay gated in
-both. A Modal Sandbox is v2.
+both. A Modal Sandbox is v2. Since roadmap 27 (2026-09-13) the local
+profile may also keep a command running in the background
+(`background=true`, ended with the app); deployed the fresh shell per
+command stands (fact, 2026-09-14).
 
 Why: a coding agent needs an environment that lives through a session;
 the worker cannot host commands (scales to zero in 60 s, a child can read
@@ -708,18 +625,43 @@ The GPU Apps remain sets of their own. Which set the assistant uses from
 Telegram, and Gemini's cache, are roadmap item 13.
 `reports/2026-09-06_hosted_model_cometapi.md`.
 
+## 2026-09-07 — The worker outlives the turn; a live worker is known by its heartbeat
+
+Decision: the deployed worker's platform timeout is a guard against a
+container that never ends (four hours), never the bound of a turn; the turn
+is bounded by its health check, as decided on 2026-09-07 for item 14. The
+conversation lease means "a worker is alive": 60 s, extended by the worker
+every 20 s while it answers, so a dead worker frees its conversation within
+a minute. Every queued update starts a worker; one that finds its
+conversation held waits out one lease rather than exiting, because a dead
+holder's lease is the only thing that would ever free the conversation and
+someone has to be there when it does. What the checkpoint holds for the same
+update id was delivered before a death and is not sent again.
+
+Why: on 2026-09-07 a ten-minute turn was killed at 600 s while persisting;
+the platform's retry sent the answer again; the fixed 590 s lease held the
+conversation with nobody alive and the two messages behind it waited for a
+worker nobody would start (ISS-0061..0063). A hand-off to a fresh container
+before the timeout was considered and rejected by the human: the timeout is
+not the turn's clock, so the conflict is removed rather than worked around.
+Replaces "`LEASE_SECONDS` derived from the Modal timeout" (2026-09-04).
+
+Consequences: `ui/telegram/webhook.py` `WORKER_TIMEOUT_SECONDS`,
+`LEASE_SECONDS`, `HEARTBEAT_SECONDS`, `TelegramUpdateWorker._claim` and
+`_heartbeat`; `PostgresUpdateInbox.extend`, `finished`, no spawn
+suppression in `enqueue`; `Agent.delivered_before`. Roadmap 22.
+
 ## 2026-09-07 — Settings live in `config.toml`, a turn is bounded by health, and one host serves the model
 
 Decision: every setting that is not a secret lives in `config.toml` at the
 repository root, committed and shipped in the image (`[model]`,
 `[model.sets.<name>]`, `[agent]`, `[telegram]`, `[web]`); `.env` and the
 platform secret carry credentials only; the environment wins over the file
-and the file over the defaults. A turn has no ceiling on steps, tool calls
-or seconds: after `turn_check_seconds` (360 in the file since 2026-09-07) of work the harness asks the
-model, between two steps, whether it is on track and what is left, and the
-model's answer is its decision; a model that does not answer is a timed-out
-call, which fails the turn as any does. A fold happens only when the request
-would not fit the budget (256k on the hosted default) or on `/compact`,
+and the file over the defaults. A turn has no ceiling on steps, tool calls or
+seconds; it is bounded instead by a health question the model itself
+answers, asked once every `turn_check_seconds` (the value in
+`config.toml`) of work — the rule itself: `docs/PROJECT_MAP.md`, the turn.
+A fold happens only when the request would not fit the budget (256k on the hosted default) or on `/compact`,
 never by message count. The model is served by one host (`providers[0]`,
 `allow_fallbacks: false`); the next host is asked by the client only after
 the first failed its retries with a refused connection or a "later" status,
@@ -742,6 +684,60 @@ in `app/agent/`; `summarize_after` gone from `ContextPolicy`;
 `ModelSettings.providers` and `_next_host` in the client. Draft, not
 decided: a deadline per tool (ISS-0033).
 
+## 2026-09-08 — Home, temp and the workspace are three places, and nothing is made or activated for the model
+
+Decision: a command's working directory is the workspace; its home is the
+person's real home (the container's, deployed); its temp is a directory of
+the runner's own, never the workspace — a private directory under the
+machine's temp on the person's machine, granted by the write boundary
+beside the workspace, and `/tmp` in the container. The runner passes on
+neither the agent's secrets nor the agent's own virtual environment. No
+venv is made for the model and nothing is activated: `python` is the
+machine's (the image's, deployed), and a venv is the model's, made in the
+task's folder and named by its commands. The brief carries one literal
+rule about where work lives: a folder per piece of work, its files, venv
+and packages inside it, reused when the same work continues. The result
+of a command no longer announces a fresh container; what the container
+keeps is said once in the brief.
+
+Why: with home and temp on the deployed Volume, Chrome could not bind a
+socket (the path is over 108 bytes) and npm refused its own cache (a
+foreign uid), and what the model put in `/tmp` to escape died with the
+container (ISS-0053, ISS-0058); locally the automatic root venv filled
+every workspace and hid the machine's packages. Hermes and DeepSeek keep
+the real home, strip their own venv, make none, and DeepSeek gives a
+private temp per session; OpenClaw's container has its own home and a
+tmpfs `/tmp` with the workspace mounted apart. Amends "what is installed
+goes into the workspace (`HOME` there, a venv there)" of 2026-09-04.
+
+Consequences: `app/tools/shell.py` (`command_environment(home, tmp)`,
+`LocalRunner.tmp`, `own_venv_bin`, no `ensure_venv`), `ContainerRunner`,
+`run_command` in `deploy/modal/control_app.py` (cwd by the mount path),
+the brief's folder line in `app/capabilities.py`, scenario C. Roadmap 17.
+
+## 2026-09-08 — A store write that nobody answers ends; the history keeps a sent file by name
+
+Decision: every connection the store and the update inbox open carries
+libpq's own bounds — a connect that takes longer than ten seconds fails, a
+socket whose peer stops answering is dead after about a minute — so a
+statement can end in an `OperationalError` but never in a wait with no end;
+what follows is the caller's ordinary failure path (the worker's retry
+resumes `persist` from the checkpoint). And the history stores an outbound
+part as its delivery in words (name, type, size), never the bytes: no model
+is shown an outbound part, the file is in the workspace under its name, and
+the local history names what was sent instead of showing it.
+
+Why: on 2026-09-07 `persist` waited for ever on a one-megabyte `send_file`
+row, in two containers that each lived to the four-hour timeout, while a
+third wrote the same row at once (ISS-0064, ISS-0065). The cause was not
+shown by the logs; what the harness owns is that no wait is unbounded and
+that no row carries bytes nobody reads. Amends "Media is stored rather than
+dropped" in `app/memory/records.py`, which now holds for media the model was
+shown.
+
+Consequences: `app/memory/postgres.py` `CONNECTION_GUARDS`,
+`ui/telegram/inbox.py`, `app/memory/records.py` `delivered`; the Chainlit
+history shows no element for a sent file. Roadmap 23.
 
 ## 2026-09-11 — A fine-tune of an open model is an experiment for experience, not a product step
 
@@ -786,15 +782,13 @@ default.
 ## 2026-09-13 — Locally a conversation works in a named folder: read anywhere, write inside, elsewhere after a yes
 
 Decision (the human, 2026-09-13, roadmap 27 step 2): on the person's own
-machine the local app is a code agent the way Claude Code and Codex are.
-Each conversation works in a folder the person names (`/workspace`), a new
-one starting where the last one worked. Reading reaches any path on the
-machine; a write inside the folder is autonomous; a write outside it runs
-only after the person's yes, through the same consent seam careful mode
-uses; a command runs in the folder with the folder granted to its
-restricted token on Windows. The deployed profile keeps the older rule
-unchanged, reading and writing confined to the person's root, because
-several people share one Volume there.
+machine the local app is a code agent the way Claude Code and Codex are,
+so a conversation works in a folder the person names rather than in one
+fixed root; the rule itself: `AGENTS.md`, Safety and evidence.
+
+Why: the deployed profile keeps the older rule unchanged, reading and
+writing confined to the person's root, because several people share one
+Volume there.
 
 Consequences: `AGENTS.md`'s root rule gains the local clause; the registry
 carries `open`; `Tool.asks` lets a tool ask by what a call names rather

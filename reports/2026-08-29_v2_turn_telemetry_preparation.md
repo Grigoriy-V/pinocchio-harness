@@ -1,7 +1,7 @@
 # Turn telemetry (item 3A) — preparation
 
 **Date:** 2026-08-29
-**Task input:** `docs/baseline_measurement_metrics_logs.md`
+**Task input:** `reports/archive/baseline_measurement_metrics_logs.md`
 **Roadmap item:** queue 3, first bullet ("application telemetry first").
 
 Nothing here is implemented. This is the design proposed before the

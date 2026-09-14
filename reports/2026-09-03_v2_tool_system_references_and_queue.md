@@ -4,7 +4,7 @@
 **Agent:** Claude, direct session
 **Status:** analysis and records. No code changed. The finalized design is
 `docs/v2_tool_system.md`; the draft it came from is
-`docs/v2_tool_system_design.md`. The queue below was approved in the chat on
+`reports/archive/v2_tool_system_design.md`. The queue below was approved in the chat on
 2026-09-03 and is in `ROADMAP.md`; the durable choices are in `DECISIONS.md`
 under the same date.
 

@@ -67,8 +67,10 @@ are not reachable by following imports from `app/`.
 | Change attachment admission | `app/attachments.py` | `admit_uploads`, `load_attachments` |
 | Change document parsing / tools | `app/documents.py`, `app/tools/documents.py` | `read_sections`, `render_pages`, `read_document`, `view_pages` |
 | Change file delivery | `app/tools/presentation.py` | `send_file`, `outbound=True` |
-| Run a command or change where commands run | `app/tools/shell.py`, `app/tools/shell_windows.py`, `deploy/modal/control_app.py` | `run_command`, `Runner`, `LocalRunner`, `ContainerRunner`, `ModalRunner`, `command_environment`, `ensure_venv`, `RestrictedProcess`, `BASE_TOOLS`, `tests/test_run_command.py` |
+| Run a command or change where commands run | `app/tools/shell.py`, `app/tools/shell_windows.py`, `deploy/modal/control_app.py` | `run_command`, `Runner`, `LocalRunner`, `ContainerRunner`, `ModalRunner`, `command_environment`, `own_venv_bin`, `_start_detached`, `Running`, `RestrictedProcess`, `BASE_TOOLS`, `tests/test_run_command.py` |
 | Change the two modes | `app/agent/mode.py`, `app/tools/base.py` | `CAREFUL_SWITCH`, `set_mode`, `Tool.mutates`, `Toolbox.ask_for_changes` |
+| Change what a command answers, in every interface | `app/agent/commands.py` | `plan_reply`, `mode_reply`, `context_reply`, `workspace_reply` |
+| Change the conversation's working folder | `app/agent/folder.py` | `FOLDERS`, `folder_of`, `set_folder`, `last_folder`, `tests/test_working_folder.py` |
 | Change the page tool (`use_page`) | `app/tools/browser.py` | `use_page`, `Pages`, `page_report`, `DESCRIPTION`, `ACTIONS`, `tests/test_browser_tools.py` |
 | Change what a tool description must state | `app/tools/base.py` | `Tool.returns`, `Tool.leaves`, `Tool.contract`, `tests/test_tool_contracts.py` |
 | Change the browser session, snapshot, actions | `app/tools/chromium.py` | `BrowserSession`, `open_browser`, `serve_directory`, `format_snapshot`, `DEVTOOLS_READY_SECONDS`, `tests/test_browser_session.py` |
@@ -78,7 +80,9 @@ are not reachable by following imports from `app/`.
 | Change which updates skip the queue | `ui/telegram/wire.py` | `travels_out_of_band`, `needs_model`, `MODEL_FREE_WITH_ARGUMENTS` |
 | Change Telegram rendering / Bot API | `ui/telegram/markdown.py`, `ui/telegram/api.py` | `render`, `TelegramClient`, `PRODUCT_COMMANDS`, `retry_after` |
 | Change the deployed handoff / inbox / polling | `ui/telegram/webhook.py`, `ui/telegram/inbox.py`, `ui/telegram/run.py` | `TelegramWebhook`, `TelegramUpdateWorker`, `DRAIN_SECONDS`, `PostgresUpdateInbox`, `_claim_conversation`, `PollingBot` |
-| Change Chainlit | `ui/chainlit_app.py`, `ui/chainlit_history.py` | `create_runtime_with_stops`, `MemoryStoreDataLayer` |
+| Change Chainlit | `ui/chainlit_app.py` | `create_runtime_with_stops`, `COMMANDS`, `uploads_dir`, `Turn`, `status_route`, `tests/test_chainlit_adapter.py` |
+| Rebuild a conversation Chainlit reopens | `ui/chainlit_history.py` | `MemoryStoreDataLayer`, `_turn_step`, `_note_step`, `tests/test_chainlit_history.py` |
+| Change the status card the local app shows | `public/status.js`, `public/status.css`, `app/agent/status.py` | `Status`, `status_of`, `CreditsWatch`, the `/status` route |
 | Change the deployed control plane | `deploy/modal/control_app.py` | `telegram_webhook`, `process_telegram_update`, `render_web_page`, `run_command`, `scenarios`, the images |
 | Change a model App | `deploy/modal/model_app.py`, `model_app_qwen.py`, `model_app_qwen_int4.py` | `Server`, `fetch_weights`, `preflight`, `dry_run`, `fits`, `SCALEDOWN_WINDOW` |
 | Change the GPU idle window without a deploy | `deploy/modal/autoscale.py` | `update_autoscaler` |
@@ -92,27 +96,33 @@ are not reachable by following imports from `app/`.
 | Render a stored conversation as a page | `tools/showcase.py` | `render_thread`, read-only |
 | Measure a GPU App: wake, engine baseline, command cold start | `scripts/measure_endpoint_wake.py`, `tools/vllm_baseline.py`, `scripts/measure_command_cold_start.py` | each starts a container: permission |
 | Diagnose a local install | `scripts/doctor.py` | |
+| Keep the deployed wiring shut while changing the local app | `tests/test_profiles.py` | the two profiles are one `app/` and stay two |
 
 ## Repository shape
 
 ```text
 app/
-  agent/       the loop, its wiring, budget, stop, stopping seam, mode, todo extension
+  agent/       the loop, its wiring, budget, stop, stopping seam, mode, todo
+               extension, the commands' answers, the working folder, the status card's data
   context/     prompt assembly, surface, folding, the person's context choice
   memory/      store contract + SQLite / PostgreSQL
   telemetry/   turn records, traces, inspector, GPU cost derivation
   models/      model contract + the OpenAI-compatible adapter
-  tools/       tools, capabilities, execution, browser, shell, history, goal, todo
-  attachments.py capabilities.py checkpoints.py config.py documents.py instructions.py preflight.py web.py
+  tools/       tools, capabilities, execution, browser, shell, history, goal, todo, mcp
+  attachments.py capabilities.py checkpoints.py config.py documents.py instructions.py
+  preflight.py trajectories.py conversations.py web.py
   api/         empty stub
-ui/telegram/   wire, markdown, api, adapter, inbox, webhook, run
+ui/telegram/   wire, markdown, api, adapter, inbox, interjections, webhook, run
 ui/chainlit_app.py, ui/chainlit_history.py
+public/        status.js, status.css — the local app's status card
 deploy/modal/  control_app, model_app, model_app_qwen, model_app_qwen_int4, autoscale
-tools/         operational tools (not imported by app/)
-scripts/       live runners, measurements, doctor, migration
-tests/         offline suite (74 files)
-docs/          the four maps, v2_tool_system.md (the tool contract), earlier notes
-reports/       evidence and the two journals
+tools/         operational tools (not imported by app/), tools/prompts
+scripts/       live runners, training scenarios, measurements, doctor
+tests/         offline suite, tests/fixtures
+docs/          the four maps, MCP.md, v2_tool_system.md (the tool contract)
+reports/       evidence, the two journals, reports/archive (closed-era documents)
+configs/       empty
+workspace/     local workspaces, not part of the source
 ```
 
 ## Ownership rules worth knowing

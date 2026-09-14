@@ -1,7 +1,7 @@
 # Control plane cold start: what was measured and what was decided
 
 Deployed measurements of `assistant-control`, 2026-08-28/29. Design rationale
-for the chain itself is in `docs/control_plane_cold_start_notes.md`.
+for the chain itself is in `reports/archive/control_plane_cold_start_notes.md`.
 
 ## Webhook imports
 

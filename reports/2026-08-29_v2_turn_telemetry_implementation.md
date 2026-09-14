@@ -1,7 +1,7 @@
 # Turn telemetry (item 3A) — implementation and offline evidence
 
 **Date:** 2026-08-29
-**Task input:** `docs/baseline_measurement_metrics_logs.md`
+**Task input:** `reports/archive/baseline_measurement_metrics_logs.md`
 **Preparation and approved decisions:** `reports/2026-08-29_v2_turn_telemetry_preparation.md`
 **Roadmap item:** queue 3, first bullet.
 

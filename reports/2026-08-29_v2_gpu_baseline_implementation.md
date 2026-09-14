@@ -1,7 +1,7 @@
 # Model and GPU baseline (item 3C) — the instrument, before the measurement
 
 **Date:** 2026-08-29
-**Task input:** `docs/baseline_measurement_metrics_logs.md`
+**Task input:** `reports/archive/baseline_measurement_metrics_logs.md`
 **Preparation and approved decisions:**
 `reports/2026-08-29_v2_run_inspector_and_gpu_baseline_preparation.md`
 **Roadmap item:** queue 3, third and fifth bullets.

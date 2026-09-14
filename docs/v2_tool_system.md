@@ -1,7 +1,7 @@
 # V2 Tool System
 
 **Status:** the architecture for roadmap step 4.5, finalized 2026-09-03 from the
-draft in `docs/v2_tool_system_design.md` after reading the tool layers of
+draft in `reports/archive/v2_tool_system_design.md` after reading the tool layers of
 DeepSeek Harness, Hermes Agent and OpenClaw, and implemented the same day
 (`reports/2026-09-03_v2_tool_system_implementation.md`). This is the document
 the implementation follows; the draft is kept as the record of where it came

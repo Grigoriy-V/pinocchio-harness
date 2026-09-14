@@ -66,8 +66,10 @@ reaction_on_message_received = false
     # 3. For specific file extensions:
     #    accept = { "application/octet-stream" = [".xyz", ".pdb"] }
     # Note: Using "*/*" is not recommended as it may cause browser warnings
-    # Any file: a picture or a sound goes to the model, everything else to
-    # `inbox/` in the workspace (`app.attachments.admit_uploads`).
+    # Any file: a picture or a sound goes to the model, everything else is
+    # saved under this machine's temp uploads folder and named to the model
+    # by its absolute path in the turn (`uploads_dir` in `ui/chainlit_app.py`,
+    # `app.attachments.admit_uploads`). There is no `inbox/` locally.
     accept = ["*/*"]
     max_files = 5
     max_size_mb = 20

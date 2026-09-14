@@ -29,7 +29,7 @@ the number step 3b exists to produce. **One restored wake is not two**; Modal
 may build several worker-type-specific snapshots, so this is not yet an
 acceptance-grade result on its own.
 
-The bearer-token question from `docs/modal_platform_notes.md` is answered: a
+The bearer-token question from `reports/archive/modal_platform_notes.md` is answered: a
 proxy token joined by a period works as an ordinary bearer token on this
 `.modal.run` endpoint, the same as it did on the baseline's `.modal.direct` one.
 `OpenAICompatibleBackend` needs no change to reach either shape.

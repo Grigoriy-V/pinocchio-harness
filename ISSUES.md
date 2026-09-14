@@ -13,7 +13,7 @@ authorizes nothing; `ROADMAP.md` alone orders work. Evidence lives in
 - Status names the defect, not the effort: `open`, `mitigated` (harm
   reduced, defect still there), `fixed` (verified), `won't fix`. A closed
   entry stays, shortened, under **Closed**; a defect that comes back moves
-  up to **Open** with a "seen again" line.
+  up to **Open** with a "seen again" line and keeps its full body.
 - `Cause` stays "unknown" until proven. One defect per entry. `Costs` says
   what it does to the person; there is no severity word.
 - Fields: Status, Seen, Costs, Reproduce, Cause, Evidence, Related.
@@ -105,116 +105,6 @@ in use since 2026-09-06; it is not seen on the hosted model.
 ---
 
 ## Open
-
-### ISS-0076 — after a reload a turn's tool calls are separate rows again
-
-- **Status:** fixed 2026-09-14: the history layer builds one collapsed
-  step per turn with the calls as tool steps under it; the same thread
-  reopened shows "Used 4 tool calls".
-- **Seen:** 2026-09-13, the `Pixel_CV` thread reopened after a page
-  reload: every `run_command` and `use_page` call of the turn stands as
-  its own row, each with its own "Used Tool" line, where the live turn
-  had one collapsed "3 tool calls" step.
-- **Costs:** a reopened conversation is the long list the collapsed step
-  was built to remove (roadmap 27 step 1); the person reads the harness's
-  calls instead of the answers.
-- **Reproduce:** a turn with tool calls, then reload the page.
-- **Cause:** the history layer (`ui/chainlit_history.py`) builds one step
-  per stored message with no parent: the live grouping lives only in the
-  session's `Turn`.
-- **Belongs to:** the harness's Chainlit history layer.
-
-### ISS-0075 — a server the model starts opens a console window and outlives the conversation
-
-- **Status:** fixed 2026-09-14: `run_command` has `background=true`
-  (hidden, an id at once, `command_output` and `stop_command`, ended with
-  the app), and the brief says never to use `start`. Offline tests; not
-  yet seen in a live turn.
-- **Seen:** 2026-09-13, "запусти сайт чтобы я открыл" in the `Pixel_CV`
-  thread: `start "" cmd /c "python -m http.server 8080"` failed
-  ("перенаправление ввода не поддерживается": the restricted command has no
-  stdin), `python -m http.server 8080` in the foreground was killed at its
-  10 s timeout, then `start "pixel_cv_server" /min python -m http.server
-  8080` worked: a minimized console window appeared on the person's
-  desktop, the server answered 200 and is still running with nothing in the
-  harness knowing of it.
-- **Costs:** windows on the desktop the person did not open; a process no
-  command of the chat can stop; three model calls and two failed commands
-  to reach a workaround. Claude Code and Codex run a long-lived command in
-  the background, hidden, with a handle, and end it with the session.
-- **Reproduce:** locally, ask for a dev server to be started.
-- **Cause:** `run_command` runs one process to its end or its timeout; a
-  process that should stay has no mode of its own, so the model reaches for
-  `start`, which makes a new visible console.
-- **Belongs to:** the harness (`app/tools/shell.py`): a background mode.
-
-### ISS-0074 — locally the browser refuses localhost
-
-- **Status:** fixed 2026-09-14: the local profile's `open` flag admits
-  localhost and private addresses to the browser (`public_request_policy(open=True)`);
-  offline test, not yet seen in a live turn.
-- **Seen:** 2026-09-13, the same turn: `use_page open
-  http://localhost:8080/index.html` → `the page could not be opened
-  (net::ERR_ACCESS_DENIED)`; the model told the person to open it
-  themselves.
-- **Costs:** the model cannot look at the site it just started on the
-  person's machine, which is the one thing a code agent's browser is for.
-- **Reproduce:** locally, `use_page open` on any localhost address.
-- **Cause:** the page's request policy admits public addresses only
-  (`app/web.py`, `app/tools/browser.py`), right for the deployed renderer
-  beside the worker's network, unchanged on the person's own machine.
-- **Belongs to:** the harness: the local profile's `open` flag (roadmap 27
-  step 2) should open private addresses to the browser too.
-
-### ISS-0073 — a GitHub MCP file's content is dropped as a non-text part
-
-- **Status:** fixed 2026-09-14: `render_result` reads an
-  `EmbeddedResource`'s text; offline test.
-- **Seen:** 2026-09-13, the `Pixel_CV` thread: three
-  `github_get_file_contents` calls each returned "successfully downloaded
-  text file (SHA …) (1 non-text part(s) not shown: EmbeddedResource)"; the
-  model then fetched README, index.html and two scripts from
-  `raw.githubusercontent.com` with `fetch_page`, seven calls for what
-  three would have done.
-- **Costs:** the GitHub server's file reads are useless to the model; twice
-  the calls, the model's time and a web fetch for every file.
-- **Reproduce:** `github_get_file_contents` with a `path`.
-- **Cause:** `render_result` in `app/tools/mcp.py` shows text parts only
-  (its first version, item 26); the server puts the file in an
-  `EmbeddedResource` whose `resource.text` is the file.
-- **Belongs to:** the harness (`app/tools/mcp.py`).
-
-### ISS-0072 — after a reconnect a message runs on a closed agent
-
-- **Status:** fixed 2026-09-14: the agent knows it is closed and the
-  session makes a new one before a message runs.
-- **Seen:** 2026-09-13 23:37, the server log: `on_message` →
-  `agent.steps` → `Cannot send a request, as the client has been closed`
-  in the backend's `stream`; the turn died before the model.
-- **Costs:** a message lost and the person waiting for nothing; the next
-  message may run.
-- **Reproduce:** not pinned down; seen after a page reload while the tab
-  stayed open.
-- **Cause:** likely `on_chat_end` on a websocket disconnect closes the
-  session's agent (`agent.aclose()`), and Chainlit keeps the user session,
-  whose next message finds the closed agent. Not proven.
-- **Belongs to:** the harness's Chainlit adapter.
-
-### ISS-0071 — the status route keeps the agent of a closed session
-
-- **Status:** fixed 2026-09-14: the route answers 404 for a closed agent.
-- **Seen:** 2026-09-13 23:35, the server log: `GET /status` →
-  `status_of` → `context_report` → `sqlite3.ProgrammingError: Cannot
-  operate on a closed database`, a traceback in the log for every poll of
-  the open card.
-- **Costs:** the card shows "unreachable" until a chat is opened again; a
-  traceback in the log every three seconds meanwhile.
-- **Reproduce:** open the status card, close the tab, open the app again
-  before starting a chat.
-- **Cause:** the route reads a process-wide "current session" that
-  `on_chat_end` clears only when it still points at the closing agent; a
-  race between two sessions leaves a closed one there.
-- **Belongs to:** the harness's Chainlit adapter.
 
 ### ISS-0070 — the first turn on a fresh worker builds the graph for ~150 s
 
@@ -345,28 +235,6 @@ in use since 2026-09-06; it is not seen on the hosted model.
   roadmap 23); roadmap 18, whose second half decides what the harness
   stops spending.
 
-### ISS-0065 — a `send_file` result carries the file's bytes into the thread's history
-
-- **Status:** open; fix built 2026-09-08 (roadmap 23: the store writes an
-  outbound part as "Sent <name> (<type>, <size> bytes)."). Seen live
-  2026-09-08 06:08 UTC: the `send_file` result row of update 814913263 is
-  313 characters; `persist` took 3.5 s in one attempt.
-- **Seen:** 2026-09-07, deployed. The thread's `messages` row for the
-  `send_file` result of `blender/street_video0000-0240.mp4` is 1,019,473
-  characters (position 92); the earlier send of a shorter cut is 290,929
-  (position 69). The text of the result is one line ("Selected … for
-  delivery to the person."); the rest is the media part. A read of a PNG
-  (`read_file`, position 90) is 242,931, which is the image the model is
-  shown and is by design.
-- **Costs:** a megabyte written to the store per sent video, read back by
-  every later turn's history load, for a part no model is ever shown.
-- **Reproduce:** deployed, ask for a rendered video; read the row.
-- **Cause:** unknown; the tool result keeps the media part it built for the
-  adapter after the adapter has taken it.
-- **Evidence:** `reports/2026-09-08_persist_hang_logs.txt` (the row sizes at
-  the end).
-- **Related:** ISS-0064 (the write that hung was this row's).
-
 ### ISS-0064 — `persist` hangs on the store's write and the worker sits in it until the platform kills it
 
 - **Status:** open; fix built 2026-09-08 (roadmap 23: `CONNECTION_GUARDS`
@@ -403,72 +271,6 @@ in use since 2026-09-06; it is not seen on the hosted model.
 - **Evidence:** `reports/2026-09-08_persist_hang_logs.txt`.
 - **Related:** ISS-0061, ISS-0048 (the store's connection after a long
   call), ISS-0065.
-
-### ISS-0063 — a dead worker's lease holds the conversation; nothing wakes the queue when it expires
-
-- **Status:** fixed 2026-09-07 (roadmap 22: a 60 s lease the worker
-  extends every 20 s, every queued update starts a worker, one that finds
-  the conversation held waits out a lease). Seen live 2026-09-07 15:51: the
-  holder of 814913253 hung (ISS-0064), its lease ran out, and the worker of
-  the next message took the update up within a minute of arriving.
-- **Seen:** 2026-09-07 14:43 UTC, deployed. After the worker of ISS-0061 was
-  killed, its row stayed `running` with a lease to 14:53:02 (attempts 2).
-  Two later messages (814913247, 814913248) were queued `pending` with
-  `spawning: false`, because the webhook saw the conversation as busy. No
-  worker existed to drain them, and when the lease expires nothing spawns
-  one: only the next message would.
-- **Costs:** the bot goes silent for ten minutes, then stays silent until
-  the person writes again.
-- **Reproduce:** deployed, a turn killed by the platform; send two messages
-  within `LEASE_SECONDS`.
-- **Cause:** the lease is a fixed 590 s set once at the claim, so a dead
-  worker is indistinguishable from a working one for that long; and the
-  webhook's "busy, do not spawn" leaves no one responsible for the queue
-  after the lease ends.
-- **Evidence:** `reports/2026-09-07_worker_timeout_logs.txt`; the inbox rows
-  read at 14:45 UTC (244 running/held, 247 and 248 pending, attempts 0).
-- **Related:** ISS-0061, ISS-0062.
-
-### ISS-0062 — the retry of a killed turn sends the final answer a second time
-
-- **Status:** fixed 2026-09-07 (roadmap 22: `Agent.delivered_before`
-  reads what the checkpoint holds for the same update id and the adapter
-  does not send it again). Seen live 2026-09-07 15:51 and 15:53: update
-  814913253 was taken up twice after its answer had gone out, and neither
-  attempt sent anything (no `telegram_final_sent` in either run).
-- **Seen:** 2026-09-07 14:43 UTC, deployed. The turn of ISS-0061 sent its
-  final at 14:42:58; the platform's retry (`retries=1`) reclaimed the row at
-  14:43:12, resumed from the checkpoint and sent the same final again at
-  14:43:15, then was killed in `persist` with the rest of the container.
-- **Costs:** the person gets the same long message twice, and the turn is
-  still not persisted.
-- **Reproduce:** deployed, a turn killed after `final_sent` and before
-  `persist` finished.
-- **Cause:** that the answer was delivered is known only in the worker's
-  memory (`delivered`); the checkpoint the retry resumes from does not
-  carry it.
-- **Evidence:** `reports/2026-09-07_worker_timeout_logs.txt`.
-- **Related:** ISS-0061.
-
-### ISS-0061 — a turn runs up to the worker's own timeout and is killed while persisting
-
-- **Status:** fixed 2026-09-07 (roadmap 22: the worker's timeout is four
-  hours, a guard, the turn stays bounded by its health check). Deployed and
-  seen 2026-09-07 15:26: no turn was killed at 600 s again. What was killed
-  at 600 s here was most likely a hung `persist`, which is ISS-0064.
-- **Seen:** 2026-09-07 14:33–14:43 UTC, deployed. A Blender scene turn
-  (23 steps, 28 tool calls) reached `persist_started` at 598 s of elapsed
-  time; at 600 s the platform cancelled the input
-  (`WORKER_TIMEOUT_SECONDS`), and 30 s later killed the container.
-- **Costs:** the turn's history is not saved, the answer is duplicated
-  (ISS-0062) and the conversation is blocked (ISS-0063).
-- **Reproduce:** deployed, a request the model works on for ten minutes.
-- **Cause:** item 14 bounded the turn by health, not by a ceiling, and the
-  health check (`turn_check_seconds` 360) lets the turn continue; nothing
-  in the turn knows the container it runs in dies at 600 s, so no hand-off
-  to a fresh worker happens before that.
-- **Evidence:** `reports/2026-09-07_worker_timeout_logs.txt`.
-- **Related:** ISS-0057, ISS-0056; roadmap 14.
 
 ### ISS-0060 — deployed, `use_page open url` renders a public page in the worker, beside the secrets
 
@@ -522,34 +324,6 @@ in use since 2026-09-06; it is not seen on the hosted model.
 - **Evidence:** `reports/2026-09-07_mid_turn_message.md` §9.
 - **Related:** roadmap 15, 20.
 
-### ISS-0058 — a command's temporary files and caches live on the Volume path, which is too long for a Unix socket and owned by the wrong user
-
-- **Status:** fixed 2026-09-08 (roadmap 17: home and temp are the
-  container's). Seen deployed the same day: a socket binds under `/tmp`,
-  npm's cache is `/root/.npm` and verifies, Chrome launched from the
-  workspace dumps a page. A socket cannot live on the Volume at all
-  (`Errno 95`), whatever the path length.
-  `reports/2026-09-08_item17_research.md` §9.
-- **Seen:** 2026-09-06, live, run `75c145f09f624ef5b311517c7e889058`
-  (Telegram, GLM at Novita): `npm i puppeteer` failed twice on the
-  workspace's `.npm` cache ("please run: sudo chown -R 0:0 …/.npm");
-  Chrome refused to start three times with "Socket path too long" because
-  `TMPDIR` is the workspace on the Volume (`/__modal/volumes/vo-…/<user>/…`,
-  over the 108-byte limit). The model found `npm_config_cache=/tmp/.npm`
-  and `TMPDIR=/tmp` itself, ten commands and ~4 minutes in, and the budget
-  ended before its diagnosis (ISS-0057).
-- **Costs:** minutes of a turn spent on the sandbox rather than the work
-  whenever a tool needs a socket or a package cache; what is put in `/tmp`
-  to escape it is gone with the container (ISS-0053).
-- **Reproduce:** in the deployed command environment, launch Chrome from
-  the workspace; run `npm i` with the default cache.
-- **Cause:** the command environment sets `HOME` and the working directory
-  to the workspace on the Volume, so every default cache and temp path
-  lands there; the path is long and the Volume's files carry another uid.
-- **Evidence:** thread `ba7fe8cd-7816-4467-a22c-0921ac319c32`,
-  `tools/show_run.py 75c145f09f624ef5b311517c7e889058`.
-- **Related:** ISS-0053, ISS-0057.
-
 ### ISS-0054 — the model endpoint is put to sleep in the middle of a turn whenever a tool outlives the idle window
 
 - **Status:** open, GPU Apps only; not scheduled
@@ -566,29 +340,6 @@ in use since 2026-09-06; it is not seen on the hosted model.
   turns.
 - **Evidence:** `reports/2026-09-05_qwen38_second_model.md` §13.
 - **Related:** ISS-0044.
-
-### ISS-0053 — what a command installs outside the workspace is gone by the next command
-
-- **Status:** fixed 2026-09-08 (roadmap 17: the "new environment" line
-  is gone, the brief says once what the container keeps, and the
-  folder-per-task rule tells the model where a venv and packages live).
-  Scenario C with a venv and an install: 7/7 locally and deployed. What a
-  command installs into the container is still gone with it, by design,
-  and the brief says so.
-- **Seen:** 2026-09-05, scenario G on the INT4 App (`deployed-c0c0a622-70`):
-  `npm install puppeteer` in `/tmp` and `apt-get install` of Chromium's
-  libraries, then the script could not find what it had installed; each
-  `run_command` may land in a fresh container and only the workspace
-  persists. The first result in a fresh container says "new environment:
-  nothing installed by earlier commands is present".
-- **Costs:** minutes of a turn installing what the next command cannot see;
-  a model that reads the "new environment" line as its own work being gone.
-- **Cause:** the command environment. A possible general shape, not
-  decided: everything a command installs lands in the workspace by default
-  (`HOME`, npm's prefix and cache, pip's target), so persistence needs no
-  knowledge from the model. pip already has a workspace venv; node does
-  not. The human: "пока непонятно, просто запиши".
-- **Related:** ISS-0058 (the same environment, the other way), ISS-0043.
 
 ### ISS-0046 — a deliverable the tools can make is fabricated by another means
 
@@ -837,367 +588,423 @@ in use since 2026-09-06; it is not seen on the hosted model.
 
 Shortened to what a later reader needs; the linked report has the rest.
 
-### ISS-0056 — a turn spends seconds between its own steps that no model, tool or store accounts for
+### ISS-0076 — after a reload a turn's tool calls are separate rows again
 
-- **Status:** fixed 2026-09-10 as named (roadmap 18): every thing the
-  harness spends time on names itself on the turn's active trace with a
-  duration; measured on the mini set and on two real Telegram turns. On a
-  normal turn the harness's own cost is 2–4 s in half-seconds, half of it
-  the database round trip that varies 3× with where the container lands;
-  the block a person feels is the cold worker per message (5.7–6.7 s, the
-  worker's 60 s scaledown), a platform choice set aside on the human's
-  word. The 12–18 s first seen were a 350 MB workspace's Volume commits on
-  a far container. Nothing removed.
-- **Seen:** 2026-09-06, run `42cebe2d531c4a1199b8b663c6f8832c`: 18.3 s
-  unattributed of 71.8.
-- **Evidence:** `reports/2026-09-08_item18_harness_seconds.md`.
-- **Related:** ISS-0066 (one named part, open), ISS-0057, ISS-0054.
+- **What it was:** a thread reopened after a page reload showed every tool
+  call of a turn as its own row, where the live turn had one collapsed step.
+- **Fixed** 2026-09-14: the history layer (`ui/chainlit_history.py`) builds
+  one collapsed step per turn with the calls as tool steps under it.
+
+### ISS-0075 — a server the model starts opens a console window and outlives the conversation
+
+- **What it was:** `run_command` had no background mode, so a long-lived
+  server was started with `start`, which opened a console window on the
+  person's desktop and kept running with nothing in the harness knowing of it.
+- **Fixed** 2026-09-14: `run_command` has `background=true` (hidden, an id at
+  once, `command_output` and `stop_command`, ended with the app) and the brief
+  says never to use `start`; offline tests, not yet seen in a live turn.
+
+### ISS-0074 — locally the browser refuses localhost
+
+- **What it was:** `use_page open http://localhost:…` was refused with
+  `net::ERR_ACCESS_DENIED`, so the model could not look at a site it had just
+  started on the person's own machine.
+- **Fixed** 2026-09-14: the local profile's `open` flag admits localhost and
+  private addresses (`public_request_policy(open=True)`); offline test, not
+  yet seen in a live turn.
+
+### ISS-0073 — a GitHub MCP file's content is dropped as a non-text part
+
+- **What it was:** `github_get_file_contents` returned the file in an
+  `EmbeddedResource`, which the renderer dropped as "1 non-text part(s) not
+  shown", and the model fetched every file again from the web.
+- **Fixed** 2026-09-14: `render_result` in `app/tools/mcp.py` reads an
+  `EmbeddedResource`'s text; offline test.
+
+### ISS-0072 — after a reconnect a message runs on a closed agent
+
+- **What it was:** after a websocket disconnect the session's next message ran
+  on a closed agent and the turn died with `Cannot send a request, as the
+  client has been closed`.
+- **Fixed** 2026-09-14: the agent knows it is closed and the session makes a
+  new one before a message runs.
+
+### ISS-0071 — the status route keeps the agent of a closed session
+
+- **What it was:** `/status` polled a process-wide agent a closed session had
+  left behind, raising `Cannot operate on a closed database` every three
+  seconds.
+- **Fixed** 2026-09-14: the route answers 404 for a closed agent.
+
+### ISS-0065 — a `send_file` result carries the file's bytes into the thread's history
+
+- **What it was:** the `send_file` tool result kept the media part after the
+  adapter had taken it, writing up to a megabyte per sent file into the
+  thread's history and reading it back on every later turn.
+- **Fixed** 2026-09-08 (roadmap 23): the store writes an outbound part as
+  "Sent <name> (<type>, <size> bytes)."; seen live the same day, the row 313
+  characters. Evidence: `reports/2026-09-08_persist_hang_logs.txt`.
+
+### ISS-0063 — a dead worker's lease holds the conversation; nothing wakes the queue when it expires
+
+- **What it was:** a killed worker's fixed 590 s lease kept the conversation
+  busy, and when it expired nothing spawned a worker for the queued messages,
+  so the bot stayed silent.
+- **Fixed** 2026-09-07 (roadmap 22): a 60 s lease the worker extends every
+  20 s, every queued update starts a worker, one that finds the conversation
+  held waits out a lease; seen live 2026-09-07 15:51. Evidence:
+  `reports/2026-09-07_worker_timeout_logs.txt`.
+
+### ISS-0062 — the retry of a killed turn sends the final answer a second time
+
+- **What it was:** a turn killed after its answer had gone out resumed from a
+  checkpoint that did not carry the delivery, and sent the same long message
+  again.
+- **Fixed** 2026-09-07 (roadmap 22): `Agent.delivered_before` reads what the
+  checkpoint holds for the same update id and the adapter does not send it
+  again; seen live 2026-09-07. Evidence:
+  `reports/2026-09-07_worker_timeout_logs.txt`.
+
+### ISS-0061 — a turn runs up to the worker's own timeout and is killed while persisting
+
+- **What it was:** a long Blender turn reached `persist_started` at 598 s and
+  the platform cancelled it at the worker's 600 s timeout, losing the turn's
+  history.
+- **Fixed** 2026-09-07 (roadmap 22): the worker's timeout is four hours as a
+  guard and the turn stays bounded by its health check; what was killed at
+  600 s here was most likely the hung `persist` of ISS-0064. Evidence:
+  `reports/2026-09-07_worker_timeout_logs.txt`.
+
+### ISS-0058 — a command's temporary files and caches live on the Volume path, which is too long for a Unix socket and owned by the wrong user
+
+- **What it was:** `HOME` and `TMPDIR` pointed at the workspace on the Volume,
+  so npm's cache carried the wrong uid and Chrome could not bind a socket
+  ("Socket path too long").
+- **Fixed** 2026-09-08 (roadmap 17): home and temp are the container's; seen
+  deployed the same day. Evidence:
+  `reports/2026-09-08_item17_research.md` §9.
 
 ### ISS-0057 — a turn that is working is ended by a clock that counts its tools' run time
 
-- **Status:** fixed 2026-09-07: the step, tool-call and seconds ceilings are
-  gone; after `turn_check_seconds` (600) of work the harness asks the model,
-  between steps, whether it is on track, and the model decides
-  (`TurnWatch`, `turn_health_check`; DECISIONS 2026-09-07). Deployed with
-  the next control-plane deploy.
-- **Seen:** 2026-09-06, run `489357808c644569b787da03ac500663`: a Blender
-  turn cut at 349 s one step before the check that would have finished it;
-  model time 86 s, tools 231 s against `turn_max_seconds` 300.
-- **Related:** ISS-0056, ISS-0054.
+- **What it was:** a Blender turn doing real work was cut at 349 s because
+  `turn_max_seconds` counted tool run time and provider queue.
+- **Fixed** 2026-09-07: the step, tool-call and seconds ceilings are gone;
+  after `turn_check_seconds` the harness asks the model between steps whether
+  it is on track (`TurnWatch`, `turn_health_check`; DECISIONS 2026-09-07).
+
+### ISS-0056 — a turn spends seconds between its own steps that no model, tool or store accounts for
+
+- **What it was:** 18.3 s of a 71.8 s turn belonged to no model call, tool or
+  store round trip.
+- **Fixed** 2026-09-10 as named (roadmap 18): everything the harness spends
+  time on names itself on the turn's trace with a duration; the harness's own
+  cost is 2–4 s and the block a person feels is the cold worker per message.
+  Evidence: `reports/2026-09-08_item18_harness_seconds.md`.
 
 ### ISS-0055 — a call that spends its whole output cap on reasoning is delivered as an answer with nothing said
 
-- **Status:** fixed 2026-09-06, deployed: an empty completion at
-  `finish_reason=length` ends the turn with a message saying the cap was
-  spent before a visible word (`silent_cut`, event `output_cut_silent`);
-  `reasoning_tokens` read from usage into `model_finished`.
-- **Seen:** 2026-09-06, G on GLM through CometAPI: 8,192 tokens out, no
-  visible text, logged `nothing_to_add`, turn `answer_delivered`.
-- **Evidence:** `reports/2026-09-06_hosted_model_cometapi.md` §4.
+- **What it was:** a completion that spent 8,192 tokens on reasoning and
+  emitted no visible text was delivered as the turn's answer.
+- **Fixed** 2026-09-06, deployed: an empty completion at
+  `finish_reason=length` ends the turn with a message saying the cap was spent
+  before a visible word (`silent_cut`). Evidence:
+  `reports/2026-09-06_hosted_model_cometapi.md` §4.
+
+### ISS-0053 — what a command installs outside the workspace is gone by the next command
+
+- **What it was:** packages installed into `/tmp` or the container were gone by
+  the next `run_command`, and the "new environment" line read to the model as
+  its own work being lost.
+- **Fixed** 2026-09-08 (roadmap 17): the "new environment" line is gone, the
+  brief says once what the container keeps, and the folder-per-task rule says
+  where a venv and packages live; scenario C 7/7 locally and deployed.
 
 ### ISS-0052 — a system message that is not first is refused by Qwen3.8's chat template
 
-- **Status:** fixed 2026-09-05: `build_messages` joins the leading system
-  messages into one and delivers a later system layer as the first text of
-  the next user message, so every template accepts the shape.
-- **Seen:** 2026-09-05, H on the INT4 App: `HTTP 400: System message must
-  be at the beginning`; every turn with facts or a summary failed.
+- **What it was:** every turn with facts or a summary failed on the INT4 App
+  with `HTTP 400: System message must be at the beginning`.
+- **Fixed** 2026-09-05: `build_messages` joins the leading system messages into
+  one and delivers a later system layer as the first text of the next user
+  message, so every template accepts the shape.
 
 ### ISS-0051 — the renderer's first `inspect_page` in a cold container fails before the browser is up
 
-- **Status:** fixed 2026-09-05: `_wait_for_debugger` waits a stated
-  fifteen seconds (`DEVTOOLS_READY_SECONDS`) instead of sixty polls of
-  50 ms; a browser that exits is still reported at once.
-- **Seen:** 2026-09-05, F on the INT4 App: `browser.load_failed` after
-  3.44 s on a fresh renderer, the retry succeeded.
+- **What it was:** the first look in a fresh renderer failed with
+  `browser.load_failed` after 3.44 s; the retry succeeded.
+- **Fixed** 2026-09-05: `_wait_for_debugger` waits a stated fifteen seconds
+  (`DEVTOOLS_READY_SECONDS`); a browser that exits is still reported at once.
 
 ### ISS-0050 — vLLM's ahead-of-time compile of the INT4 checkpoint dies tracing a renamed weight
 
-- **Status:** worked around 2026-09-05 (`VLLM_USE_AOT_COMPILE=0` on the
-  Qwen Apps); vLLM 0.26.0's, not the harness's. AOT serves a later process
-  loading the artifact, and the snapshot holds the compiled engine.
-- **Seen:** 2026-09-05, the INT4 App's fourth boot: `AttributeError:
-  'MergedColumnParallelLinear' object has no attribute 'weight_packed'`.
+- **What it was:** the INT4 App failed to boot with
+  `'MergedColumnParallelLinear' object has no attribute 'weight_packed'`;
+  vLLM 0.26.0's defect, not the harness's.
+- **Worked around** 2026-09-05: `VLLM_USE_AOT_COMPILE=0` on the Qwen Apps, the
+  snapshot holding the compiled engine. GPU Apps only.
 
 ### ISS-0049 — a failed server start is retried by the platform for as long as a request waits
 
-- **Status:** won't fix, a property of Modal; worked around 2026-09-05: a
-  configuration boots first in `dry_run`, a Function with `retries=0` and
-  no request behind it.
-- **Seen:** 2026-09-05, four containers in 13 minutes on one refused
-  ceiling; a client that gave up still drives restarts, its request stays
+- **What it was:** one refused ceiling started four containers in 13 minutes,
+  because a client that has given up still drives restarts from its request
   queued at the edge.
+- **Won't fix** — a property of Modal; worked around 2026-09-05: a
+  configuration boots first in `dry_run`, a Function with `retries=0` and no
+  request behind it. GPU Apps only.
 
 ### ISS-0048 — the store's connection, hung up on during a long model call, fails the next turn
 
-- **Status:** fixed 2026-09-05: the first statement after a pause is the
-  store's own (`SET LOCAL search_path`), so a hang-up surfacing there is
-  resent once on a fresh connection (`PostgresStore._opened`).
-- **Seen:** 2026-09-05, G's 457 s call on Qwen3.8, then `psycopg.
-  OperationalError: SSL connection has been closed unexpectedly` in
-  `persist`; the turn and the scenario run lost.
-- **Evidence:** `reports/2026-09-05_qwen38_second_model.md` §7.
+- **What it was:** after a 457 s model call `persist` died with `SSL connection
+  has been closed unexpectedly`, losing the turn and the scenario run.
+- **Fixed** 2026-09-05: the first statement after a pause is the store's own,
+  so a hang-up surfacing there is resent once on a fresh connection
+  (`PostgresStore._opened`). Evidence:
+  `reports/2026-09-05_qwen38_second_model.md` §7.
 
 ### ISS-0047 — a GPU snapshot taken with an uncommitted Volume path open cannot be restored
 
-- **Status:** fixed 2026-09-05, twice: a commit before the sleep was not
-  enough (compilers write through temporary names they rename); the Qwen
-  Apps no longer mount the compile-cache Volume on their `Server`, a
-  version's first boot compiles from nothing (~190 s, once) and every
-  restore skips compilation. The Gemma App keeps its Volume only because
-  its cache predates its snapshot.
-- **Seen:** 2026-09-05, restore failed with `failed to walk
+- **What it was:** restore failed with `failed to walk
   "…/torch_aot_compile/…": no such file or directory`, exit 128.
-- **Evidence:** `reports/2026-09-05_qwen38_second_model.md` §5.
+- **Fixed** 2026-09-05, twice: the Qwen Apps no longer mount the compile-cache
+  Volume on their `Server`, so a version's first boot compiles from nothing
+  (~190 s, once) and every restore skips compilation. Evidence:
+  `reports/2026-09-05_qwen38_second_model.md` §5.
 
 ### ISS-0045 — deployed, history search cannot find a file name by its parts
 
-- **Status:** fixed 2026-09-05: every Postgres search matches on
-  `plainto_tsquery` as well as the split query; scenario I passes deployed.
-- **Seen:** 2026-09-05, `search_history "config.ini"` found nothing: the
-  `simple` parser keeps `config.ini` as one token, `match_query` asked
-  `config | ini`; SQLite's FTS5 splits on the dot, so it passed locally.
+- **What it was:** `search_history "config.ini"` found nothing deployed, where
+  Postgres keeps the name as one token and SQLite's FTS5 splits on the dot.
+- **Fixed** 2026-09-05: every Postgres search matches on `plainto_tsquery` as
+  well as the split query; scenario I passes deployed.
 
 ### ISS-0044 — the first streamed request to a sleeping model endpoint dies at the read timeout
 
-- **Status:** fixed 2026-09-05, three parts: a timeout is never retried (a
-  timed-out request stays queued at Modal's edge, so each retry stacked a
-  copy); a refused connection or a "later" status before the first chunk
-  is; `MODEL_TIMEOUT` 600 s. The cause: Modal's edge answers a request
-  older than 150 s with a `303` the client did not follow, so a wake over
-  150 s never returned; the client follows up to eight hops, and
-  `context_limit` treats anything but a 200 with JSON as unknown.
-- **Seen:** 2026-09-05, `httpx.ReadTimeout` on the first call from a cold
-  GPU, twice; `deployed-2f3a23eb-80` after exactly 150 s.
-- **Related:** ISS-0054, ISS-0036.
+- **What it was:** the first call to a cold GPU endpoint died at the read
+  timeout, because Modal's edge answers a request older than 150 s with a `303`
+  the client did not follow, and each retry stacked another queued copy.
+- **Fixed** 2026-09-05, three parts: a timeout is never retried, a refused
+  connection or a "later" status before the first chunk is, the client follows
+  up to eight hops, and `MODEL_TIMEOUT` is 600 s.
 
 ### ISS-0043 — in the deployed container, `pip` is not `python3`'s pip
 
-- **Status:** fixed 2026-09-04: `pip` installed into the image's uv venv,
-  so `pip`, `python3 -m pip` and `python3` are one interpreter; the
-  cold-start probe checks it.
-- **Seen:** 2026-09-04, thread `e8c54e07`: `pip show fpdf2` → not found,
-  `python3 -c "import reportlab"` → 5.0.1; the model concluded it "cannot
-  install libraries".
-- **Evidence:** `reports/2026-09-04_v2_isolated_execution_review.md` §12.
+- **What it was:** `pip show fpdf2` and `python3 -c "import reportlab"`
+  disagreed, and the model concluded it "cannot install libraries".
+- **Fixed** 2026-09-04: `pip` installed into the image's uv venv, so `pip`,
+  `python3 -m pip` and `python3` are one interpreter; the cold-start probe
+  checks it. Evidence:
+  `reports/2026-09-04_v2_isolated_execution_review.md` §12.
 
 ### ISS-0042 — a command is refused as "already done" after the file it runs was rewritten
 
-- **Status:** fixed 2026-09-04: `succeeded_before` starts over when a
-  different call of a tool that changes the workspace (`mutates`)
-  succeeded in between; an identical call still counts against itself.
-- **Seen:** 2026-09-04, run `f25fd7cd` (P): the fourth version of
-  `make_pdf.py`, the one with a chance, refused as "already succeeded twice
-  with these same arguments".
-- **Related:** ISS-0019, ISS-0013.
+- **What it was:** the fourth, working version of `make_pdf.py` was refused as
+  "already succeeded twice with these same arguments".
+- **Fixed** 2026-09-04: `succeeded_before` starts over when a different call of
+  a tool that changes the workspace (`mutates`) succeeded in between; an
+  identical call still counts against itself.
 
 ### ISS-0041 — within one turn, the errors a command met are shortened away while the model is still fixing them
 
-- **Status:** fixed 2026-09-04: the turn in progress is never shortened;
-  stubs are for stored history only (`shortened` in
-  `app/context/window.py`; DECISIONS 2026-09-03 amended). Seen live:
-  twelve steps, `stubbed=0` on each.
-- **Seen:** 2026-09-04, runs `510fe752`, `3b3c86d8` (P): six rewrites of
-  one script, tracebacks stubbed to "900 characters; shortened, call the
-  tool again", attempt 4 repeated attempt 1's error exactly.
-- **Related:** ISS-0022, the mirror.
+- **What it was:** tracebacks the model was working through were stubbed to
+  "900 characters; shortened, call the tool again", and attempt 4 repeated
+  attempt 1's error exactly.
+- **Fixed** 2026-09-04: the turn in progress is never shortened; stubs are for
+  stored history only (`app/context/window.py`; DECISIONS 2026-09-03 amended).
 
 ### ISS-0038 — a package is installed into the machine's own Python rather than the workspace
 
-- **Status:** fixed 2026-09-04, by the boundary: on Windows a command runs
-  under a write-restricted token and the OS refuses every write outside the
-  workspace (`app/tools/shell_windows.py`); the workspace venv is the
-  `python` a command sees. Deployed, the container is the boundary.
-- **Seen:** 2026-09-04, P locally: `pip install reportlab` landed in
+- **What it was:** `pip install reportlab` locally landed in
   `c:\python314\lib\site-packages`.
-- **Evidence:** `reports/2026-09-04_v2_isolated_execution_review.md` §9.
+- **Fixed** 2026-09-04 by the boundary: on Windows a command runs under a
+  write-restricted token (`app/tools/shell_windows.py`) and the workspace venv
+  is the `python` it sees; deployed, the container is the boundary. Evidence:
+  `reports/2026-09-04_v2_isolated_execution_review.md` §9.
 
 ### ISS-0034 — a worker's lease outlives the container's own kill by five minutes
 
-- **Status:** fixed 2026-09-04: `LEASE_SECONDS` 590 against the 600 s
-  timeout; the turn is taken up from its checkpoint by the next claim.
-- **Seen:** 2026-09-03, code review: claim 900 s against a 600 s
-  container, so a killed worker held the conversation up to fifteen
-  minutes.
+- **What it was:** a 900 s claim against a 600 s container let a killed worker
+  hold the conversation for up to fifteen minutes.
+- **Fixed** 2026-09-04: `LEASE_SECONDS` 590 against the 600 s timeout; the turn
+  is taken up from its checkpoint by the next claim.
 
 ### ISS-0032 — the conversation folds every twelve messages whatever their size
 
-- **Status:** fixed 2026-09-04: `summarize_after` 60 as a fallback for a
-  server that reports no window; the size trigger is the rule. On
-  OpenRouter, which reports no window, the fallback bound again (a fold
-  every ~15 tool turns at 13–25k of 131k), so on 2026-09-07 the count rule
-  was removed: a fold happens only when the request would not fit the set's
-  budget, or on `/compact`.
-- **Seen:** 2026-09-03, thread `4fd35f80`: four folds in sixteen turns at
-  4–10k tokens against 52k.
+- **What it was:** four folds in sixteen turns at 4–10k tokens against a 52k
+  window, because the trigger was a message count.
+- **Fixed** 2026-09-04 (`summarize_after` 60 as a fallback, size as the rule)
+  and completed 2026-09-07, when the count rule was removed: a fold happens
+  only when the request would not fit the set's budget, or on `/compact`.
 
 ### ISS-0031 — a tool call cut at the output limit is reported to the model as bad JSON
 
-- **Status:** fixed 2026-09-04: `finish_reason == "length"` marks the call
-  `cut`, refused as `output_cut` naming the limit; `MODEL_MAX_TOKENS` 8192.
-- **Seen:** 2026-09-03, code review: a `write_file` past the cap arrived
-  with unterminated arguments and "bad arguments … could not be read as
-  JSON".
-- **Related:** ISS-0055.
+- **What it was:** a `write_file` past the output cap arrived with unterminated
+  arguments and was reported as unreadable JSON.
+- **Fixed** 2026-09-04: `finish_reason == "length"` marks the call `cut`,
+  refused as `output_cut` naming the limit; `MODEL_MAX_TOKENS` 8192.
 
 ### ISS-0030 — the summarizer is handed every tool result in full
 
-- **Status:** fixed 2026-09-04: the summarizer reads the same stubs the
-  model reads (`shortened(keep=0)`).
-- **Seen:** 2026-09-03, folds of thread `4fd35f80` carrying whole page
-  fetches, ~100k characters for a sentence of summary.
+- **What it was:** folds carried whole page fetches, ~100k characters, for a
+  sentence of summary.
+- **Fixed** 2026-09-04: the summarizer reads the same stubs the model reads
+  (`shortened(keep=0)`).
 
 ### ISS-0029 — a summarizer request that does not fit fails a turn whose answer was already delivered
 
-- **Status:** fixed 2026-09-04: both folds catch `BackendError` and record
+- **What it was:** a fold whose request exceeded the window failed the turn
+  after its answer had gone out.
+- **Fixed** 2026-09-04: both folds catch `BackendError` and record
   `context_fold_failed`; the turn keeps its answer.
 
 ### ISS-0027 — a shortened result's stub invited the model to run the tool again
 
-- **Status:** fixed 2026-09-03: the stub says only where the whole result
-  is stored (`read_history N`).
-- **Seen:** 2026-09-03, `loop_live` I: "call the tool again for a fresh
-  one" taken, the file gone, the position never used.
+- **What it was:** the stub said "call the tool again for a fresh one", the
+  model did, and the file was gone.
+- **Fixed** 2026-09-03: the stub says only where the whole result is stored
+  (`read_history N`).
 
 ### ISS-0026 — reading a call back did not show what the call returned
 
-- **Status:** fixed 2026-09-03: `read_history` of a message that made calls
-  appends their results; a `search_history` hit on a call shows its result.
-- **Seen:** 2026-09-03, `loop_live` H: the failed write found at #1, its
-  error at #2, "no error was recorded".
+- **What it was:** a failed write was found in history without its error, and
+  the model concluded "no error was recorded".
+- **Fixed** 2026-09-03: `read_history` of a message that made calls appends
+  their results; a `search_history` hit on a call shows its result.
 
 ### ISS-0025 — `/compact` is recorded as a failed turn
 
-- **Status:** fixed 2026-09-03: the command finishes its trace as answered.
+- **What it was:** the command's trace ended unanswered, so the turn counted as
+  a failure.
+- **Fixed** 2026-09-03: the command finishes its trace as answered.
 
 ### ISS-0024 — the server does not say what it served from its cache
 
-- **Status:** fixed 2026-09-03 in the Gemma App's serve command
-  (`--enable-prompt-tokens-details`); GPU Apps only. The hosted providers
-  pass `cached_tokens` through.
+- **What it was:** the Gemma App's completions carried no `cached_tokens`, so a
+  prompt-cache hit could not be seen.
+- **Fixed** 2026-09-03 in the Gemma App's serve command
+  (`--enable-prompt-tokens-details`); GPU Apps only, the hosted providers pass
+  `cached_tokens` through.
 
 ### ISS-0023 — a forced fold finds nothing to cut in a tool-heavy tail
 
-- **Status:** fixed 2026-09-03: a fold may cut before any user or assistant
-  message, never before a tool result.
-- **Seen:** 2026-09-03, `/compact` on a 32-message thread whose newest 26
-  were one turn's calls answered "nothing to fold".
+- **What it was:** `/compact` on a 32-message thread whose newest 26 were one
+  turn's calls answered "nothing to fold".
+- **Fixed** 2026-09-03: a fold may cut before any user or assistant message,
+  never before a tool result.
 
 ### ISS-0022 — shortening the model's own file arguments made it write every file again
 
-- **Status:** fixed 2026-09-03: only tool results are stubbed; the model's
-  text and call arguments are never shortened.
-- **Seen:** 2026-09-03, run `a459c70e`: eleven writes in a cycle once its
-  first `write_file` content showed as `<1104 characters, shortened>`.
-- **Related:** ISS-0041.
+- **What it was:** a `write_file`'s own content came back as
+  `<1104 characters, shortened>` and the model wrote eleven files in a cycle.
+- **Fixed** 2026-09-03: only tool results are stubbed; the model's text and
+  call arguments are never shortened.
 
 ### ISS-0021 — the end-of-turn token reaches the chat as a message
 
-- **Status:** fixed 2026-09-03: the streamed reader drops `<eos>`,
-  `<end_of_turn>`, `<|im_end|>`, `<|eot_id|>`.
-- **Seen:** 2026-09-03, run `9c42241c`: a message saying `<eos>`.
+- **What it was:** a message saying `<eos>` was sent to the person.
+- **Fixed** 2026-09-03: the streamed reader drops `<eos>`, `<end_of_turn>`,
+  `<|im_end|>`, `<|eot_id|>`.
 
 ### ISS-0020 — a delivery is refused when the turn's budget is spent
 
-- **Status:** fixed 2026-09-03: a tool marked `delivers` (`send_file`)
-  still runs at the step, call or time ceiling (`tests/test_turn_bounds.py`).
-- **Seen:** 2026-09-03, run `9c42241c`: the twelfth step, one `send_file`
-  of four items, refused "answer now with what you already have".
+- **What it was:** the `send_file` that would have handed over the work was
+  refused at the step ceiling with "answer now with what you already have".
+- **Fixed** 2026-09-03: a tool marked `delivers` (`send_file`) still runs at
+  the step, call or time ceiling (`tests/test_turn_bounds.py`).
 
 ### ISS-0019 — the page is written twice, identically, after the plan is updated
 
-- **Status:** mitigated 2026-09-04: `write_file` with content the file
-  already has answers `unchanged:`; the third byte-identical successful
-  call in a turn is answered "already done" without running
-  (`MAX_IDENTICAL_SUCCESSES`). The model's habit is not fixed; Gemma-era,
-  not seen on the hosted model.
-- **Seen:** 2026-09-03, five turns; worst run `9c42241c`, `index.html`
-  written seven times byte-identically.
-- **Related:** ISS-0042, ISS-0016.
+- **What it was:** `index.html` written up to seven times byte-identically in
+  one turn.
+- **Mitigated** 2026-09-04: `write_file` with content the file already has
+  answers `unchanged:`, and the third byte-identical successful call in a turn
+  is answered "already done" without running (`MAX_IDENTICAL_SUCCESSES`); the
+  model's habit is not fixed, and it is Gemma-era.
 
 ### ISS-0017 — the screenshot the person receives is of the page without its CDN styles
 
-- **Status:** fixed 2026-09-03, deployed: the local artifact may reach the
-  public internet under the renderer's own policy (the human's decision).
-- **Seen:** 2026-09-03, run `253ede5d`: Tailwind from a CDN refused by the
-  offline session, the unstyled page sent as the screenshot.
-- **Related:** ISS-0014.
+- **What it was:** Tailwind from a CDN was refused by the offline session and
+  the unstyled page was sent as the screenshot.
+- **Fixed** 2026-09-03, deployed: the local artifact may reach the public
+  internet under the renderer's own policy (the human's decision).
 
 ### ISS-0014 — the page was looked at without storage or its own files
 
-- **Status:** fixed 2026-09-03: the offline session serves the workspace at
-  `http://artifact.local/` through request interception (`serve_directory`),
-  so the page has an origin, storage and its siblings; a request elsewhere
-  is reported as refused.
-- **Seen:** 2026-09-03, twice: a `data:` URL, so `localStorage` threw and
-  `styles.css` resolved to nothing.
+- **What it was:** the page was opened as a `data:` URL, so `localStorage`
+  threw and `styles.css` resolved to nothing.
+- **Fixed** 2026-09-03: the offline session serves the workspace at
+  `http://artifact.local/` through request interception (`serve_directory`), so
+  the page has an origin, storage and its siblings.
 
 ### ISS-0013 — the repeat guard refused the call that would have worked
 
-- **Status:** fixed 2026-09-03: the identical-failure count starts over
-  when any tool has succeeded since the last identical failure
+- **What it was:** two looks failed on a missing file, the file was written,
+  and the third look was counted as the third failure, halting every tool.
+- **Fixed** 2026-09-03: the identical-failure count starts over when any tool
+  has succeeded since the last identical failure
   (`tests/test_repeated_failure.py`).
-- **Seen:** 2026-09-03, run `30fe463c`: two looks failed on a missing
-  file, the file written, the third look counted as the third failure;
-  every tool halted, 261 s.
-- **Related:** ISS-0012, ISS-0042.
 
 ### ISS-0012 — a corrupted path was obeyed, and a file nobody named was made
 
-- **Status:** fixed 2026-09-03: `resolve_in_root` refuses a path carrying
-  quotes or `<|`/`|>` as `bad_arguments`.
-- **Seen:** 2026-09-03, run `30fe463c`: `"Task Board test 4/index.html"<|"|>`
-  created as a file on the person's volume.
-- **Related:** ISS-0001.
+- **What it was:** `"Task Board test 4/index.html"<|"|>` was created as a file
+  on the person's volume.
+- **Fixed** 2026-09-03: `resolve_in_root` refuses a path carrying quotes or
+  `<|`/`|>` as `bad_arguments`.
 
 ### ISS-0011 — every look at a page carried the whole page back as its address
 
-- **Status:** fixed 2026-09-03 (4.5.5, `page_report`): no address reported
-  for a local document.
-- **Seen:** 2026-09-03, runs `8ffab1aa`, `240f09ea`: the `data:` URL, ~9 KB
-  of base64 per look, 17,764 input tokens by the third call.
+- **What it was:** the `data:` URL came back on every look, ~9 KB of base64,
+  17,764 input tokens by the third call.
+- **Fixed** 2026-09-03 (4.5.5, `page_report`): no address is reported for a
+  local document.
 
 ### ISS-0009 — the person reads an answer for a minute and then it is deleted
 
-- **Status:** fixed 2026-09-03, deployed: text that comes with a tool call
-  is delivered and kept; a draft a steering refuses is held on the screen;
-  the plan seam no longer objects, so the second generation it caused is
-  gone. The adapter drops a byte-identical closing repeat.
-- **Seen:** 2026-08-31, four turns: a narration previewed for up to 58 s,
-  withdrawn when the completion ended in a tool call, then 1–17 tokens of
-  answer. 2026-09-03: the same answer generated twice around a `send_file`
-  (169 + 134 output tokens).
-- **Evidence:** `reports/2026-09-03_v2_first_session_on_the_tool_system.md`.
-- **Related:** ISS-0035 (the approval path lacks these fixes).
+- **What it was:** a narration previewed for up to 58 s was withdrawn when the
+  completion ended in a tool call, and the same answer was generated twice
+  around a `send_file`.
+- **Fixed** 2026-09-03, deployed: text that comes with a tool call is delivered
+  and kept, a draft a steering refuses is held on the screen, the plan seam no
+  longer objects, and the adapter drops a byte-identical closing repeat.
+  Evidence: `reports/2026-09-03_v2_first_session_on_the_tool_system.md`.
 
 ### ISS-0007 — `tool_failed` carries no reason
 
-- **Status:** fixed 2026-09-03 with the typed outcome of 4.5: `code` and
-  `message` on every `tool_failed`, printed by `tools/show_run.py`.
+- **What it was:** a failed tool was recorded with no code and no message.
+- **Fixed** 2026-09-03 with the typed outcome of 4.5: `code` and `message` on
+  every `tool_failed`, printed by `tools/show_run.py`.
 
 ### ISS-0006 — a path meant as a directory becomes a file, and poisons the folder
 
-- **Status:** fixed 2026-08-31: `write_file` refuses a path ending in a
-  separator and says directories are made for you; an ancestor in the way
-  is named.
-- **Seen:** 2026-08-31, "Personal Task Board 3": `write_file "Board 3/"`
-  made a file, every later write into the folder failed, files scattered
-  into the workspace root.
-- **Related:** ISS-0005.
+- **What it was:** `write_file "Board 3/"` made a file, after which every write
+  into that folder failed and files scattered into the workspace root.
+- **Fixed** 2026-08-31: `write_file` refuses a path ending in a separator and
+  says directories are made for you; an ancestor in the way is named.
 
 ### ISS-0005 — an OS error escapes the filesystem tools unwrapped
 
-- **Status:** fixed 2026-08-31, and since 2026-09-03 every filesystem
-  failure is an `fs.*` code with the `strerror` as detail; an exception
-  that still escapes any tool becomes an `internal` result, not a failed
-  turn.
-- **Related:** ISS-0006.
+- **What it was:** an OS error from a filesystem tool reached the turn
+  unwrapped.
+- **Fixed** 2026-08-31, and since 2026-09-03 every filesystem failure is an
+  `fs.*` code with the `strerror` as detail; an exception that still escapes
+  any tool becomes an `internal` result, not a failed turn.
 
 ### ISS-0003 — a made file is handed over as prose instead of sent
 
-- **Status:** mitigated 2026-09-03: the brief says where the person is
-  (`Delivery.place`), that a path, link or markdown image delivers nothing;
-  every tool that leaves a workspace item says `to hand it to the person:
-  send_file(path="…")`. Held on the next turns and the 2026-09-04 G; the
-  answer still carries a markdown path beside the send. A mechanical
-  backstop in the adapter was rejected as a crutch.
-- **Seen:** 2026-08-30, `[house.html](house.html)` and no file; 2026-09-03
-  and 2026-09-05, files listed as paths and a screenshot as a markdown
-  image of a workspace path.
-- **Evidence:** `reports/2026-08-30_v2_prompt_assembly.md`,
+- **What it was:** files were named as paths or markdown links in the answer
+  and never sent, so nothing reached the person.
+- **Mitigated** 2026-09-03: the brief says where the person is
+  (`Delivery.place`) and every tool that leaves a workspace item says `to hand
+  it to the person: send_file(path="…")`; the answer still carries a markdown
+  path beside the send, and a mechanical backstop in the adapter was rejected
+  as a crutch. Evidence:
   `reports/2026-09-03_v2_first_session_on_the_tool_system.md`.
-- **Related:** ISS-0010, ISS-0020.
 
 ### ISS-0001 — the served tool parser loses what follows a long string argument
 
-- **Status:** mitigated 2026-08-31; upstream in vLLM's Gemma 4 parser
-  (vLLM 51284, 53431), GPU Apps only. The runtime survives any model's
-  emission: a call whose arguments are not a JSON object is refused once
-  as `bad_arguments` with the tool's signature, naming the fence as the
-  cause; a call that failed twice identically is refused a third time. A
-  corrected parser is in `tools/gemma4_parser.py`, tested offline, not
-  deployed.
-- **Seen:** 2026-08-30/31, three failed turns: `write_file` with `content`
-  and no `path`, the identical call up to eight times.
-- **Evidence:** `reports/2026-08-31_v2_todo_live_failure.md`.
-- **Related:** ISS-0012, ISS-0015.
+- **What it was:** vLLM's Gemma 4 tool parser dropped what followed a long
+  string, so `write_file` arrived with `content` and no `path`, the identical
+  call up to eight times.
+- **Mitigated** 2026-08-31, upstream in vLLM (51284, 53431), GPU Apps only: a
+  call whose arguments are not a JSON object is refused once as `bad_arguments`
+  naming the fence, and a call that failed twice identically is refused a third
+  time; a corrected parser is in `tools/gemma4_parser.py`, tested offline, not
+  deployed. Evidence: `reports/2026-08-31_v2_todo_live_failure.md`.

@@ -134,7 +134,8 @@ when nothing matches).
 `ConversationStore` (`app/memory/base.py`): threads by owner, messages,
 summaries, facts, per-turn context records, the person's current thread,
 full-text search. `SqliteStore` locally, `PostgresStore` (Neon) deployed,
-schema version 4, one contract suite. Checkpoints (`app/checkpoints.py`) are
+schema version 5 in both implementations, one contract suite; the deployed
+Neon database is still at 4 until a migration gate. Checkpoints (`app/checkpoints.py`) are
 in-flight graph state only. Telemetry (`app/telemetry/`) is a third store:
 `turn_runs` and `trace_events` per `run_id`, no message text.
 
@@ -167,7 +168,7 @@ mcp.<server>              <server>_<tool> for each allowed tool       (app/tools
 - **Filesystem:** every path resolves through `resolve_in_root`; a path
   carrying parser leftovers is refused; a trailing separator is refused with
   the reason.
-- **Commands:** `run_command` over a one-method `Runner` the profile
+- **Commands:** `run_command` over a `Runner` the profile
   chooses: locally a process in the workspace with the agent's environment
   withheld, on Windows under a write-restricted token; deployed the
   `run_command` Modal Function beside the renderer, no secret, the
@@ -177,7 +178,11 @@ mcp.<server>              <server>_<tool> for each allowed tool       (app/tools
   own, never the workspace. Nothing is activated or made for the model: a
   venv is the model's, in the task's folder, by name; the brief carries the
   one rule about a folder per piece of work. A container is disposable and
-  the brief says so once (roadmap 17, 2026-09-08).
+  the brief says so once (roadmap 17, 2026-09-08). A command may also be left
+  running: `background=true` returns its id at once, `command_output` reads
+  what it has written and `stop_command` ends it, and every background command
+  ends with the runner when the app closes. The three are offered only where
+  the runner has `start` — the local `LocalRunner` — and are absent deployed.
 - **MCP servers (roadmap 26):** `[mcp.servers.<name>]` in `config.toml`
   makes a capability `mcp.<name>`, granted with the defaults; the server's
   allowed tools become `<name>_<tool>` with the contract rendered from what
@@ -193,7 +198,8 @@ mcp.<server>              <server>_<tool> for each allowed tool       (app/tools
   asking; `careful` makes `write_file`, `edit_file` and `run_command` ask
   (`app/agent/mode.py`, `Toolbox.ask_for_changes`).
 - **Documents:** `app/attachments.py` admits uploads (image/audio become
-  model parts, any other file is saved under the workspace's `inbox/`);
+  model parts; any other file is written where the adapter says — the
+  workspace's `inbox/` deployed, the temp uploads folder locally);
   `app/documents.py`
   parses and renders; `read_document` returns bounded sections, `view_pages`
   renders PDF pages to PNG under `.agent/documents/`.
@@ -204,7 +210,10 @@ mcp.<server>              <server>_<tool> for each allowed tool       (app/tools
   the one tool on it: `action` open / snapshot / click / type / press /
   select / evaluate / screenshot / console, one call per action. `open` takes
   a workspace HTML file (served at `http://artifact.local/` with its sibling
-  files) or a public URL, both under the public request policy; every action
+  files) or a public URL. Deployed both are under the public request policy;
+  locally (`open=True`) `use_page` may also open localhost and private
+  addresses, while `fetch_page` still may not — an asymmetry recorded as a
+  gap, not a decision. Every action
   returns the title, console errors since the last call, the structure with
   refs and the visible text. The page lives in `Pages`, held by the
   `CapabilityRegistry` so a turn's calls find it whichever toolbox they come
@@ -248,8 +257,16 @@ the same update id was delivered before a death and is not sent again
 
 **Chainlit** (`ui/chainlit_app.py`, `ui/chainlit_history.py`): the same
 `Agent`, the same outbound rule, a stop button that records a `StopRequests`
-entry. Uploads go through `load_attachments()` (media only), not the
-Telegram document path; no `/mode` or `/plan` (roadmap item 7).
+entry. Uploads go through `admit_uploads` like Telegram's, with `uploads_dir`
+as the destination: a picture or a sound becomes a model part, any other file
+is written under the session's folder in the machine's temp and named to the
+model by its absolute path. The composer's menu carries
+`/compact /plan /mode /context /workspace` (`set_commands`). A turn is one
+collapsed step holding its tool calls, which opens on a click. The status
+card is `public/status.js` polling the app's own `/status` route for context,
+cost and credits. `MemoryStoreDataLayer` (`ui/chainlit_history.py`) rebuilds a
+conversation from the store when the person reopens it, the harness's own
+notes shown again where they were said.
 
 ## Deployment
 
@@ -296,9 +313,11 @@ application never imports them.
 
 - **User scope:** every store operation and every workspace path is rooted by
   canonical user id.
-- **Workspace:** path tools cannot leave the granted root; on Windows a
-  command cannot write outside it; deployed, the command container holds no
-  secret.
+- **Workspace:** deployed, path tools read and write only inside the granted
+  root. Locally the root is the conversation's working folder: reading reaches
+  any path on the machine, writing goes inside the folder, and a write
+  elsewhere runs only after the person's yes. On Windows a command cannot
+  write outside the root; deployed, the command container holds no secret.
 - **Consequence:** `requires_approval` pauses the graph through a durable
   interrupt; work inside the workspace and presentation to the same person
   are autonomous.

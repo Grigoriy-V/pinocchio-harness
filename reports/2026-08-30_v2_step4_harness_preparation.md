@@ -3,7 +3,7 @@
 **Date:** 2026-08-30
 **Status:** preparation. Nothing here authorizes implementation; each sub-step
 starts on its own word from the human.
-**Design origin:** `docs/step4_agent_harness_preparation_ru.md`, the human's own
+**Design origin:** `reports/archive/step4_agent_harness_preparation_ru.md`, the human's own
 handoff, with DeepSeek Harness as the primary lifecycle reference and Hermes as
 a secondary practical one.
 **Grounded against:** `app/agent/graph.py`, `harness.py`, `task_graph.py`,

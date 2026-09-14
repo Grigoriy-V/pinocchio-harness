@@ -35,7 +35,9 @@ From a conversation in Telegram, with nothing but the request:
 - **Looking, and using**: a page it made, opened in a real browser it drives
   one action at a time (click, type, press, evaluate, screenshot, console);
   a document's pages; a web page.
-- **The web**: search (Firecrawl), a bounded direct fetch, a browser view.
+- **The web**: `search_web` (Firecrawl), `fetch_page` for bounded direct
+  text, `use_page` for a browser it drives, and `view_web_page` for one
+  rendered view — the last pending removal (roadmap 21).
 - **Handing over**: a file reaches the person only through `send_file`;
   looking is never sending.
 - **Memory and history**: facts the person asked it to keep; search and
@@ -159,8 +161,7 @@ Copy-Item env.example .env
 
 Put the chosen set's key in `.env` (`MODEL_OR_API_KEY` for the OpenRouter
 default named in `config.toml`; or point the plain `[model]` section at any
-OpenAI-compatible server, vLLM 0.26 with Gemma 4 12B being the tested one),
-then:
+OpenAI-compatible server), then:
 
 ```powershell
 .venv\Scripts\python.exe -m chainlit run ui/chainlit_app.py --port 8100 --headless
@@ -180,14 +181,15 @@ operations map. To use the harness from Claude Code, open the repository:
 ## Layout
 
 ```text
-app/        agent (the loop), context, memory, models, tools, telemetry
+app/        agent (the loop), context, memory, models, tools, telemetry, api (stub)
 ui/         Chainlit and Telegram adapters
+public/     the local app's status card (status.js, status.css)
 deploy/     Modal apps: control plane, model, autoscale
 scripts/    live scenarios and their families, doctor, measurements
 tools/      show_run, run_named_seconds, showcase, export_trajectories, judge_pack, judge_unblind, work_log, mcp_server
 tests/      offline suite
-docs/       PRODUCT, PROJECT_MAP, CODEMAP, OPERATIONS_MAP, MCP
-reports/    evidence, dated, with the two JSONL journals
+docs/       PRODUCT, PROJECT_MAP, CODEMAP, OPERATIONS_MAP, MCP, v2_tool_system
+reports/    evidence, dated, with the two JSONL journals and archive/
 ```
 
 ## Where things are decided
