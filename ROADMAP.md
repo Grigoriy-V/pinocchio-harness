@@ -11,10 +11,8 @@ deployed OpenClaw (the human, 2026-09-14). The audit of 2026-09-14
 (`reports/2026-09-14_harness_audit.md`) names what holds it below that;
 the queue below is the order approved for working through it.
 
-**Current approved step:** 28, the records brought to the current state
-before any code changes, approved 2026-09-14 (the human: "до начала
-работы обновить доки, AGENTS и все читаемые файлы, иначе опять будем
-упираться в старую архитектуру"). Then 27 step 3.
+**Current approved step:** 28 done 2026-09-14 (commit `60dcdaa`); next is
+27 step 3, on the human's word.
 
 Observed defects are in `ISSUES.md`, which is not a plan and authorizes
 nothing. `docs/PRODUCT.md` is the product contract; `docs/PROJECT_MAP.md`,
@@ -92,27 +90,17 @@ one line each, evidence in the linked report:
   anywhere, write in the folder, elsewhere after a yes); a command kept
   running in the background locally; ISS-0071..0076 fixed on the way.
   `reports/2026-09-14_profiles_and_platforms.md`.
+- **28, the records brought to the current state** (2026-09-14): the goal
+  and the references in `AGENTS.md`, a derived-limits rule, gates without
+  GPU; `ISSUES.md` fixed entries under Closed; `DECISIONS.md` catalog and
+  order regenerated; the maps at schema 5, tokens, the Chainlit adapter as
+  built; sixteen closed-era documents in `reports/archive/`. Accepted by the
+  greps named in the step. `reports/2026-09-14_harness_audit.md`.
 
 ## Queue
 
 One item at a time; the human's word starts each. Order approved
 2026-09-14 (the human), after the audit.
-
-28. **The records brought to the current state.** Approved 2026-09-14.
-    Every document an agent reads first says what the code is today:
-    `ROADMAP.md` (this rewrite), `AGENTS.md` (the vLLM gate gone, the
-    one-application assumption replaced by a concurrency rule, the
-    literal-instructions rule without its case), `ISSUES.md` (fixed
-    entries under Closed, Closed shortened), `DECISIONS.md` (catalog and
-    order regenerated, the fresh-shell entry amended by the background
-    fact, duplicates of rules replaced by links), the four maps (schema 5
-    in code and 4 deployed, context sizes in tokens, the Chainlit adapter
-    as built, the runner with its background mode, localhost locally, the
-    new owners in `CODEMAP`, the Model Apps section cut), `README.md`,
-    `chainlit.md`, the sixteen orphaned documents moved to
-    `reports/archive/`. Accepted when `grep` over the read documents finds
-    no `context_fraction`, no inbox locally, no vLLM as current, no schema
-    4 in code, and every symbol `CODEMAP` names exists.
 
 27. **The local profile as the references**, step 3 (steps 1 and 2 in
     Done). Approved 2026-09-13; step 3 widened 2026-09-14 (the human) by
