@@ -556,7 +556,13 @@ def test_a_background_command_runs_hidden_is_read_and_stopped(workspace: Path) -
     assert runner.peek("bg-2") is None
 
 
-def test_a_runner_without_start_says_so(workspace: Path) -> None:
+def test_a_runner_that_cannot_keep_a_process_offers_no_background(workspace: Path) -> None:
+    """The deployed profile's runner runs a command to its end in a Function:
+    no `background`, no `command_output`, no `stop_command`, and the brief
+    does not mention them."""
+
     tools = Toolbox(shell_tools(workspace, Scripted(Finished(0, "", False, 0.0))))
-    outcome, _ = executed(tools, "run_command", command="x", background=True)
-    assert outcome.failure is not None and "not possible here" in outcome.failure.message
+    assert tools.names == ("run_command",)
+    [schema] = tools.schemas()
+    text = str(schema)
+    assert "background" not in text and "stop_command" not in text

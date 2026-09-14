@@ -616,7 +616,7 @@ def shell_tools(root: Path, runner: Runner) -> list[Tool]:
             raise ToolError(f"no background command {id!r}", code=BAD_ARGUMENTS)
         return _background_report(running, stopped=True)
 
-    return [
+    tools = [
         Tool(
             name="run_command",
             description=(
@@ -630,10 +630,15 @@ def shell_tools(root: Path, runner: Runner) -> list[Tool]:
                 "is missing here, check with a command. The command cannot read from the "
                 "terminal: pass answers on the command line or with flags. "
                 f"`timeout_seconds` (default {DEFAULT_TIMEOUT}, at most {MAX_TIMEOUT}) "
-                "kills it if it runs longer. A command that should keep running, a dev "
-                "server or a watcher, is started with background=true: it runs hidden, "
-                "you get its id at once, command_output reads what it wrote and "
-                "stop_command ends it. Never use start, nohup or & for that."
+                "kills it if it runs longer."
+                + (
+                    " A command that should keep running, a dev server or a watcher, "
+                    "is started with background=true: it runs hidden, you get its id "
+                    "at once, command_output reads what it wrote and stop_command "
+                    "ends it. Never use start, nohup or & for that."
+                    if can_background
+                    else ""
+                )
             ),
             returns=(
                 "the exit code and the output (stdout and stderr), cut with a note when "
@@ -652,10 +657,16 @@ def shell_tools(root: Path, runner: Runner) -> list[Tool]:
                         "type": "integer",
                         "description": f"Seconds before the command is killed; default {DEFAULT_TIMEOUT}.",
                     },
-                    "background": {
-                        "type": "boolean",
-                        "description": "Leave the command running and return its id at once. Default false.",
-                    },
+                    **(
+                        {
+                            "background": {
+                                "type": "boolean",
+                                "description": "Leave the command running and return its id at once. Default false.",
+                            }
+                        }
+                        if can_background
+                        else {}
+                    ),
                 },
                 "required": ["command"],
                 "additionalProperties": False,
@@ -666,6 +677,12 @@ def shell_tools(root: Path, runner: Runner) -> list[Tool]:
             # a runner that hangs is still stopped.
             timeout_seconds=MAX_TIMEOUT + 30,
         ),
+    ]
+    if not can_background:
+        # A remote runner (the deployed profile) runs a command to its end in
+        # a Function; nothing there can keep a process, so nothing is offered.
+        return tools
+    tools += [
         Tool(
             name="command_output",
             replay_safe=True,
@@ -699,3 +716,4 @@ def shell_tools(root: Path, runner: Runner) -> list[Tool]:
             # workspace: careful mode does not ask for it.
         ),
     ]
+    return tools
