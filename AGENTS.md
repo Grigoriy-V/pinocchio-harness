@@ -57,6 +57,13 @@ Discussion, analysis and roadmap edits do not authorize implementation,
 downloads, destructive actions, publication or priced work (a worker, a
 model call); the human's explicit word does.
 
+Before a large step is built, research how the references do it, unless
+that research already exists in `reports/` (the human, 2026-09-14): what
+each reference gives, how it is shaped, what it costs, and what of it this
+harness takes; written as a report with options, then the human's word on
+the shape. A step that widens a capability the references have starts
+there, not in the code.
+
 Within an approved step, own the complete loop:
 
 `inspect -> implement -> test -> diagnose -> fix -> evaluate -> record -> report`
