@@ -325,8 +325,8 @@ def capability_brief(
         # model that could not look at the PDF it had just read.
         lines.append(
             f"- The person can also send you any other file ({documents()}, or a "
-            "config, a script, an archive); it arrives in your workspace under "
-            "inbox/ and the turn names it."
+            "config, a script, an archive); it arrives as a file and the turn "
+            "names its path."
         )
     web = [
         name

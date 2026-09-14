@@ -283,8 +283,17 @@ async def confirm(question: list[dict[str, Any]]) -> dict[str, bool]:
 _sequence = itertools.count(1)
 
 
+_runtime: tuple[Agent, MemoryStopRequests] | None = None
+
+
 def create_runtime_with_stops() -> tuple[Agent, MemoryStopRequests]:
-    """One agent and the place a stop for it is recorded.
+    """One agent for this process and the place a stop for it is recorded.
+
+    One person, one machine, one agent: made once, shared by every session
+    and every reconnect, closed when the app shuts down. Chainlit ends a
+    chat on every websocket disconnect, and an agent closed there took its
+    background commands, its MCP sessions and its store with it (ISS-0072,
+    the dev server that was gone by the next message).
 
     `attachments` above renders both kinds of media inline, which is what the
     model is told it may produce. Chainlit runs the turn and the stop in one process, so memory is the whole
@@ -298,11 +307,15 @@ def create_runtime_with_stops() -> tuple[Agent, MemoryStopRequests]:
     # panel above reads the SQLite store; an agent writing to the other
     # database would split one conversation in two (and async psycopg does
     # not run on Windows's default loop, so the turn died before the model).
+    global _runtime
+    if _runtime is not None and not _runtime[0].closed:
+        return _runtime
     settings = AgentSettings(database_url="")
-    return (
+    _runtime = (
         create_agent(agent_settings=settings, delivery=DELIVERY, stops=stops, open=True),
         stops,
     )
+    return _runtime
 
 
 # The status card (`public/status.js`) asks this route while it is open. A
@@ -467,12 +480,16 @@ async def on_message(incoming: cl.Message) -> None:
     await drive(agent, thread_id, agent.steps(thread_id, message, next(_sequence)))
 
 
-@cl.on_chat_end
-async def end() -> None:
-    agent: Agent | None = cl.user_session.get("agent")
-    if agent is not None:
-        if _current.get("agent") is agent:
-            _current.clear()
+@cl.on_app_shutdown
+async def shutdown() -> None:
+    """The one agent closes with the app: its background commands, its MCP
+    sessions, its store."""
+
+    global _runtime
+    if _runtime is not None:
+        agent, _stops = _runtime
+        _runtime = None
+        _current.clear()
         await agent.aclose()
 
 

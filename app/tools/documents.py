@@ -185,7 +185,9 @@ def document_tools(root: Path, *, open_reads: bool = False) -> list[Tool]:
                 "required": ["path"],
                 "additionalProperties": False,
             },
-            run=lambda path, from_section=1: read_document(resolved, path, from_section),
+            run=lambda path, from_section=1: read_document(
+                resolved, path, from_section, confined=confined
+            ),
         ),
         Tool(
             name="view_pages",
@@ -222,6 +224,8 @@ def document_tools(root: Path, *, open_reads: bool = False) -> list[Tool]:
                 "required": ["path"],
                 "additionalProperties": False,
             },
-            run=lambda path, page=1, pages=1: view_pages(resolved, path, page, pages),
+            run=lambda path, page=1, pages=1: view_pages(
+                resolved, path, page, pages, confined=confined
+            ),
         ),
     ]

@@ -150,3 +150,17 @@ def test_the_workspace_command_sets_shows_and_clears(workspace: Path, project: P
 
     assert str(workspace) in workspace_reply(agent, "t1", "off")
     assert folder_of(workspace, "t1") is None and agent.rewired == 2
+
+
+def test_an_open_document_tool_reads_a_document_anywhere(workspace: Path, tmp_path: Path) -> None:
+    """The person's own machine: a document is read by its path, wherever
+    it lies (the CV in the session's upload folder, 2026-09-14)."""
+
+    from app.tools.documents import document_tools
+
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    (elsewhere / "notes.md").write_text("# Notes\n\nkept elsewhere", encoding="utf-8")
+    tools = {tool.name: tool for tool in document_tools(workspace, open_reads=True)}
+
+    assert "kept elsewhere" in tools["read_document"].run(path=str(elsewhere / "notes.md"))
