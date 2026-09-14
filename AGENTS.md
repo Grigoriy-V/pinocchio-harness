@@ -123,6 +123,12 @@ the exact command. Never expand work into another repository.
 - Preserve unrelated user changes.
 - A changed configuration that produced recorded evidence gets a new identity;
   do not silently overwrite it.
+- An interface's behaviour lives in its adapter (the human, 2026-09-14):
+  what only Telegram needs is in `ui/telegram/`, what only Chainlit needs
+  is in `ui/chainlit_*`, and `app/` takes only what is the harness's or is
+  needed the same way by every interface. A UI problem is the adapter's
+  question first; it becomes core only when it is a harness problem or a
+  universal one.
 - The two profiles are one `app/` and stay two (the human, 2026-09-14).
   A change made for the local app says, in the report and in the record,
   what it does to the deployed profile and to Telegram, and `tests/test_profiles.py`
