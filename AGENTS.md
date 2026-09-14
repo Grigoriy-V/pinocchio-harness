@@ -123,6 +123,14 @@ the exact command. Never expand work into another repository.
 - Preserve unrelated user changes.
 - A changed configuration that produced recorded evidence gets a new identity;
   do not silently overwrite it.
+- The two profiles are one `app/` and stay two (the human, 2026-09-14).
+  A change made for the local app says, in the report and in the record,
+  what it does to the deployed profile and to Telegram, and `tests/test_profiles.py`
+  holds the deployed wiring shut; what an interface rebuilds on its side
+  (Chainlit reloads a conversation from the store, Telegram never does) is
+  named when it decides a design. The git tag `deployed` marks the commit
+  the running deploy was built from; `git log deployed..HEAD` is what a
+  deploy would carry.
 - Every path-taking model tool validates against an explicit allowed root.
   On the person's own machine (the local profile, 2026-09-13) the root is
   the conversation's working folder, reading reaches any path, and a write
