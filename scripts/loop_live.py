@@ -1270,5 +1270,11 @@ async def main() -> int:
 
 
 if __name__ == "__main__":
+    # A cp1251 console cannot print every character a model answers with (a
+    # "−" ended the 2026-09-17 todo run before its last checks were printed);
+    # the report is worth more than the glyph.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(errors="replace")
     loop_factory = asyncio.SelectorEventLoop if sys.platform == "win32" else None
     raise SystemExit(asyncio.run(main(), loop_factory=loop_factory))

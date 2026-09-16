@@ -1,0 +1,35 @@
+model provider novita/fp8 failed its retries; asking z-ai/fp8
+model provider novita/fp8 failed its retries; asking z-ai/fp8
+model provider novita/fp8 failed its retries; asking z-ai/fp8
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "D:\ML\local-multimodal-agent\scripts\loop_live.py", line 1274, in <module>
+    raise SystemExit(asyncio.run(main(), loop_factory=loop_factory))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\python312\Lib\asyncio\runners.py", line 194, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "c:\python312\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\python312\Lib\asyncio\base_events.py", line 687, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "D:\ML\local-multimodal-agent\scripts\loop_live.py", line 1268, in main
+    failed += (await local(selected))[0]
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\ML\local-multimodal-agent\scripts\loop_live.py", line 1218, in local
+    failed, rows = await run_scenarios(selected, factory(), telemetry, factory)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\ML\local-multimodal-agent\scripts\loop_live.py", line 1049, in run_scenarios
+    done(
+  File "D:\ML\local-multimodal-agent\scripts\loop_live.py", line 405, in done
+    misses = last.report(name, checks)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\ML\local-multimodal-agent\scripts\loop_live.py", line 310, in report
+    print(f"  answer      {(self.answer or '(nothing said)')[:160]}")
+  File "c:\python312\Lib\encodings\cp1251.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2212' in position 108: character maps to <undefined>

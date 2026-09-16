@@ -11,9 +11,10 @@ deployed OpenClaw (the human, 2026-09-14). The audit of 2026-09-14
 (`reports/2026-09-14_harness_audit.md`) names what holds it below that;
 the queue below is the order approved for working through it.
 
-**Current approved step:** 32 is built, tested and checked live
-(2026-09-17, `reports/2026-09-17_item32_build.md` §5). Next in the order:
-the todo measurement of 32 (below), on the human's word.
+**Current approved step:** 32 is built, tested, checked live and the todo
+measurement is done (2026-09-17, `reports/2026-09-17_item32_build.md`,
+`reports/2026-09-17_todo_measurement.md`); its result waits for the
+human's word (the options in the report), then 33.
 
 Observed defects are in `ISSUES.md`, which is not a plan and authorizes
 nothing. `docs/PRODUCT.md` is the product contract; `docs/PROJECT_MAP.md`,
@@ -168,12 +169,14 @@ one line each, evidence in the linked report:
 One item at a time; the human's word starts each. Order approved
 2026-09-14 (the human), after the audit.
 
-32. **The todo measurement.** The graph is done (above). On the human's
-    word (2026-09-17): `todo_write` always offered, the mini set
-    where short requests open no list, two or three long requests where a
-    list is expected, compared with the 2026-09-16 numbers; what to fix in
-    the tool (ISS-0016, a plan corrected by the person) and whether
-    `set_goal` stands beside it (8) is decided from that.
+32. **The todo measurement: the human's word on its result.** Measured
+    2026-09-17 (`reports/2026-09-17_todo_measurement.md`): in 14 turns with
+    `todo_write` offered, three of them long requests (Y, Z, 1) run with
+    and without the tool, GLM 5.3 Flash never opened a list and the offer
+    cost nothing (the same calls, seconds and outcomes as the control);
+    `set_goal` was not called either. The options (leave it offered; one G
+    turn with the list; drop it for this model) wait for the human's word;
+    ISS-0016's fixes and 8 wait with them.
 
 33. **The model layer and telemetry.** A per-model-family profile so the
     system-message flattening, the `<|"|>` repair and the end-marker
