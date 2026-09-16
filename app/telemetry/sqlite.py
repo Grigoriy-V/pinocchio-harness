@@ -13,6 +13,7 @@ import sqlite3
 from collections.abc import Sequence
 from pathlib import Path
 
+from app.memory.store import connect
 from app.telemetry.base import TelemetryStore, TraceEvent, TurnRun
 
 # `PRAGMA user_version` is SQLite's own integer on the file, so the database
@@ -114,8 +115,7 @@ class SqliteTelemetry(TelemetryStore):
         self.path = str(path)
         if self.path != ":memory:":
             Path(self.path).parent.mkdir(parents=True, exist_ok=True)
-        self._db = sqlite3.connect(self.path, check_same_thread=False)
-        self._db.row_factory = sqlite3.Row
+        self._db = connect(self.path)
         self._db.executescript(SCHEMA)
         self._db.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         self._db.commit()

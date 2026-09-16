@@ -567,3 +567,15 @@ def test_a_runner_that_cannot_keep_a_process_offers_no_background(workspace: Pat
     [schema] = tools.schemas()
     text = str(schema)
     assert "background" not in text and "stop_command" not in text
+
+
+def test_an_unknown_background_id_is_a_bad_argument_not_a_crash(workspace: Path) -> None:
+    """Audit 2026-09-14 §2: `BAD_ARGUMENTS` was never imported here."""
+
+    tools = Toolbox(shell_tools(workspace, LocalRunner()))
+
+    for name in ("command_output", "stop_command"):
+        message, _ = executed(tools, name, id="bg-9")
+        assert message.failure is not None
+        assert message.failure.code == "bad_arguments"
+        assert "no background command 'bg-9'" in message.failure.message

@@ -57,6 +57,7 @@ from ui.telegram.api import (
     PRODUCT_COMMANDS,
     Formatted,
     TelegramClient,
+    preview_text,
     split_message,
 )
 
@@ -2444,3 +2445,18 @@ def test_the_adapter_passes_the_runner_it_was_started_with(monkeypatch: pytest.M
     )._default_agent("someone")
 
     assert seen["runner"] is marker
+
+
+def test_a_preview_past_the_limit_keeps_its_beginning() -> None:
+    """Audit 2026-09-14 §2: `edit_message` showed the last piece of a long
+    draft, so a growing answer lost its start until it was finished."""
+
+    text = chr(10).join(f"line {index}" for index in range(1200))
+
+    shown = preview_text(text)
+
+    assert len(shown) <= MAX_MESSAGE_CHARS
+    assert shown.startswith("line 0" + chr(10) + "line 1" + chr(10))
+    assert shown.endswith(" …")
+    assert preview_text("short") == "short"
+    assert preview_text("") == "…"

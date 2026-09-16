@@ -24,6 +24,8 @@ from psycopg.pq import TransactionStatus
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
+from app.memory.postgres import CONNECTION_GUARDS
+
 from app.telemetry.base import TelemetryStore, TraceEvent, TurnRun
 from app.telemetry.sqlite import COLUMNS, filters
 
@@ -117,7 +119,7 @@ class PostgresTelemetry(TelemetryStore):
             migrate(self._connection, self.schema)
 
     def _open(self) -> psycopg.Connection:
-        connection = psycopg.connect(self.dsn, row_factory=dict_row)
+        connection = psycopg.connect(self.dsn, row_factory=dict_row, **CONNECTION_GUARDS)
         self._connection = connection
         return connection
 

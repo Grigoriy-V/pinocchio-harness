@@ -605,3 +605,35 @@ def test_a_cut_call_is_refused_by_naming_the_output_limit(tmp_path) -> None:
     assert "cut at the output limit" in prepared.refusal.message
     assert "smaller pieces" in prepared.refusal.message
     assert not (tmp_path / "a.html").exists()
+
+
+@pytest.mark.parametrize(
+    ("schema", "value", "said"),
+    [
+        ({"type": "string", "enum": ["files", "content"]}, "lines", "must be one of: files, content"),
+        ({"type": "integer", "minimum": 1}, 0, "must be at least 1"),
+        ({"type": "integer", "maximum": 600}, 601, "must be at most 600"),
+        ({"type": "string", "maxLength": 3}, "abcd", "must contain at most 3 character(s)"),
+        ({"type": "array", "items": {"type": "string"}}, ["a", 2], "argument 'x[1]' must be string"),
+        ({"type": "array", "items": {"enum": ["a", "b"]}}, ["a", "c"], "argument 'x[1]' must be one of: a, b"),
+    ],
+)
+async def test_every_keyword_a_schema_uses_is_enforced(schema: dict[str, Any], value: Any, said: str) -> None:
+    """Audit 2026-09-14 §2: the schema shown is the schema enforced."""
+
+    box = Toolbox([tool("pick", lambda x: str(x), {"type": "object", "properties": {"x": schema}})])
+
+    message = await run(box, "pick", x=value)
+
+    failure = failure_of(message)
+    assert failure.code == "bad_arguments"
+    assert said in failure.message
+
+
+async def test_a_value_inside_its_bounds_runs() -> None:
+    schema = {"type": "object", "properties": {"x": {"type": "integer", "minimum": 1, "maximum": 3}}}
+    box = Toolbox([tool("pick", lambda x: str(x), schema)])
+
+    message = await run(box, "pick", x=2)
+
+    assert message.failure is None

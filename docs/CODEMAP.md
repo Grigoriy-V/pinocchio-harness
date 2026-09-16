@@ -44,7 +44,7 @@ are not reachable by following imports from `app/`.
 | Change folding: when and how much | `app/context/summary.py`, `app/agent/graph.py` | `fold_older_messages`, `verbatim_floor`, `cut_for`, `keep_turns`, `fitted`, `context_folded` |
 | Estimate a request's size | `app/models/base.py`, `app/models/openai_compatible.py` | `estimate_tokens`, `measure_request`, `_calibrate` |
 | Change the store contract | `app/memory/base.py` | `ConversationStore`, `search_messages`, `active_thread` |
-| Change SQLite / PostgreSQL persistence | `app/memory/store.py`, `app/memory/postgres.py` | `SqliteStore`, `PostgresStore`, `SCHEMA_VERSION`, `_opened`, `match_query` |
+| Change SQLite / PostgreSQL persistence | `app/memory/store.py`, `app/memory/postgres.py` | `SqliteStore`, `PostgresStore`, `SCHEMA_VERSION`, `connect` (WAL, busy timeout; the telemetry file uses it too), `CONNECTION_GUARDS` (memory and telemetry), `_opened`, `match_query` |
 | Reach stored history from the model | `app/tools/history.py`, `app/tools/paging.py` | `search_history`, `read_history`, `page`, `offset` |
 | Change graph checkpoints | `app/checkpoints.py` | `CheckpointHandle`, `setup_postgres_checkpoints` |
 | Take up a turn a dead worker left | `app/agent/runtime.py`, `ui/telegram/adapter.py`, `ui/telegram/webhook.py` | `Agent.unfinished`, `resume_interrupted_events`, `Tool.replay_safe`, `same_request`, `LEASE_SECONDS`, `MAX_ATTEMPTS` |

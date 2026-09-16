@@ -8,6 +8,7 @@ model wording — only on the shape of the turn.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import Sequence
 from pathlib import Path
@@ -617,3 +618,27 @@ def test_a_null_trace_records_nothing_and_costs_nothing() -> None:
     NO_TRACE.finish("answer_delivered")
 
     assert NO_TRACE.run.run_id == ""
+
+
+def test_the_traced_backend_forwards_warm_and_estimate_tokens() -> None:
+    """Audit 2026-09-14 §2: without these the traced path folded on the
+    uncalibrated ratio and never woke a sleeping model."""
+
+    from app.telemetry.backend import TracedBackend
+
+    class Backend(ScriptedBackend):
+        warmed = 0
+
+        async def warm(self) -> bool:
+            self.warmed += 1
+            return True
+
+        def estimate_tokens(self, messages) -> int:
+            return 4242
+
+    inner = Backend()
+    traced = TracedBackend(inner, lambda: None)
+
+    assert asyncio.run(traced.warm()) is True
+    assert inner.warmed == 1
+    assert traced.estimate_tokens([]) == 4242

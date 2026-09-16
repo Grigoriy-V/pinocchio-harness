@@ -1,6 +1,6 @@
 # Roadmap
 
-**Updated:** 2026-09-14
+**Updated:** 2026-09-16
 
 **Project status:** the assistant is deployed and used over Telegram on a
 hosted model, and the same harness runs locally in Chainlit on the owner's
@@ -11,9 +11,8 @@ deployed OpenClaw (the human, 2026-09-14). The audit of 2026-09-14
 (`reports/2026-09-14_harness_audit.md`) names what holds it below that;
 the queue below is the order approved for working through it.
 
-**Current approved step:** none; 27 closed 2026-09-14 (the human: the
-smoke stands as the acceptance, the deploy is not touched). Next in the
-queue is 29, on the human's word.
+**Current approved step:** none; 29 closed 2026-09-16 (offline, no model,
+the deploy not touched). Next in the queue is 30, on the human's word.
 
 Observed defects are in `ISSUES.md`, which is not a plan and authorizes
 nothing. `docs/PRODUCT.md` is the product contract; `docs/PROJECT_MAP.md`,
@@ -105,20 +104,28 @@ one line each, evidence in the linked report:
   order regenerated; the maps at schema 5, tokens, the Chainlit adapter as
   built; sixteen closed-era documents in `reports/archive/`. Accepted by the
   greps named in the step. `reports/2026-09-14_harness_audit.md`.
+- **29, the defects the audit found** (2026-09-16, approved 2026-09-16 with
+  the two choices named: the refusal says "nowhere to ask", SQLite in WAL):
+  `BAD_ARGUMENTS` and `Any` imported in `shell.py`; schema validation
+  enforces `enum`, `minimum`, `maximum`, `maxLength` and an array's
+  `items` (`value_error`), so a `view_pages` past the schema's maximum is
+  refused by number rather than clamped; the telemetry store connects with
+  `CONNECTION_GUARDS`; the local SQLite files (store and telemetry) open in
+  WAL with a 5 s busy timeout through one `connect`; `TracedBackend`
+  forwards `warm` and `estimate_tokens`; a call that needs a yes where the
+  conversation cannot ask answers "nowhere to ask" instead of "the user
+  declined"; a Telegram preview past 4096 characters keeps its beginning
+  (`preview_text`); the shell contract no longer promises a `new
+  environment` line and the browser's cut note no longer names a parameter
+  `use_page` lacks. The read/write split and the open-root descriptions
+  were already closed in 27 step 3. Deployed: the same code, the guards
+  and the validation reach Telegram with the next deploy; nothing in the
+  adapter beyond the preview. 1263 offline tests.
 
 ## Queue
 
 One item at a time; the human's word starts each. Order approved
 2026-09-14 (the human), after the audit.
-
-29. **The defects the audit found** (`reports/2026-09-14_harness_audit.md`
-    §2): `BAD_ARGUMENTS` undefined in `shell.py`, schema validation that
-    ignores `enum`/`minimum`/`maximum`/`items`, the telemetry store without
-    connection guards, SQLite without WAL, `TracedBackend` not forwarding
-    `warm`/`estimate_tokens`, a silent decline without a checkpointer,
-    `edit_message` keeping the last piece, the read/write split by list
-    position, filesystem descriptions saying "inside the root" when open.
-    No model needed; offline tests for each.
 
 30. **Briefs and descriptions say what, not how.** Every text the model
     reads (`app/context/window.py`, `app/capabilities.py`, every tool's

@@ -601,7 +601,7 @@ def format_snapshot(
     count = len(shown)
     if count < len(kept):
         missing = len(kept) - count
-        shown.append(f"… {missing} more line(s) not shown; narrow with a query or raise max_chars")
+        shown.append(f"… {missing} more line(s) not shown; a query keeps only the lines that mention a word")
     return "\n".join(shown), count
 
 

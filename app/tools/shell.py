@@ -53,9 +53,9 @@ import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol
+from typing import Any, Protocol
 
-from .base import Tool, ToolError
+from .base import BAD_ARGUMENTS, Tool, ToolError
 
 try:  # the write boundary exists on Windows only; see shell_windows.py
     from . import shell_windows
@@ -711,7 +711,7 @@ def shell_tools(root: Path, runner: Runner) -> list[Tool]:
             ),
             returns=(
                 "the exit code and the output (stdout and stderr), cut with a note when "
-                "it is very long; `new environment` when the container is fresh."
+                "it is very long."
             ),
             leaves=(
                 "whatever the command wrote in your workspace, which stays; what it "

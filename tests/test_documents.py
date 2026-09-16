@@ -320,14 +320,12 @@ async def test_the_last_page_does_not_invite_a_next_one(tmp_path: Path) -> None:
     assert "view_pages again" not in (result.content[0].text or "")
 
 
-async def test_more_pages_than_the_server_accepts_are_never_returned(
+async def test_more_pages_than_the_schema_allows_are_refused_by_name(
     tmp_path: Path,
 ) -> None:
-    """Four images per prompt is the serving limit, and a turn may already use some.
-
-    Exceeding it is an HTTP 400, not a worse answer, so the cap is enforced here
-    rather than hoped for in the schema.
-    """
+    """The schema's `maximum` is what decides, and the model is told the
+    number rather than handed fewer pages than it asked for (audit
+    2026-09-14 §2: a silent clamp is a defect)."""
 
     (tmp_path / "many.pdf").write_bytes(a_pdf([f"page {index}" for index in range(1, 9)]))
 
@@ -335,7 +333,9 @@ async def test_more_pages_than_the_server_accepts_are_never_returned(
         ToolCall("v", "view_pages", {"path": "many.pdf", "page": 1, "pages": 8})
     )
 
-    assert sum(1 for part in result.content if part.kind == "image") == MAX_PAGES_PER_VIEW
+    assert result.failure is not None and result.failure.code == "bad_arguments"
+    assert f"argument 'pages' must be at most {MAX_PAGES_PER_VIEW}" in result.failure.message
+    assert not any(part.kind == "image" for part in result.content)
 
 
 async def test_looking_past_the_end_says_how_long_the_document_is(tmp_path: Path) -> None:

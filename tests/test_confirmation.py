@@ -251,7 +251,11 @@ async def test_without_checkpoints_a_consequential_call_is_refused_rather_than_r
     produced = await agent.answer("t1", user("Publish notes.txt."))
 
     assert not (workspace / "published.txt").exists()
-    assert body(produced[1]).startswith("error: the user declined")
+    # The answer is no, said as what it is: nobody declined, there was
+    # nowhere to ask (audit 2026-09-14 §2).
+    assert body(produced[1]).startswith("error: publish_file needs the person's approval")
+    assert "nowhere to ask" in body(produced[1])
+    assert "declined" not in body(produced[1])
     await agent.aclose()
 
 

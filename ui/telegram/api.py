@@ -73,6 +73,22 @@ class TelegramError(RuntimeError):
     """Telegram was reached but refused, or could not be reached at all."""
 
 
+def preview_text(text: str, limit: int = MAX_MESSAGE_CHARS) -> str:
+    """What one message shows of a text that may not fit in it: the beginning.
+
+    A preview is edited in place while the answer grows; past the limit the
+    person keeps reading from the start and sees that more is coming. The
+    whole text arrives when the answer is finished (`replace_message` sends
+    the rest after the first piece).
+    """
+
+    if not text:
+        return "…"
+    if len(text) <= limit:
+        return text
+    return split_message(text, limit - 2)[0] + " …"
+
+
 def split_message(text: str, limit: int = MAX_MESSAGE_CHARS) -> list[str]:
     """Cut text into sendable pieces, preferring a line break to a hard cut.
 
@@ -517,7 +533,7 @@ class TelegramClient:
                 {
                     "chat_id": chat_id,
                     "message_id": message_id,
-                    "text": split_message(text)[-1] if text else "…",
+                    "text": preview_text(text),
                 },
             )
         except TelegramError as error:

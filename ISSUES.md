@@ -224,7 +224,8 @@ in use since 2026-09-06; it is not seen on the hosted model.
   fresh connection), deployed 2026-09-08; a hang has not been seen since
   (one sent file, 06:08 UTC, persisted in 3.5 s). The cause stays unknown; what is
   bounded is the wait, and the row that waited is a hundred bytes now
-  (ISS-0065).
+  (ISS-0065). 2026-09-16 (roadmap 29): the telemetry store's connection
+  had been opened without the guards; it has them now, not yet deployed.
 - **Seen:** 2026-09-07 15:26–19:52 UTC, deployed. Turn 814913253 (a
   four-minute Blender render, 11 model calls, 10 tools) sent its answer and
   the video at 15:26:33 and entered `persist`; `persist_finished` never

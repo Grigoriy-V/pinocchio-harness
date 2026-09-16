@@ -214,6 +214,9 @@ deployed  Neon: store, checkpoints, inbox, turn_stops, turn_runs/trace_events
 ```
 
 A worker may disappear between turns; durable product state is only in these.
+The local SQLite files run in WAL mode with a 5 s busy timeout (`-wal` and
+`-shm` beside the file while open), so the Chainlit app and the MCP server
+write the same file without colliding.
 
 ## Web
 

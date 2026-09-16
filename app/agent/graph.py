@@ -226,6 +226,26 @@ def declined(call: ToolCall) -> Message:
     )
 
 
+def nowhere_to_ask(call: ToolCall) -> Message:
+    """The refusal when the call needs a yes and this conversation cannot ask.
+
+    Same answer as a no, said as what it is: the model can finish without the
+    call or say what it would have done, rather than take a no the person
+    never gave.
+    """
+
+    return refusal_message(
+        call,
+        ToolFailure(
+            code=DECLINED,
+            message=(
+                f"{call.name} needs the person's approval and this conversation "
+                "has nowhere to ask, so it was not run; do not try it again"
+            ),
+        ),
+    )
+
+
 def failed_before(messages: Sequence[Message], call: ToolCall) -> int:
     """How often this exact call has failed since anything last succeeded.
 
@@ -937,6 +957,7 @@ def build_agent(
         risky = [item for item in prepared if item.approval_required]
         allowed = dict.fromkeys((call.id for call in calls), True)
         if risky and checkpointer is None:
+            # Nowhere to ask, so the answer is no; the model is told which.
             allowed.update(dict.fromkeys((item.call.id for item in risky), False))
         elif risky:
             # One question for the whole batch, asked before any tool has run:
@@ -962,7 +983,9 @@ def build_agent(
                 trace.event(
                     "tool_failed", tool=call.name, status="declined", code=DECLINED
                 )
-                messages.append(declined(call))
+                messages.append(
+                    declined(call) if checkpointer is not None else nowhere_to_ask(call)
+                )
                 continue
             result = await executor.run(item)
             spent += 1

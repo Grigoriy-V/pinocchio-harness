@@ -254,6 +254,45 @@ def coerce_arguments(arguments: dict[str, Any], schema: dict[str, Any]) -> dict[
     return coerced
 
 
+def value_error(
+    name: str, value: Any, schema: dict[str, Any], json_types: dict[str, Any]
+) -> str | None:
+    """The first thing wrong with one argument against its schema, or `None`.
+
+    Every keyword a tool's schema uses is enforced here, so the contract the
+    model reads is the one that decides: type, `enum`, `minLength`,
+    `maxLength`, `minimum`, `maximum`, and an array's `items`.
+    """
+
+    expected = schema.get("type")
+    if expected in json_types and not json_types[expected](value):
+        return f"argument {name!r} must be {expected}"
+    choices = schema.get("enum")
+    if choices is not None and value not in choices:
+        return f"argument {name!r} must be one of: {', '.join(map(str, choices))}"
+    if isinstance(value, str):
+        shortest = schema.get("minLength")
+        if shortest is not None and len(value) < shortest:
+            return f"argument {name!r} must contain at least {shortest} character(s)"
+        longest = schema.get("maxLength")
+        if longest is not None and len(value) > longest:
+            return f"argument {name!r} must contain at most {longest} character(s)"
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        lowest = schema.get("minimum")
+        if lowest is not None and value < lowest:
+            return f"argument {name!r} must be at least {lowest}"
+        highest = schema.get("maximum")
+        if highest is not None and value > highest:
+            return f"argument {name!r} must be at most {highest}"
+    items = schema.get("items")
+    if isinstance(value, list) and isinstance(items, dict):
+        for index, item in enumerate(value):
+            problem = value_error(f"{name}[{index}]", item, items, json_types)
+            if problem is not None:
+                return problem
+    return None
+
+
 class Toolbox:
     """The tools one agent may use, and how a call is matched against them."""
 
@@ -367,12 +406,9 @@ class Toolbox:
             "array": lambda value: isinstance(value, list),
         }
         for name, value in arguments.items():
-            expected = properties.get(name, {}).get("type")
-            if expected in json_types and not json_types[expected](value):
-                return f"argument {name!r} must be {expected}"
-            minimum = properties.get(name, {}).get("minLength")
-            if minimum is not None and isinstance(value, str) and len(value) < minimum:
-                return f"argument {name!r} must contain at least {minimum} character(s)"
+            problem = value_error(name, value, properties.get(name, {}), json_types)
+            if problem is not None:
+                return problem
         return None
 
     def signature(self, name: str) -> str:

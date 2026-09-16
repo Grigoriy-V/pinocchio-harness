@@ -233,3 +233,29 @@ def test_the_unsuccessful_list_holds_failures_and_turns_that_never_ended(
 
 def test_an_empty_database_lists_nothing(store: TelemetryStore) -> None:
     assert store.recent_runs() == []
+
+
+def test_the_postgres_store_connects_with_the_same_guards_as_the_memory_store(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Audit 2026-09-14 §2: a dead socket held a turn (ISS-0064); the guards
+    the memory store got apply to the telemetry connection too."""
+
+    import app.telemetry.postgres as module
+    from app.memory.postgres import CONNECTION_GUARDS
+
+    seen: dict[str, object] = {}
+
+    class Connection:
+        closed = False
+        broken = False
+
+    def connect(dsn: str, **kwargs: object) -> Connection:
+        seen.update(kwargs)
+        return Connection()
+
+    monkeypatch.setattr(module.psycopg, "connect", connect)
+
+    module.PostgresTelemetry("postgresql://example/db")
+
+    assert all(seen[name] == value for name, value in CONNECTION_GUARDS.items())

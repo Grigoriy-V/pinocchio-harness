@@ -233,3 +233,22 @@ def test_a_query_matches_any_of_its_words(store: SqliteStore) -> None:
 
 def test_match_query_quotes_every_token() -> None:
     assert match_query("C++ and Rust!") == '"C" OR "and" OR "Rust"'
+
+
+# --- two processes on one file -----------------------------------------------
+
+
+def test_a_file_database_runs_in_wal_mode_and_waits_for_a_lock(tmp_path: Path) -> None:
+    """Audit 2026-09-14 §2: the Chainlit app and the MCP server share the file."""
+
+    path = tmp_path / "memory.sqlite3"
+    with SqliteStore(path) as first, SqliteStore(path) as second:
+        assert first._db.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
+        assert first._db.execute("PRAGMA busy_timeout").fetchone()[0] >= 1000
+        first.append("t1", [user("from one")], LOCAL_USER_ID)
+        second.append("t1", [user("from two")], LOCAL_USER_ID)
+        assert [m.content[0].text for m in first.messages("t1")] == ["from one", "from two"]
+
+
+def test_an_in_memory_database_has_no_journal_to_choose(store: SqliteStore) -> None:
+    assert store._db.execute("PRAGMA journal_mode").fetchone()[0] == "memory"

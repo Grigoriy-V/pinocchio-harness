@@ -45,6 +45,12 @@ class TracedBackend(ModelBackend):
     async def context_limit(self) -> int | None:
         return await self.backend.context_limit()
 
+    async def warm(self) -> bool:
+        return await self.backend.warm()
+
+    def estimate_tokens(self, messages: Sequence[Message]) -> int:
+        return self.backend.estimate_tokens(messages)
+
     async def invoke(
         self,
         messages: Sequence[Message],

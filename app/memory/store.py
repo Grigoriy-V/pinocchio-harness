@@ -32,6 +32,26 @@ from app.memory.records import (
 )
 from app.models import Message
 
+# How long a writer waits for another process's lock before SQLite gives up.
+# Locally two processes share the file (the Chainlit app and the MCP server);
+# a write that lands while the other holds the lock waits rather than fails.
+BUSY_TIMEOUT_SECONDS = 5
+
+
+def connect(path: str) -> sqlite3.Connection:
+    """Open the project's SQLite file the way every store in it does.
+
+    A file database runs in WAL mode, so readers never block the writer and
+    two processes can hold it at once; `:memory:` has no journal to choose.
+    """
+
+    db = sqlite3.connect(path, check_same_thread=False, timeout=BUSY_TIMEOUT_SECONDS)
+    db.row_factory = sqlite3.Row
+    if path != ":memory:":
+        db.execute("PRAGMA journal_mode = WAL")
+        db.execute(f"PRAGMA busy_timeout = {BUSY_TIMEOUT_SECONDS * 1000}")
+    return db
+
 # Bumped whenever the schema changes. `PRAGMA user_version` is SQLite's own
 # integer on the file, so the database states its shape rather than the code
 # guessing it from which columns happen to exist.
@@ -223,8 +243,7 @@ class SqliteStore(ConversationStore):
         self.path = str(path)
         if self.path != ":memory:":
             Path(self.path).parent.mkdir(parents=True, exist_ok=True)
-        self._db = sqlite3.connect(self.path, check_same_thread=False)
-        self._db.row_factory = sqlite3.Row
+        self._db = connect(self.path)
         self._db.execute("PRAGMA foreign_keys = ON")
         migrate(self._db)
 
