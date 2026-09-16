@@ -43,9 +43,10 @@ From a conversation in Telegram, with nothing but the request:
 - **Memory and history**: facts the person asked it to keep; search and
   read-back over the conversation, including results the context window no
   longer carries in full.
-- **Goal and plan**: for a request with several parts the model writes them
-  down once (`set_goal`) so none is lost; `/plan` adds a maintained task
-  list when the person wants one.
+- **Goal and list**: for a request with several parts the model writes them
+  down once (`set_goal`) so none is lost, and keeps a task list
+  (`todo_write`) when the work has steps; `/mode plan` asks for a plan and
+  no change.
 - **Control**: `/stop` ends the running turn, `/new` starts a conversation,
   `/mode careful` makes workspace changes ask first; a turn survives a
   worker that dies mid-way and resumes where it was.

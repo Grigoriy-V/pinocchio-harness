@@ -44,7 +44,7 @@ and says what replaced it.
 | 2026-08-30 | The prompt is assembled; a person's instructions are an overlay | standing |
 | 2026-08-31 | The plan is the state of one turn | amended 2026-09-03 twice |
 | 2026-09-03 | The surface is shortened by age; the volatile layer goes last | amended 2026-09-04 |
-| 2026-09-03 | The plan is off unless the person turns it on | standing |
+| 2026-09-03 | The plan is off unless the person turns it on | superseded 2026-09-17 |
 | 2026-09-03 | A tool result names the action its output enables | standing |
 | 2026-09-03 | An open plan item no longer refuses the ending | standing |
 | 2026-09-03 | Text beside a tool call is said once; a local page may load its CDN | standing |
@@ -921,3 +921,52 @@ media; the deployed Function carries the page and the spill file at the
 next deploy (a gate), and its runner's ceiling makes a longer timeout a
 refusal by number. The history and memory tools take the default budget's
 page until they are built through the registry.
+
+## 2026-09-17 — The batch runs the references' way: reads at once, a yes per call and remembered, a stop that ends the call in flight, a catalog behind a search, a plan mode, a repeat as information; the list always offered
+
+Decision (the human, 2026-09-17, roadmap 32, on
+`reports/2026-09-17_item32_references.md` §4; plan mode without
+`run_command` (option A), a message mid-turn runs the batch's remaining
+calls, a stop does not): in one batch the calls whose tool is safe to run
+twice launch together under `parallel_calls`, every other call runs alone
+in the model's order, the results come back in that order. The calls that
+need no yes run before the question; the risky ones are asked in a node of
+their own, and an answer that names one call leaves the rest asked, never
+declined. A yes carries a scope, `once` / `conversation` / `always`, kept
+per person in `.agent/grants.json` by tool and by a command's program. A
+stop is read before every launch and every `stop_poll_seconds` while a call
+or the model runs, and ends what runs; a background command lives on. A
+message sent mid-turn is read after the batch, the batch's remaining calls
+still run. An MCP server's tools are a catalog behind `find_tools`, offered
+once found for the rest of the conversation; the schemas and the brief are
+read per step. `/mode plan` is a third mode: nothing that changes or runs
+is offered and the answer is the plan. A repeated identical call runs with
+a note from `repeat_note_after`, is not run from `repeat_stop_after`, and
+ends the turn's tools one attempt later. An empty completion before
+anything was said gets one tool-free request, then the fixed line. A
+background command's exit is told to the model as turn control at the next
+boundary or beside the next request. `ToolStarted` and `ToolFinished` are
+events. The task list (`todo_write`) is offered always and its switch is
+gone: it is measured again on the current model before anything in it is
+changed (roadmap 8 and the todo measurement).
+
+Why: every reference runs a batch's safe calls at once and serialises the
+rest, remembers a yes, cancels on a stop, defers a large catalog behind a
+search, has plan mode as a permission mode where it enforces one, treats a
+repeat as information, and offers its todo tool always; this harness ran
+calls one by one, asked once per batch and read Telegram's one button as a
+no for the rest, read a stop only at the top of a batch, sent every tool's
+schema every step, and ended a turn's tools at the second identical
+failure. The plan switch of 2026-09-03 was measured on a model that is
+gone.
+
+Consequences: `app/agent/grants.py`, `app/agent/notices.py`, the `approve`
+node, `Limits.parallel_calls` / `repeat_note_after` / `repeat_stop_after`,
+`TurnWatch.stop_poll_seconds`, `Toolbox.offer` / `find` / `deferred_names`,
+`CapabilityRegistry.toolbox(plan=)`, `.agent/mode` as the one mode marker
+(`careful.on` still read). The interfaces' buttons for a scope, approve-all,
+the plan's approval and what is shown of the tool events are roadmap 34's.
+Deployed, the same code at the next deploy (a gate): Telegram's one-button
+approval becomes correct there, the MCP tools move behind `find_tools`, the
+repeat counters change; no background command exists deployed, so no
+notice is ever posted there.

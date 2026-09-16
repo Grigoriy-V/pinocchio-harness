@@ -77,7 +77,17 @@ def tool_inventory(tools: Toolbox) -> str:
     """
 
     names = ", ".join(tools.names) or "none"
-    return f"Your tools are exactly: {names}; the list is generated from what is wired up."
+    sentence = f"Your tools are exactly: {names}; the list is generated from what is wired up."
+    catalog = getattr(tools, "deferred_names", ())
+    if catalog:
+        # The catalog (roadmap 32): tools behind `find_tools`, named by where
+        # they come from, so the model knows the list is not the whole set.
+        families = ", ".join(getattr(tools, "families", ())) or "configured servers"
+        sentence += (
+            f" {len(catalog)} more from {families} are not listed: find_tools finds "
+            "them by words in their name or description and makes them callable."
+        )
+    return sentence
 
 
 def _work_sentence(tools: Toolbox) -> str:
@@ -184,6 +194,15 @@ def _shell_lines(tools: Toolbox, where: str | None) -> list[str]:
 
 
 def _mode_lines(tools: Toolbox) -> list[str]:
+    if getattr(tools, "plan", False):
+        # Plan mode (roadmap 32): the condition and the outcome, no route.
+        return [
+            "- The person asked for a plan and no change: the tools that change or "
+            "run anything are not offered here. Read, search and look as the plan "
+            "needs. Your answer is the plan: the steps in order, what each changes, "
+            "and how the result is checked. The person turns the mode off before "
+            "anything is done.",
+        ]
     if not tools.ask_for_changes:
         return []
     changing = ", ".join(name for name in tools.names if tools.requires_approval(name))
@@ -447,6 +466,11 @@ def capability_report(
         f"Tools: {', '.join(tools.names) or 'none'}",
         f"Ask first: {asking}",
     ]
+    catalog = getattr(tools, "deferred_names", ())
+    if catalog:
+        lines.append(f"Findable with find_tools: {', '.join(catalog)}")
+    if getattr(tools, "plan", False):
+        lines.append("Mode: plan (nothing that changes or runs is offered)")
     if root is not None:
         lines.append(f"Files: only inside {root}")
     return "\n".join(lines)

@@ -98,4 +98,4 @@ def test_the_product_offers_the_goal_by_default(tmp_path: Path, monkeypatch) -> 
         asyncio.run(agent.aclose())
 
     assert TOOL_NAME in names
-    assert "todo_write" not in names  # the plan stays behind /plan
+    assert "todo_write" in names  # offered always since 2026-09-17

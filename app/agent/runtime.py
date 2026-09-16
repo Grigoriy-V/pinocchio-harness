@@ -23,17 +23,21 @@ from langgraph.types import Command
 from app.agent.graph import (
     ASSISTANT_DELTA,
     RUN_ID,
+    TOOL_FINISHED,
+    TOOL_STARTED,
     TurnWatch,
     build_agent,
     interrupted,
     latest_text,
 )
-from app.agent.mode import careful_enabled
+from app.agent.grants import Grants
+from app.agent.mode import current_mode
 from app.agent.interjections import NO_INTERJECTIONS, Interjections
+from app.agent.notices import MemoryNotices, Notices
 from app.agent.folder import folder_of
 from app.agent.stop import NO_STOPS, StopRequests
 from app.agent.stopping import STOP_ON_ANSWER, TurnStopping
-from app.agent.todo import FinishesItsOwnList, planning_enabled
+from app.agent.todo import FinishesItsOwnList
 from app.checkpoints import CheckpointHandle
 from app.capabilities import (
     CHAT_DELIVERY,
@@ -49,7 +53,7 @@ from app.context import ContextPolicy, fold_older_messages, load_turn_context
 from app.context.choice import budget_of, context_choice
 from app.context.window import DEFAULT_SYSTEM_PROMPT, system
 from app.memory import LOCAL_USER_ID, ConversationStore, Thread, open_store
-from app.models import ContentPart, Message, ModelBackend, Usage
+from app.models import ContentPart, Message, ModelBackend, ToolCall, Usage
 from app.telemetry import NO_TRACE, Telemetry, TurnTrace
 from app.telemetry.trace import spent
 from app.preflight import Probe, backend_probe, report, run, store_probes, tool_probes
@@ -130,7 +134,28 @@ class MessageTaken:
     message: Message
 
 
-AgentEvent = AssistantDelta | MessageProduced | AnswerWithdrawn | MessageTaken
+@dataclass(frozen=True)
+class ToolStarted:
+    """A tool call the graph just launched (roadmap 32). Presentation: an
+    interface may show the call as running; the call itself is in the
+    assistant message that was produced before it."""
+
+    call: ToolCall
+
+
+@dataclass(frozen=True)
+class ToolFinished:
+    """A tool call that returned, with its result, the moment it did: before
+    the rest of its batch and before the batch's `MessageProduced`, which
+    remains the message the conversation keeps."""
+
+    call: ToolCall
+    message: Message
+
+
+AgentEvent = (
+    AssistantDelta | MessageProduced | AnswerWithdrawn | MessageTaken | ToolStarted | ToolFinished
+)
 
 
 @dataclass(frozen=True)
@@ -234,6 +259,7 @@ class Agent:
         stopping: TurnStopping = STOP_ON_ANSWER,
         interjections: Interjections = NO_INTERJECTIONS,
         limits: Limits = DEFAULT_LIMITS,
+        notices: Notices | None = None,
     ) -> None:
         self.backend = backend
         self.stream_answers = stream_answers
@@ -265,6 +291,12 @@ class Agent:
         self.checkpoints = checkpoints
         self.context_tokens = context_tokens
         self.capability_registry = capability_registry or CapabilityRegistry(self.workspace)
+        # Where what ended on its own is told (a background command's exit):
+        # posted by the shell tool, read by the loop at its next boundary.
+        self.notices: Notices = notices if notices is not None else MemoryNotices()
+        self.capability_registry.notify = lambda text: self.notices.post(self.user_id, text)
+        # The approvals this person asked to be remembered (`.agent/grants.json`).
+        self.grants = Grants(self.workspace)
         if capability_grant is None:
             # A configured MCP server is granted with the defaults: being in
             # `config.toml` is the owner's decision that the assistant has it.
@@ -363,6 +395,7 @@ class Agent:
         same question deserves the same source.
         """
 
+        mode = current_mode(self.workspace)
         return self.capability_registry.toolbox(
             self.grant_for(thread_id),
             [
@@ -372,21 +405,20 @@ class Agent:
                 # The way back to what a summary or a stub stands for. Like
                 # memory, part of what an agent is here rather than a grant.
                 *history_tools(self.store, self.user_id, thread_id),
-                # Planning is not a granted capability: it reaches nothing, costs
-                # nothing to hold and has no root to be confined to. It is part
-                # of what an agent is here, in the way memory is — when the
-                # person has switched it on (`/plan on`). Off, the tool and
-                # every brief line about it are simply absent.
-                *(todo_tools() if planning_enabled(self.workspace) else ()),
+                # The list: not a granted capability, it reaches nothing and has
+                # no root. Offered always since 2026-09-17, as the references
+                # offer theirs; the model decides whether a request has steps.
+                *todo_tools(),
                 # The goal: the request's parts, written once by the model
                 # before it starts. Always offered; the model decides whether
                 # a request has more than one thing in it (2026-09-05).
                 *goal_tools(),
             ],
-            # `careful` mode: the tools that change the workspace ask first.
-            # Read here, per toolbox, so `/mode` takes effect from the next
-            # message like `/plan` does.
-            ask_for_changes=careful_enabled(self.workspace),
+            # The mode, read here, per toolbox, so `/mode` takes effect from
+            # the next message: `careful` makes the tools that change the
+            # workspace ask first; `plan` withholds them.
+            ask_for_changes=mode == "careful",
+            plan=mode == "plan",
         )
 
     def capabilities(self, thread_id: str) -> str:
@@ -444,13 +476,18 @@ class Agent:
             # denies abilities it has and invents tools it does not. What it is
             # deliberately not told is where the workspace is: there is one, and
             # naming it taught the model to build paths into it.
-            prompt = system_message(
-                toolbox,
-                self.delivery,
-                self.system_prompt,
-                where_commands_run=self.capability_registry.runner.where,
-                model=model_name(self.backend),
-            )
+            # Assembled when a turn's context is built, not once here: the
+            # offered set may grow inside a turn (`find_tools`) and the
+            # inventory the model reads has to be the set it has.
+            def prompt() -> str:
+                return system_message(
+                    toolbox,
+                    self.delivery,
+                    self.system_prompt,
+                    where_commands_run=self.capability_registry.runner.where,
+                    model=model_name(self.backend),
+                )
+
             self._graphs[thread_id] = build_agent(
                 self.backend,
                 toolbox,
@@ -467,6 +504,8 @@ class Agent:
                 self.interjections,
                 self.instructions,
                 Spill(self.folder(thread_id) / ".agent" / "results"),
+                self.grants,
+                self.notices,
             )
 
     def instructions(self) -> str:
@@ -503,9 +542,16 @@ class Agent:
         stream = graph.astream(command, config=config, stream_mode=["updates", "custom"])
         async for mode, payload in stream:
             if mode == "custom":
-                text = (payload or {}).get(ASSISTANT_DELTA) if isinstance(payload, dict) else None
+                custom = payload if isinstance(payload, dict) else {}
+                text = custom.get(ASSISTANT_DELTA)
                 if text:
                     yield AssistantDelta(text)
+                if ASSISTANT_DELTA not in custom:
+                    if TOOL_STARTED in custom:
+                        yield ToolStarted(custom[TOOL_STARTED])
+                    if TOOL_FINISHED in custom:
+                        call, message = custom[TOOL_FINISHED]
+                        yield ToolFinished(call, message)
                 continue
             for node, patch in payload.items():
                 if node.startswith("__") or not isinstance(patch, dict):
@@ -561,14 +607,23 @@ class Agent:
             "stopping": "",
             "steered": None,
             "steerings": 0,
+            "held": {},
+            "asked": (),
+            "notes": {},
+            "finalized": False,
         }
         async for event in self._run(thread_id, command, trace):
             yield event
 
     async def resume_events(
-        self, thread_id: str, answers: dict[str, bool], trace: TurnTrace = NO_TRACE
+        self, thread_id: str, answers: dict[str, Any], trace: TurnTrace = NO_TRACE
     ) -> AsyncIterator[AgentEvent]:
-        """Answer the pending question and carry on, reporting the same events."""
+        """Answer the pending question and carry on, reporting the same events.
+
+        `answers` maps a call id to `True` (once), a scope (`"conversation"`,
+        `"always"`: the yes is remembered), or a no. A call the answers do
+        not name stays asked; the question comes back with the rest.
+        """
 
         async for event in self._run(thread_id, Command(resume=answers), trace):
             yield event
@@ -736,7 +791,26 @@ class Agent:
             "recursion_limit": RECURSION_LIMIT,
         }
         replayed = unknown = 0
-        if left.node == "tools" and left.messages and left.messages[-1].tool_calls:
+        if left.node == "approve" and left.messages and left.messages[-1].tool_calls:
+            # Died between the batch's safe calls and the question, or while
+            # the approved ones ran: the safe results are kept in the state;
+            # the asked ones are unknown and are not run to find out.
+            state = await graph.aget_state(config)
+            held = dict(state.values.get("held") or {})
+            asked = set(state.values.get("asked") or ())
+            results = []
+            for call in left.messages[-1].tool_calls:
+                if call.id in held:
+                    results.append(held[call.id])
+                else:
+                    results.append(interrupted(call))
+                    unknown += 1 if call.id in asked else 0
+            await graph.aupdate_state(
+                config,
+                {"messages": results, "held": {}, "asked": (), "notes": {}},
+                as_node="approve",
+            )
+        elif left.node == "tools" and left.messages and left.messages[-1].tool_calls:
             toolbox = self.toolbox(thread_id)
             executor = ToolExecutor(
                 toolbox,
@@ -776,7 +850,7 @@ class Agent:
                 return list(stop.value)
         return None
 
-    async def resume(self, thread_id: str, answers: dict[str, bool]) -> AsyncIterator[Message]:
+    async def resume(self, thread_id: str, answers: dict[str, Any]) -> AsyncIterator[Message]:
         """Answer the pending question — call id to approved — and carry on."""
 
         async for event in self.resume_events(thread_id, answers):

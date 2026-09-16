@@ -53,6 +53,7 @@ import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
+from collections.abc import Callable
 from typing import Any, Protocol
 
 from app.limits import DEFAULT_LIMITS, Limits
@@ -693,7 +694,32 @@ def runner_shell(runner: Runner) -> str:
     return getattr(runner, "shell", None) or "the shell"
 
 
-def shell_tools(root: Path, runner: Runner, *, limits: Limits = DEFAULT_LIMITS) -> list[Tool]:
+EXIT_POLL_SECONDS = 1.0
+EXIT_TAIL_CHARS = 1_000
+
+
+async def _watch_exit(running: Running, notify: Callable[[str], None]) -> None:
+    """Wait for a background command to end, then tell the lane (Hermes's
+    `notify`, OpenClaw's `notifyOnExit`): the id, the code, the tail, and
+    that `command_output` has the rest."""
+
+    while running.alive():
+        await asyncio.sleep(EXIT_POLL_SECONDS)
+    tail = running.read()[-EXIT_TAIL_CHARS:].strip()
+    notify(
+        f"background command {running.id} ({running.command}) exited with code "
+        f"{running.process.returncode}; the last lines:\n{tail or '(no output)'}\n"
+        f"command_output {running.id!r} reads the rest."
+    )
+
+
+def shell_tools(
+    root: Path,
+    runner: Runner,
+    *,
+    limits: Limits = DEFAULT_LIMITS,
+    notify: Callable[[str], None] | None = None,
+) -> list[Tool]:
     resolved = Path(root).resolve()
     # A runner without `start` (a remote one) cannot keep a process; the
     # tool says so rather than pretending.
@@ -705,18 +731,30 @@ def shell_tools(root: Path, runner: Runner, *, limits: Limits = DEFAULT_LIMITS) 
     max_timeout = min(limits.command_timeout_max, ceiling) if ceiling else limits.command_timeout_max
     output_chars = limits.shell_output_chars
 
-    async def start_background(command: str, why: str = "") -> str:
+    async def start_background(command: str, why: str = "", notify_exit: bool = True) -> str:
         running = await runner.start(command, resolved)  # type: ignore[attr-defined]
+        if notify and notify_exit:
+            # The watcher lives with the app's loop; the notice lands on the
+            # lane whether or not a turn is running (`app/agent/notices.py`).
+            asyncio.get_running_loop().create_task(_watch_exit(running, notify))
         await asyncio.sleep(BACKGROUND_SETTLE)
+        told = (
+            "; when it exits you are told, with its last lines"
+            if notify and notify_exit
+            else ""
+        )
         return (
             why
             + _background_report(running, output_chars=output_chars)
             + "\nIt keeps running: read its output later with command_output, end it "
-            "with stop_command; it ends with this app in any case."
+            f"with stop_command; it ends with this app in any case{told}."
         )
 
     async def run_command(
-        command: str, timeout_seconds: int | None = None, background: bool = False
+        command: str,
+        timeout_seconds: int | None = None,
+        background: bool = False,
+        notify: bool = True,
     ) -> str:
         if background:
             if not can_background:
@@ -724,7 +762,7 @@ def shell_tools(root: Path, runner: Runner, *, limits: Limits = DEFAULT_LIMITS) 
                     "a background command is not possible here: run it in the foreground",
                     code=COMMAND_NOT_STARTED,
                 )
-            return await start_background(str(command))
+            return await start_background(str(command), notify_exit=bool(notify))
         seconds = int(timeout_seconds) if timeout_seconds else default_timeout
         if seconds < 1:
             raise ToolError("timeout_seconds must be 1 or more", code=BAD_ARGUMENTS)
@@ -802,7 +840,14 @@ def shell_tools(root: Path, runner: Runner, *, limits: Limits = DEFAULT_LIMITS) 
                             "background": {
                                 "type": "boolean",
                                 "description": "Leave the command running and return its id at once. Default false.",
-                            }
+                            },
+                            "notify": {
+                                "type": "boolean",
+                                "description": (
+                                    "With background=true: when the command exits you are told, "
+                                    "with its exit code and last lines. Default true."
+                                ),
+                            },
                         }
                         if can_background
                         else {}

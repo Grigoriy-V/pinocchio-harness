@@ -293,23 +293,142 @@ def value_error(
     return None
 
 
-class Toolbox:
-    """The tools one agent may use, and how a call is matched against them."""
+FIND_TOOLS = "find_tools"
+# How many catalog tools one search offers at most.
+FOUND_AT_MOST = 8
 
-    def __init__(self, tools: Iterable[Tool] = (), ask_for_changes: bool = False) -> None:
+
+def _words(text: str) -> set[str]:
+    return {
+        word
+        for word in "".join(ch.lower() if ch.isalnum() else " " for ch in text).split()
+        if len(word) > 1
+    }
+
+
+def _first_line(text: str) -> str:
+    return (text.strip().splitlines() or [""])[0]
+
+
+class Toolbox:
+    """The tools one agent may use, and how a call is matched against them.
+
+    `tools` are offered: their schemas go with every request. `deferred` is a
+    catalog (roadmap 32): tools the model reaches through `find_tools`,
+    which searches their names and descriptions and offers what it finds
+    for the rest of the conversation, the way Codex, Claude Code and OpenClaw
+    defer a large set behind a search. The offered set may grow within a
+    turn; `version` changes whenever it does, so a loop that reads the
+    schemas per step can tell.
+
+    `plan` withholds nothing here (the registry already did); it is carried
+    so the brief can say which mode the tools were built for.
+    """
+
+    def __init__(
+        self,
+        tools: Iterable[Tool] = (),
+        ask_for_changes: bool = False,
+        deferred: Iterable[Tool] = (),
+        plan: bool = False,
+        families: Iterable[str] = (),
+    ) -> None:
         self._tools = {tool.name: tool for tool in tools}
         # `careful` mode: a tool that changes the workspace asks first.
         self.ask_for_changes = ask_for_changes
+        self.plan = plan
+        self._deferred: dict[str, Tool] = {
+            tool.name: tool for tool in deferred if tool.name not in self._tools
+        }
+        # Where the catalog's tools come from, for the brief's one line.
+        self.families = tuple(dict.fromkeys(families))
+        self.version = 0
+        if self._deferred:
+            self._tools[FIND_TOOLS] = self._finder()
 
     @property
     def names(self) -> tuple[str, ...]:
         return tuple(self._tools)
+
+    @property
+    def deferred_names(self) -> tuple[str, ...]:
+        """The catalog: what `find_tools` can still offer."""
+
+        return tuple(self._deferred)
 
     def schemas(self) -> list[dict[str, Any]]:
         return [tool.schema() for tool in self._tools.values()]
 
     def get(self, name: str) -> Tool | None:
         return self._tools.get(name)
+
+    def offer(self, tools: Iterable[Tool]) -> list[Tool]:
+        """Add tools to the offered set from now on; returns the ones that
+        were new. A tool already offered is left as it is."""
+
+        added = []
+        for tool in tools:
+            if tool.name in self._tools:
+                continue
+            self._tools[tool.name] = tool
+            self._deferred.pop(tool.name, None)
+            added.append(tool)
+        if added:
+            self.version += 1
+        return added
+
+    def find(self, query: str) -> list[Tool]:
+        """The catalog tools whose name or description share words with the
+        query, best first; a name match counts double."""
+
+        wanted = _words(query)
+        if not wanted:
+            return []
+        scored = []
+        for tool in self._deferred.values():
+            in_name = len(wanted & _words(tool.name))
+            in_text = len(wanted & _words(tool.description))
+            score = in_name * 2 + in_text
+            if score:
+                scored.append((score, tool))
+        scored.sort(key=lambda item: (-item[0], item[1].name))
+        return [tool for _, tool in scored[:FOUND_AT_MOST]]
+
+    def _finder(self) -> Tool:
+        def find_tools(query: str) -> str:
+            found = self.find(query)
+            if not found:
+                names = ", ".join(self._deferred) or "none left"
+                return f"nothing in the catalog matches {query!r}; the catalog holds: {names}"
+            offered = self.offer(found)
+            lines = [
+                f"{len(offered)} tool(s) are callable from your next step:"
+                if offered
+                else "already callable:"
+            ]
+            lines += [f"- {tool.name}: {_first_line(tool.description)}" for tool in found]
+            return "\n".join(lines)
+
+        return Tool(
+            name=FIND_TOOLS,
+            description=(
+                "Search the tools that are not listed, by words in their name or "
+                "description, and make the matches callable. The catalog holds tools "
+                f"from: {', '.join(self.families) or 'configured servers'}."
+            ),
+            returns="the matching tools with a line each; they are callable from the next step on.",
+            leaves="the found tools in your tool list for the rest of the conversation.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Words to look for, like 'github issue' or 'time'."}
+                },
+                "required": ["query"],
+                "additionalProperties": False,
+            },
+            run=find_tools,
+            replay_safe=True,
+        )
 
     def resolve(self, name: str) -> str | None:
         """The tool this name means, or `None`.

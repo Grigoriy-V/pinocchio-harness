@@ -101,8 +101,15 @@ def test_a_server_becomes_a_capability_with_the_contract(tmp_path: Path, session
     registry = CapabilityRegistry(tmp_path, mcp=sessions)
     assert registry.mcp_names == ("mcp.clock",)
     toolbox = registry.toolbox(registry.grant(capabilities=DEFAULT_CAPABILITIES + registry.mcp_names))
-    names = [name for name in toolbox.names if name.startswith("clock_")]
-    assert names == ["clock_get_time", "clock_set_alarm", "clock_broken"], "the allowlist, in the server's order"
+    # Roadmap 32: a server's tools are the catalog behind `find_tools`, not
+    # in every request; found, they are offered from then on.
+    assert not [name for name in toolbox.names if name.startswith("clock_")]
+    assert "find_tools" in toolbox.names and toolbox.families == ("clock",)
+    assert list(toolbox.deferred_names) == ["clock_get_time", "clock_set_alarm", "clock_broken"], "the allowlist, in the server's order"
+    found = toolbox.run(ToolCall(id="f", name="find_tools", arguments={"query": "current time alarm"}))
+    assert "callable from your next step" in " ".join(p.text or "" for p in found.content)
+    assert "clock_get_time" in toolbox.names and "clock_set_alarm" in toolbox.names
+    assert "clock_broken" not in toolbox.names and toolbox.version == 1
 
     get_time = toolbox.get("clock_get_time")
     assert get_time is not None
@@ -149,6 +156,7 @@ def test_a_server_that_cannot_be_reached_leaves_the_toolbox_intact(tmp_path: Pat
 def test_the_toolbox_validates_the_servers_schema_like_its_own(tmp_path: Path, sessions: McpSessions) -> None:
     registry = CapabilityRegistry(tmp_path, mcp=sessions)
     toolbox = registry.toolbox(registry.grant(capabilities=registry.mcp_names))
+    toolbox.run(ToolCall(id="f", name="find_tools", arguments={"query": "alarm"}))
     assert toolbox.validation_error(ToolCall(id="1", name="clock_set_alarm", arguments={})) is not None
     assert toolbox.validation_error(ToolCall(id="2", name="clock_set_alarm", arguments={"at": "7:00"})) is None
 

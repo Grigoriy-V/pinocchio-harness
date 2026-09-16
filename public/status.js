@@ -95,7 +95,7 @@
       row("Context", context) +
       row("Session", session) +
       row("Account", account) +
-      row("Switches", "mode " + s.mode + " · plan " + (s.plan ? "on" : "off") + " · size " + s.context_size) +
+      row("Switches", "mode " + s.mode + " · size " + s.context_size) +
       row("Folder", "<code>" + s.workspace + "</code>");
     document.getElementById("status-close").addEventListener("click", () => toggle(false));
   }

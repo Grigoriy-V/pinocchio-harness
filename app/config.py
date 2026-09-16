@@ -524,6 +524,12 @@ class AgentSettings(Configured):
     # one, and refused with the number where it cannot. Never clamped.
     command_timeout: int = 120
     command_timeout_max: int = 600
+    # The loop (roadmap 32): how many read-only calls of a batch run at
+    # once; from how many identical outcomes a repeated call's result says
+    # so, and from how many it is not run.
+    parallel_calls: int = 10
+    repeat_note_after: int = 2
+    repeat_stop_after: int = 8
 
 
 class McpServerConfig(BaseModel):

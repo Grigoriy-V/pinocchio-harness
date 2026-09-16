@@ -280,12 +280,18 @@ class ToolExecutor:
         name = self.toolbox.resolve(call.name)
         if name is None:
             available = ", ".join(self.toolbox.names)
+            catalog = getattr(self.toolbox, "deferred_names", ())
+            where = (
+                f"; {call.name} is in the catalog and is not offered yet: find_tools offers it"
+                if call.name in catalog
+                else ""
+            )
             return PreparedToolCall(
                 call=call,
                 tool=None,
                 refusal=ToolFailure(
                     code=UNKNOWN_TOOL,
-                    message=f"unknown tool {call.name!r}; available: {available}",
+                    message=f"unknown tool {call.name!r}; available: {available}{where}",
                 ),
                 approval_required=False,
             )

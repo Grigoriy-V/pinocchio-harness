@@ -1,6 +1,6 @@
 # Roadmap
 
-**Updated:** 2026-09-16
+**Updated:** 2026-09-17
 
 **Project status:** the assistant is deployed and used over Telegram on a
 hosted model, and the same harness runs locally in Chainlit on the owner's
@@ -11,9 +11,10 @@ deployed OpenClaw (the human, 2026-09-14). The audit of 2026-09-14
 (`reports/2026-09-14_harness_audit.md`) names what holds it below that;
 the queue below is the order approved for working through it.
 
-**Current approved step:** 32, research written 2026-09-17 on the
-human's word (`reports/2026-09-17_item32_references.md`); the shape waits
-for the human's word before the loop changes.
+**Current approved step:** 32, built and tested offline 2026-09-17 on the
+human's word (`reports/2026-09-17_item32_build.md`); the live gate (the
+mini set once beside the 2026-09-16 numbers, one `find_tools` turn, one
+approval answered one call at a time; priced) waits for the human's word.
 
 Observed defects are in `ISSUES.md`, which is not a plan and authorizes
 nothing. `docs/PRODUCT.md` is the product contract; `docs/PROJECT_MAP.md`,
@@ -43,7 +44,7 @@ order and authorization.
   (`/workspace`), reading anywhere, a write outside the folder after a
   yes, localhost in the browser, a command kept running in the background;
   the status card with the session's spend and the account's credits; the
-  commands `/compact`, `/plan`, `/mode`, `/context`, `/workspace`; no
+  commands `/compact`, `/mode` (full, careful, plan), `/context`, `/workspace`; no
   inbox, a sent file is a path on the machine. The command boundary exists
   on Windows only.
 - **MCP:** the harness is an MCP server (`python -m tools.mcp_server`,
@@ -144,21 +145,39 @@ one line each, evidence in the linked report:
   and memory tools take the default budget's page; the provider's metadata
   is 33's. `reports/2026-09-16_item31_references.md`,
   `reports/2026-09-16_item31_build.md`.
+- **32, the graph** (2026-09-17, offline; the live gate open): a batch's
+  reads run at once and a changing call alone, in the model's order; the
+  safe calls run before the question and a yes may arrive one call at a
+  time (Telegram's one button is no longer a no for the rest); a yes is
+  remembered with a scope (`.agent/grants.json`); a stop ends the call in
+  flight and the model call between chunks; the schemas are read per step
+  and an MCP server's tools are a catalog behind `find_tools`; `/mode
+  plan` offers nothing that changes or runs; a repeated identical call is
+  noted and only a runaway is stopped; an empty completion gets one
+  tool-free request; a background command's exit is told to the model;
+  `ToolStarted`/`ToolFinished` events; `todo_write` offered always, the
+  `/plan` switch gone. 1,304 offline tests. Left for the live gate: the
+  mini set beside the 2026-09-16 numbers, a `find_tools` turn, an
+  approval answered one call at a time; then the todo measurement (8).
+  `reports/2026-09-17_item32_references.md`,
+  `reports/2026-09-17_item32_build.md`.
 
 ## Queue
 
 One item at a time; the human's word starts each. Order approved
 2026-09-14 (the human), after the audit.
 
-32. **The graph.** Independent tool calls run in parallel, a tool
-    declaring `mutates` serialised; tool output streams while it runs;
-    approval per call with the safe calls run first; stop and an
-    interjection read between stream chunks; schemas read per step so a
-    `find_tools` and MCP-on-demand can widen the set inside a turn (the
-    Not-started item of 2026-09-13 joins here); plan mode as a third mode
-    that withholds mutating tools; the repeat counters demoted to
-    information in the result; an empty completion still ends with a
-    line.
+32. **The graph: the live gate and the todo measurement.** Built offline
+    (Done above). Open, on the human's word: the mini set once on GLM 5.3
+    Flash beside the 2026-09-16 "after" numbers (B, C, F, H, M exercise
+    the batch, the approval, the message mid-turn); one turn with two MCP
+    tools found by `find_tools`; one approval of two risky calls answered
+    one at a time through `loop_live`'s fakes. Then the todo measurement
+    (the human, 2026-09-17): `todo_write` always offered, the mini set
+    where short requests open no list, two or three long requests where a
+    list is expected, compared with the 2026-09-16 numbers; what to fix in
+    the tool (ISS-0016, a plan corrected by the person) and whether
+    `set_goal` stands beside it (8) is decided from that.
 
 33. **The model layer and telemetry.** A per-model-family profile so the
     system-message flattening, the `<|"|>` repair and the end-marker
@@ -193,8 +212,7 @@ Waiting, not in the order above:
    below). `reports/2026-09-04_v2_isolated_execution_review.md` §10–§11.
 
 8. **The plan and the goal together.** Whether `todo_write` replaces
-   `set_goal` or both stand is decided by a measurement; joins 32 when
-   plan mode is built.
+   `set_goal` or both stand is decided by the todo measurement of 32.
 
 13. **The model chosen from Telegram; Gemini's cache.** (a) Gemini 3.1
     Flash-Lite with thinking against without; (b) `cache_control`
@@ -226,12 +244,13 @@ Recorded, not approved, not begun. One line each.
   `reports/2026-09-14_item27_step3_references.md` §3.7): a time-boxed try
   at letting Git Bash's tools start under the restricted token; PowerShell
   is the route until then.
-- **A `notify` on a background command** (Hermes: on exit or on an output
-  pattern) and **a tool that says how much context is left** (Codex's
-  `get_context_remaining`); two small ideas from the same research.
+- **A tool that says how much context is left** (Codex's
+  `get_context_remaining`); the `notify` on a background command is 32's
+  (on exit; an output pattern is not).
 - **A deadline per tool** (ISS-0033).
-- **Finish the `todo` tool**; **let a plan be corrected by the person**;
-  **`ask_user`** for a missing decision through the consent seam.
+- **Let a plan be corrected by the person**; **`ask_user`** for a missing
+  decision through the consent seam. (The `todo` tool's own fixes wait for
+  the todo measurement of 32.)
 - **A message during a long tool is answered while the tool runs** (seen
   2026-09-07): a side model call in the same worker, no tools, sent at
   once.

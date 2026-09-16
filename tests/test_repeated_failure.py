@@ -17,11 +17,12 @@ from pathlib import Path
 import pytest
 
 from app.agent.graph import (
-    MAX_IDENTICAL_FAILURES,
     REPEATED_FAILURE,
     build_agent,
     failed_before,
 )
+from app.context import ContextPolicy
+from app.limits import Limits
 from app.memory import LOCAL_USER_ID, SqliteStore
 from app.models import ContentPart, Message, ToolCall, ToolFailure
 from app.models.openai_compatible import StreamedCompletion
@@ -242,28 +243,36 @@ async def test_a_call_that_works_once_its_file_exists_is_run(
     assert reads, "the third read ran and returned the file"
 
 
-async def test_a_call_that_keeps_failing_ends_the_turn_instead_of_the_person(
+async def test_a_repeated_failure_is_noted_and_only_a_runaway_ends_the_tools(
     store: SqliteStore, workspace: Path
 ) -> None:
-    """Two attempts, then no more tools — and an answer that says why."""
+    """Roadmap 32: a repeat is information (DeepSeek's note), not an ending.
+    From the second identical failure the result says how many times it
+    came out the same; at the stop count the call is not run and the model
+    keeps its tools for one more response; one more identical attempt ends
+    the turn's tools, and the answer says why."""
 
     broken = calls("write_file", content="<!DOCTYPE html>")
-    backend = ScriptedBackend(broken, broken, broken, broken, says("unused"))
-    agent = build_agent(
-        backend,
-        Toolbox(filesystem_tools(workspace)),
-        store,
-        OWNER,
-    )
+    backend = ScriptedBackend(*([broken] * 8), says("unused"))
+    policy = ContextPolicy(limits=Limits(repeat_note_after=2, repeat_stop_after=4))
+    agent = build_agent(backend, Toolbox(filesystem_tools(workspace)), store, OWNER, policy)
 
     result = await agent.ainvoke(ask("make a page"))
 
-    # Two failures, then the third call is refused before it runs, and the model
-    # is asked once more with no tools at all.
-    assert len(backend.requests) == MAX_IDENTICAL_FAILURES + 2
+    results = [m for m in result["messages"] if m.role == "tool"]
+    # Four ran (the first two without a note, the next two noted), the fifth
+    # was not run and the batch ended, the sixth ended the tools.
+    assert len(results) == 6
+    assert "already failed the same way" not in spoken(results[1])
+    assert "already failed the same way 2 times" in spoken(results[2])
+    assert "already failed the same way 3 times" in spoken(results[3])
+    assert results[4].failure is not None and results[4].failure.code == "not_run"
+    assert "4 times in this turn and was not run again; change the arguments" in spoken(results[4])
+    assert backend.tools_seen[5] is not None, "one more response with its tools"
+    assert "no further tools will run" in spoken(results[5])
     assert backend.tools_seen[-1] is None
     assert result["stopping"] == REPEATED_FAILURE
-    assert "kept failing in the same way" in spoken(result["messages"][-1])
+    assert "kept coming out the same way" in spoken(result["messages"][-1])
 
 
 async def test_a_call_that_fails_once_is_still_retried(
@@ -306,12 +315,12 @@ def test_a_fenced_value_that_lost_the_next_argument_is_named_as_the_cause(
 # --- identical successes are bounded too ------------------------------------------
 
 
-async def test_the_third_identical_successful_call_is_answered_without_running(
+async def test_an_identical_success_runs_again_with_a_note(
     store: SqliteStore, workspace: Path
 ) -> None:
-    """ISS-0019: the same page written seven times in one turn, each a full
-    generation. The third byte-identical success is refused and the turn
-    goes on; nothing ends."""
+    """ISS-0019 (the same page written seven times) under roadmap 32: the
+    third byte-identical write runs, its result says it already succeeded
+    twice, and the turn goes on; only the stop count refuses."""
 
     same = calls("write_file", path="page.html", content="<p>hi</p>")
     backend = ScriptedBackend(same, same, same, says("Done."))
@@ -321,10 +330,10 @@ async def test_the_third_identical_successful_call_is_answered_without_running(
 
     results = [m for m in result["messages"] if m.role == "tool"]
     assert len(results) == 3
-    assert results[0].failure is None and results[1].failure is None
-    assert results[2].failure is not None and results[2].failure.code == "not_run"
-    assert "already succeeded twice" in spoken(results[2])
-    assert not result.get("stopping"), "one refused call is not an ending"
+    assert all(m.failure is None for m in results)
+    assert "already succeeded" not in spoken(results[1])
+    assert "(this exact call already succeeded 2 times in this turn)" in spoken(results[2])
+    assert not result.get("stopping")
     assert spoken(result["messages"][-1]) == "Done."
     assert backend.tools_seen[-1] is not None, "tools stay offered"
     assert (workspace / "page.html").read_text(encoding="utf-8") == "<p>hi</p>"

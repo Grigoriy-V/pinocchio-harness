@@ -1,7 +1,8 @@
 """The person's commands, answered in words once for every interface.
 
-`/plan`, `/mode`, `/context` and `/compact` change or report the switches a
-workspace keeps and what the next request is made of. Telegram and Chainlit
+`/mode`, `/context` and `/compact` change or report the switches a
+workspace keeps and what the next request is made of; `/plan` answers that
+its switch is gone. Telegram and Chainlit
 both offer them; the words are written here so the two interfaces cannot
 drift into two answers to the same question. Each function returns the text
 to show; sending it is the adapter's.
@@ -13,7 +14,6 @@ from typing import TYPE_CHECKING
 
 from app.agent.folder import clear_folder, set_folder
 from app.agent.mode import MODES, current_mode, set_mode
-from app.agent.todo import PLAN_SWITCH, planning_enabled, set_planning
 from app.context.choice import CONTEXT_CHOICE, SIZES, set_context_choice
 
 if TYPE_CHECKING:
@@ -32,59 +32,54 @@ def exchanges(keep_turns: int) -> str:
 
 
 def plan_reply(agent: Agent, argument: str) -> str:
-    """Show or flip whether the assistant keeps a task list.
+    """The switch is gone (2026-09-17): the task list is always available, and
+    a plan without changes is a mode. Answered, not passed to the model."""
 
-    A marker file in the person's workspace, read when the next turn's
-    toolbox is built, so `off` takes effect from the next message and is
-    the same in every interface. Nothing else is touched: with the tool
-    absent the brief has nothing to say about planning.
-    """
-
-    workspace = agent.workspace
-    if argument in {"on", "off"}:
-        set_planning(workspace, argument == "on")
-        agent.rewire()
-        return (
-            "Planning is on from your next message: I may keep a task list for "
-            f"longer work. Kept as {PLAN_SWITCH.as_posix()} in your workspace; "
-            "/plan off turns it off again."
-            if argument == "on"
-            else "Planning is off from your next message: no task list, no "
-            "planning tool. That is the default; /plan on turns it on."
-        )
-    state = "on" if planning_enabled(workspace) else "off (the default)"
     return (
-        f"Planning is {state}. /plan on gives me a task list and the planning "
-        "tool from the next message on; /plan off takes them away."
+        "The task list is always available now; there is nothing to switch. "
+        "For a plan without any change, /mode plan; /mode full goes back."
     )
 
 
-def mode_reply(agent: Agent, argument: str) -> str:
-    """Show or set whether changes to the workspace ask first.
+MODE_REPLIES = {
+    "careful": (
+        "Careful mode from your next message: writing or changing a file and "
+        "running a command wait for your yes, with the same buttons as before. "
+        "/mode full turns it off."
+    ),
+    "plan": (
+        "Plan mode from your next message: I read, search and look, and answer "
+        "with a plan; the tools that change or run anything are not offered. "
+        "/mode full lets me do the work; /mode careful does it with your yes on "
+        "every change."
+    ),
+    "full": (
+        "Full mode from your next message: everything inside your workspace "
+        "runs without asking, and only effects beyond it ask. That is the "
+        "default; /mode careful makes changes ask first, /mode plan plans only."
+    ),
+}
 
-    The same marker mechanism as `/plan`: read when the next toolbox is
-    built, so it takes effect from the next message in every interface.
+
+def mode_reply(agent: Agent, argument: str) -> str:
+    """Show or set the mode: full, careful, or plan.
+
+    A marker in the workspace, read when the next toolbox is built, so it
+    takes effect from the next message in every interface.
     """
 
     workspace = agent.workspace
     if argument in MODES:
         set_mode(workspace, argument)
         agent.rewire()
-        return (
-            "Careful mode from your next message: writing or changing a file and "
-            "running a command wait for your yes, with the same buttons as before. "
-            "/mode full turns it off."
-            if argument == "careful"
-            else "Full mode from your next message: everything inside your workspace "
-            "runs without asking, and only effects beyond it ask. That is the "
-            "default; /mode careful makes changes ask first."
-        )
+        return MODE_REPLIES[argument]
     mode = current_mode(workspace)
     return (
         f"Mode: {mode}{' (the default)' if mode == 'full' else ''}. In full mode "
         "everything inside your workspace runs without asking; in careful mode a "
-        "change to a file or a command waits for your yes. /mode full or /mode "
-        "careful sets it from the next message."
+        "change to a file or a command waits for your yes; in plan mode nothing "
+        "changes or runs and the answer is a plan. /mode full, /mode careful or "
+        "/mode plan sets it from the next message."
     )
 
 

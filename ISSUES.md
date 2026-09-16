@@ -22,6 +22,7 @@ authorizes nothing; `ROADMAP.md` alone orders work. Evidence lives in
 
 | Id | Status | Defect | Related |
 |---|---|---|---|
+| ISS-0078 | fixed 2026-09-17 (deployed at the next deploy) | Telegram answers a batch's consent question with one button, and the loop read the calls the answer did not name as declined | roadmap 32 |
 | ISS-0077 | open, both profiles | a `<select>` (or any control) inside a `<label>` has no line and no ref in `use_page`'s structure: the walker emits the label's text and does not descend | roadmap 31 smoke |
 | ISS-0076 | fixed 2026-09-14 | after a page reload a turn's tool calls come back as separate rows: the one collapsed step per turn is not kept | 0071, roadmap 27 |
 | ISS-0075 | fixed 2026-09-14 | a server the model starts with `start` opens a console window on the person's desktop and outlives the conversation untracked; `run_command` has no background mode | roadmap 27 |
@@ -597,6 +598,18 @@ Shortened to what a later reader needs; the linked report has the rest.
   tree search, file finder and line reads are tools of their own, so the
   Cygwin route is not needed. Making Cygwin itself run under the token is
   recorded as not started. `reports/2026-09-14_item27_step3_references.md` §3.7.
+
+### ISS-0078 — one button answered a whole batch's consent question
+
+- **What it was:** the loop asked one question for every risky call of a
+  batch and resumed once with the answers; Telegram sends one keyboard per
+  call and resumes on the first press with that one answer, so every other
+  risky call of the batch was read as declined (`answers.get` → `None`).
+  Found by the roadmap 32 research's inventory, 2026-09-17.
+- **Fixed** 2026-09-17 (roadmap 32): the `approve` node asks again for the
+  calls the answer did not name and runs nothing until every asked call is
+  answered; the adapter does not re-send the keyboards a person already
+  has. Offline tests; reaches Telegram at the next deploy.
 
 ### ISS-0076 — after a reload a turn's tool calls are separate rows again
 

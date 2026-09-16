@@ -24,14 +24,18 @@ are not reachable by following imports from `app/`.
 | Change a secret's name or what is published | `env.example`, `tools/sync_control_secret.py` | `ALLOWED`, `MODEL_SET` |
 | Choose or add a model set | `config.toml` `[model.sets.<name>]`, `app/config.py` | `ModelChoice`, `chosen_model`, `_env_prefix`, `ModelBudget`, `providers`, `tests/test_model_settings_chat_template.py` |
 | Change a limit on what the model reads, keeps or produces | `app/limits.py`, `app/config.py` | `Limits` (shares of the budget, page settings, `result_chars`, `page_chars`, `keep_recent_tokens`, `summary_tokens`, `instruction_bytes`, `media_budget`), `Agent.limits`, `CapabilityRegistry.limits`, `Spill`, `tests/test_limits.py` |
-| Change the agent loop | `app/agent/graph.py` | `build_agent`, `AgentState`, `interrupt`, `tests/test_agent_graph.py` |
+| Change the agent loop | `app/agent/graph.py` | `build_agent`, `AgentState`, `run_tools`, `approve`, `run_batch`, `run_group`, `grouped`, `parallel_ok`, `finished_batch`, `interrupt`, `tests/test_agent_graph.py`, `tests/test_tool_batches.py` |
 | Change when a long turn is asked how it is doing | `app/agent/graph.py` | `TurnWatch`, `HEALTH_QUESTION`, `health_question`, `checked_seconds`, `turn_health_check`, `tests/test_turn_bounds.py` |
-| Change the repeat guards | `app/agent/graph.py` | `failed_before`, `succeeded_before`, `MAX_IDENTICAL_FAILURES`, `MAX_IDENTICAL_SUCCESSES`, `tests/test_repeated_failure.py` |
-| Change what an empty or cut completion does | `app/agent/graph.py` | `silent_cut`, `nothing_to_add`, `output_cut_silent`, `finish_reason` |
-| Change how a running turn is stopped | `app/agent/stop.py` | `StopRequests`, `MemoryStopRequests`, `PostgresStopRequests`, `asked_to_stop` |
+| Change the repeat notes and the runaway stop | `app/agent/graph.py`, `app/limits.py` | `repeats`, `repeat_note`, `repeat_reason`, `failed_before`, `succeeded_before`, `Limits.repeat_note_after`, `repeat_stop_after`, `tests/test_repeated_failure.py` |
+| Change what an empty or cut completion does | `app/agent/graph.py` | `silent_cut`, `finalize`, `no_answer`, `said_anything`, `nothing_to_add`, `output_cut_silent`, `finish_reason` |
+| Change how a running turn is stopped | `app/agent/stop.py`, `app/agent/graph.py` | `StopRequests`, `MemoryStopRequests`, `PostgresStopRequests`, `asked_to_stop`, `until_stopped`, `TurnWatch.stop_poll_seconds`, `ENDED_REASON`, `TurnStopped` |
+| Change a remembered yes | `app/agent/grants.py` | `Grants`, `scope_of`, `prefix_of`, `GRANTS_FILE`, `resume_events(answers)` |
+| Change what the harness tells the model about a background exit | `app/agent/notices.py`, `app/tools/shell.py` | `Notices`, `MemoryNotices`, `notice_steering`, `_watch_exit`, `run_command notify`, `CapabilityRegistry.notify` |
+| Change the catalog and `find_tools` | `app/tools/base.py`, `app/tools/capabilities.py`, `app/capabilities.py` | `Toolbox.offer`, `find`, `deferred_names`, `families`, `version`, `FIND_TOOLS`, `tool_inventory`, `tests/test_tool_batches.py` |
+| Change the tool events an interface sees | `app/agent/runtime.py`, `app/agent/graph.py` | `ToolStarted`, `ToolFinished`, `TOOL_STARTED`, `TOOL_FINISHED` |
 | Change how a message sent mid-turn reaches the model | `app/agent/interjections.py`, `ui/telegram/interjections.py`, `inbox.take_pending` | `Interjections`, `MemoryInterjections`, `InboxInterjections`, `MessageTaken`, `tests/test_interjections.py` |
 | Change whether a model result ends the turn | `app/agent/stopping.py` | `TurnStopping`, `Candidate`, `Steering`, `STOP_ON_ANSWER`, `tests/test_turn_stopping.py` |
-| Change the plan tool or its switch | `app/tools/todo.py`, `app/agent/todo.py` | `todo_write`, `PLAN_SWITCH`, `planning_enabled`, `FinishesItsOwnList`, `tests/test_todo.py` |
+| Change the task list tool | `app/tools/todo.py`, `app/agent/todo.py` | `todo_write`, `FinishesItsOwnList`, `tests/test_todo.py` |
 | Change the goal the model writes first | `app/tools/goal.py` | `set_goal`, `DESCRIPTION`, `tests/test_goal.py` |
 | Change the brief's wording (what the model is told about tools and method) | `app/capabilities.py`, `app/context/window.py` | `capability_brief`, `_planning_lines`, `_goal_lines`, `WORKING_METHOD`, `DEFAULT_SYSTEM_PROMPT` (names no tool; a test enforces it) |
 | Change agent wiring | `app/agent/runtime.py` | `Agent`, `create_agent`, `toolbox`, `budget`, `rewire`, `_graph` |
@@ -71,7 +75,7 @@ are not reachable by following imports from `app/`.
 | Change document parsing / tools | `app/documents.py`, `app/tools/documents.py` | `read_sections`, `render_pages`, `read_document`, `view_pages` |
 | Change file delivery | `app/tools/presentation.py` | `send_file`, `outbound=True` |
 | Run a command or change where commands run | `app/tools/shell.py`, `app/tools/shell_windows.py`, `deploy/modal/control_app.py` | `run_command`, `Runner`, `LocalRunner`, `ContainerRunner`, `ModalRunner`, `command_environment`, `own_venv_bin`, `_start_detached`, `Running`, `powershell_argv`, `command_line`, `RestrictedProcess`, `BASE_TOOLS`, `tests/test_run_command.py` |
-| Change the two modes | `app/agent/mode.py`, `app/tools/base.py` | `CAREFUL_SWITCH`, `set_mode`, `Tool.mutates`, `Toolbox.ask_for_changes` |
+| Change the three modes | `app/agent/mode.py`, `app/tools/base.py`, `app/tools/capabilities.py` | `MODE_FILE`, `set_mode`, `current_mode`, `plan_enabled`, `Tool.mutates`, `Toolbox.ask_for_changes`, `Toolbox.plan`, `toolbox(plan=)` |
 | Change what a command answers, in every interface | `app/agent/commands.py` | `plan_reply`, `mode_reply`, `context_reply`, `workspace_reply` |
 | Change the conversation's working folder | `app/agent/folder.py` | `FOLDERS`, `folder_of`, `set_folder`, `last_folder`, `tests/test_working_folder.py` |
 | Change the page tool (`use_page`) | `app/tools/browser.py` | `use_page`, `Pages`, `page_report`, `DESCRIPTION`, `ACTIONS`, `tests/test_browser_tools.py` |

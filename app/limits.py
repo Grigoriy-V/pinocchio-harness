@@ -71,6 +71,17 @@ class Limits:
     command_timeout: int = 120
     command_timeout_max: int = 600
 
+    # --- the loop's numbers (roadmap 32) ---------------------------------
+    # How many read-only calls of one batch run at once (the references'
+    # 8-10); a call that changes something runs alone, in the model's order.
+    parallel_calls: int = 10
+    # An identical call repeated: from this many earlier identical outcomes
+    # the result carries a note saying so (DeepSeek's advisory), and from
+    # `repeat_stop_after` the call is not run and the batch ends; one more
+    # identical attempt ends the turn's tools (OpenClaw's critical block).
+    repeat_note_after: int = 2
+    repeat_stop_after: int = 8
+
     # --- the model's own numbers (per model set) -----------------------------
     max_images: int = 4
     max_audio: int = 1
@@ -153,6 +164,9 @@ class Limits:
             "csv_rows",
             "command_timeout",
             "command_timeout_max",
+            "parallel_calls",
+            "repeat_note_after",
+            "repeat_stop_after",
         ):
             if agent is not None and getattr(agent, name, None) is not None:
                 values[name] = getattr(agent, name)

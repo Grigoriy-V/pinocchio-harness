@@ -81,8 +81,7 @@ DELIVERY = Delivery(media=(IMAGE, AUDIO), place="the Chainlit web app")
 # words of every reply are `app.agent.commands`, shared with Telegram.
 COMMANDS = [
     {"id": "compact", "description": "Fold the older part of this conversation now", "icon": "fold-vertical"},
-    {"id": "plan", "description": "on | off: a task list for longer work", "icon": "list-checks"},
-    {"id": "mode", "description": "full | careful: whether changes ask first", "icon": "shield"},
+    {"id": "mode", "description": "full | careful | plan: whether changes ask first, or nothing changes", "icon": "shield"},
     {"id": "context", "description": "small | normal | large, or what the next request is made of", "icon": "layers"},
     {"id": "workspace", "description": "<absolute path> | off: the folder this conversation works in", "icon": "folder-open"},
 ]

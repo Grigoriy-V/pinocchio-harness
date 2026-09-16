@@ -11,8 +11,8 @@ conversation is stored; all three are arguments.
 
 from __future__ import annotations
 
+import asyncio
 import json
-
 import time
 from dataclasses import dataclass, field, replace
 from collections.abc import Callable, Collection, Sequence
@@ -24,7 +24,9 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.types import StreamWriter, interrupt
 
+from app.agent.grants import NO_GRANTS, scope_of
 from app.agent.interjections import NO_INTERJECTIONS, Interjections
+from app.agent.notices import NO_NOTICES, Notices, notice_steering
 from app.agent.stop import NO_STOPS, StopRequests
 from app.agent.stopping import (
     STOP_ON_ANSWER,
@@ -36,7 +38,7 @@ from app.agent.stopping import (
 )
 from app.context import Context, ContextPolicy, fold_older_messages, load_turn_context
 from app.context.window import system, DEFAULT_SYSTEM_PROMPT
-from app.tools.execution import Spill
+from app.tools.execution import PreparedToolCall, Spill
 from app.memory import ConversationStore
 from app.models import (
     BackendError,
@@ -62,10 +64,13 @@ from app.tools import (
     tool_failed,
 )
 
-# The key a text delta travels under on LangGraph's custom stream channel. The
-# channel carries anything, so the runtime and the graph have to agree on one
-# name; nothing else in this project writes to it.
+# The keys the graph's custom stream channel carries: a text delta, a tool
+# call that launched, a call that returned. The channel carries anything, so
+# the runtime and the graph have to agree on the names; nothing else in this
+# project writes to it.
 ASSISTANT_DELTA = "assistant_delta"
+TOOL_STARTED = "tool_started"
+TOOL_FINISHED = "tool_finished"
 
 # The turn identity travels beside `thread_id` in LangGraph's own configurable
 # dictionary. A string, never the recorder itself: this value is carried in
@@ -120,8 +125,15 @@ class TurnWatch:
     """
 
     check_seconds: float = 600.0
+    # How often a running tool call or model call asks whether the person
+    # said stop (roadmap 32): the stop is read at every launch boundary and,
+    # while something runs, at this interval; a stop ends the call in
+    # flight. Deployed each read is one query on the control plane.
+    stop_poll_seconds: float = 3.0
 
     def __post_init__(self) -> None:
+        if self.stop_poll_seconds <= 0:
+            raise ValueError("stop_poll_seconds must be positive")
         if self.check_seconds < 0:
             raise ValueError("check_seconds cannot be negative")
 
@@ -134,25 +146,19 @@ class TurnWatch:
 STOP_REQUESTED = "stopped"
 REPEATED_FAILURE = "repeated"
 
-# How many times one identical call may fail before the turn stops offering
-# tools at all. Two is a real retry — a transient failure deserves one — and the
-# third attempt at a call that has already failed twice with the same arguments
-# is not recovery, it is a loop. Live on 2026-08-30 a malformed `write_file`
-# was retried eight times over four minutes, each attempt regenerating a whole
-# page, and only the person ended it.
-MAX_IDENTICAL_FAILURES = 2
-
-# How many times one identical call may *succeed* in a turn before it is not
-# run again. Two is the same file written twice, which is ordinary; the third
-# byte-identical write is the rewrite loop of ISS-0019 (seven in one turn,
-# each a full generation). Unlike a repeating failure this does not end the
-# turn: the call is answered with "already done" and the model goes on.
-MAX_IDENTICAL_SUCCESSES = 2
-
 # The states in which the turn is already finishing: the model gets one last
 # request, without tools, for the answer the person is owed, and nothing asks an
 # extension whether it may spend more.
 ENDING = frozenset({REPEATED_FAILURE})
+
+# A repeated identical call is information, not an ending (roadmap 32;
+# DeepSeek's advisory note, OpenClaw's warning then block). From
+# `Limits.repeat_note_after` identical outcomes the call runs and its result
+# says how many times it already came out the same; from
+# `Limits.repeat_stop_after` it is not run and the batch ends with the reason,
+# the model keeping its tools for one more response; an identical attempt past
+# that ends the turn's tools. Live on 2026-08-30 a malformed `write_file` was
+# retried eight times over four minutes; ISS-0019 wrote one page seven times.
 
 
 @dataclass
@@ -192,6 +198,19 @@ class AgentState:
     steerings: int = 0
     # The spend at which the turn was last asked whether it is on track.
     checked_seconds: float = 0.0
+    # A batch split by a consent question (roadmap 32): the results of the
+    # calls that needed no yes, kept here while the risky ones wait for the
+    # person, and the ids of those waiting; the notes a repeated call's result
+    # carries. All three are the batch's own and are cleared when it ends.
+    held: dict[str, Message] = field(default_factory=dict)
+    asked: tuple[str, ...] = ()
+    notes: dict[str, str] = field(default_factory=dict)
+    # Whether the turn already asked the model, once, to say what it did when
+    # its completion was empty; the second empty completion is the fixed line.
+    finalized: bool = False
+    # The toolbox's version the turn's context was assembled against; the set
+    # may grow inside a turn (`find_tools`) and the brief is rebuilt when it did.
+    toolbox_version: int = -1
 
 
 def assistant_message(completion: Completion) -> Message:
@@ -384,22 +403,68 @@ def halted(call: ToolCall, reason: str) -> Message:
 
 
 STOP_REASON = "the user asked to stop; this call was not run"
-DONE_REASON = (
-    "this exact call has already succeeded twice in this turn with these same "
-    "arguments and was not run again; the earlier result stands — change the "
-    "arguments, or move on"
-)
-REPEAT_REASON = (
-    "this exact call has already failed the same way in this turn and was not "
-    "run again; no further tools will run, so say plainly what you could not do "
-    "and answer with what you have"
-)
+ENDED_REASON = "the user asked to stop; this call was ended before it finished"
+
+
+def repeat_note(count: int, kind: str) -> str:
+    """What a result carries when the same call already came out the same way."""
+
+    return f"(this exact call already {kind} {count} times in this turn)"
+
+
+def repeat_reason(count: int, kind: str, ending: bool) -> str:
+    """Why a runaway repeat was not run: the count, and what is left to do."""
+
+    tail = (
+        "no further tools will run, so say plainly what you could not do and "
+        "answer with what you have"
+        if ending
+        else "change the arguments, or say what you could not do and answer with what you have"
+    )
+    return f"this exact call already {kind} {count} times in this turn and was not run again; {tail}"
+
+
+FAILED_KIND = "failed the same way"
+SUCCEEDED_KIND = "succeeded"
+
 # What the person is told when the model spent its last request asking for one
-# more tool rather than answering, after the same call kept failing.
+# more tool rather than answering, after the same call kept repeating.
 REPEAT_ANSWER = (
-    "I stopped here: the same call kept failing in the same way, so trying it "
+    "I stopped here: the same call kept coming out the same way, so trying it "
     "again would not have helped."
 )
+
+# The one tool-free request a turn makes when the model's completion was empty
+# before anything was said (roadmap 32; OpenClaw's finalization pass).
+FINALIZE_SOURCE = "finalize"
+FINALIZE_INSTRUCTION = "Say in one line what you did and what is left."
+NO_ANSWER = "(no answer was produced)"
+
+
+def finalize() -> Steering:
+    return Steering(instruction=FINALIZE_INSTRUCTION, source=FINALIZE_SOURCE)
+
+
+def no_answer() -> Message:
+    return Message(role="assistant", content=[ContentPart(kind="text", text=NO_ANSWER)])
+
+
+def said_anything(messages: Sequence[Message]) -> bool:
+    """Whether the turn so far delivered any text of the assistant's."""
+
+    return any(
+        message.role == "assistant" and any(part.text for part in message.content)
+        for message in messages
+    )
+
+
+class TurnStopped(Exception):
+    """Raised inside a model call when the person asked to stop; carries the
+    text streamed so far, which the person already saw."""
+
+    def __init__(self, partial: str = "") -> None:
+        super().__init__("stopped")
+        self.partial = partial
 
 
 # The harness's one question to a long turn (`TurnWatch`). Literal: a
@@ -420,17 +485,50 @@ def health_question(spent_seconds: float) -> Steering:
     )
 
 
-def stopped_message() -> Message:
+STOPPED_TEXT = "Stopped at your request."
+
+
+def stopped_message(partial: str = "") -> Message:
     """The completed assistant turn after a person asked for it to end.
 
     Written here rather than by the model: someone who asked for the work to
-    stop is not asking for one more model call to tell them it stopped.
+    stop is not asking for one more model call to tell them it stopped. Text
+    the model had streamed before the stop stays in front of it: the person
+    saw it, and the record keeps what was seen.
     """
 
-    return Message(
-        role="assistant",
-        content=[ContentPart(kind="text", text="Stopped at your request.")],
-    )
+    text = f"{partial.rstrip()}\n\n{STOPPED_TEXT}" if partial.strip() else STOPPED_TEXT
+    return Message(role="assistant", content=[ContentPart(kind="text", text=text)])
+
+
+def noted(message: Message, note: str) -> Message:
+    """The result with the repeat note after it."""
+
+    return replace(message, content=[*message.content, ContentPart(kind="text", text=note)])
+
+
+def parallel_ok(item: PreparedToolCall) -> bool:
+    """Whether a prepared call may run beside others: a call refused before it
+    ran touches nothing; a tool safe to run twice has no effect an order could
+    matter to (the references classify per tool, not per argument)."""
+
+    return item.refusal is not None or bool(item.tool is not None and item.tool.replay_safe)
+
+
+def grouped(items: Sequence[PreparedToolCall], at_most: int) -> list[list[PreparedToolCall]]:
+    """The batch as launch groups in the model's order: consecutive calls that
+    may run together form one group of at most `at_most`; every other call
+    is a group of its own, a barrier."""
+
+    groups: list[list[PreparedToolCall]] = []
+    for item in items:
+        if parallel_ok(item) and groups and len(groups[-1]) < at_most and all(
+            parallel_ok(earlier) for earlier in groups[-1]
+        ):
+            groups[-1].append(item)
+        else:
+            groups.append([item])
+    return groups
 
 
 def silent_cut() -> Message:
@@ -500,6 +598,8 @@ def build_agent(
     interjections: Interjections = NO_INTERJECTIONS,
     instructions: Callable[[], str] | None = None,
     spill: Spill | None = None,
+    grants: Any = NO_GRANTS,
+    notices: Notices = NO_NOTICES,
 ) -> CompiledStateGraph:
     """Compile the graph. This is the loop, and there is only one of it.
 
@@ -513,9 +613,13 @@ def build_agent(
     cannot stop and come back, so a call needing approval has nowhere to wait and is
     refused rather than run unasked.
 
-    `stops` is asked at each step boundary and never at the start: a turn that
-    has not run anything yet has nothing to stop, and in the deployed profile
-    the question costs a round trip to the control plane.
+    `stops` is asked at each launch boundary and every `stop_poll_seconds`
+    while a call runs, never at the start: a turn that has not run anything
+    yet has nothing to stop, and in the deployed profile the question costs
+    a round trip to the control plane. A stop ends the call in flight.
+
+    `grants` remembers a yes the person gave with a scope; `notices` is where
+    the harness reads what ended on its own (a background command's exit).
 
     `interjections` is asked after each batch of tools, like `stops`: what the
     person wrote while the batch ran enters the turn there, after the results
@@ -533,15 +637,23 @@ def build_agent(
 
     policy = policy or ContextPolicy()
     limits = watch or TurnWatch()
-    schemas = toolbox.schemas() or None
     # The schemas are rendered into the request by the server's chat template
-    # and are part of what it counts; estimated once, since a toolbox does not
-    # change between the steps of a compiled graph.
-    schema_tokens = (
-        backend.estimate_tokens([system(json.dumps(schemas, ensure_ascii=False))])
-        if schemas
-        else 0
-    )
+    # and are part of what it counts. Read from the toolbox at every step
+    # (roadmap 32): the offered set may grow inside a turn (`find_tools`), and
+    # the estimate is kept per toolbox version so an unchanged set costs one.
+    cached: dict[str, Any] = {"version": None, "schemas": None, "tokens": 0}
+
+    def current_schemas() -> tuple[list[dict[str, Any]] | None, int]:
+        if cached["version"] != toolbox.version:
+            schemas = toolbox.schemas() or None
+            cached["schemas"] = schemas
+            cached["tokens"] = (
+                backend.estimate_tokens([system(json.dumps(schemas, ensure_ascii=False))])
+                if schemas
+                else 0
+            )
+            cached["version"] = toolbox.version
+        return cached["schemas"], cached["tokens"]
 
     def trace_of(config: RunnableConfig | None) -> TurnTrace:
         """The recorder for the turn this invocation belongs to, if any.
@@ -562,25 +674,48 @@ def build_agent(
             user_id,
             query,
             policy.retrieved_facts,
-            system_prompt,
+            system_prompt() if callable(system_prompt) else system_prompt,
             instructions() if instructions is not None else "",
             policy.keep_results,
             policy.limits,
         )
 
-    def load(state: AgentState) -> dict[str, Context]:
+    def load(state: AgentState) -> dict[str, Any]:
         with timed("context_loaded"):
-            return {"context": assemble_context(state)}
+            return {"context": assemble_context(state), "toolbox_version": toolbox.version}
 
     # The served model's name, for the trajectory record; a backend without
     # settings (a scripted one) has none.
     model_name = getattr(getattr(backend, "settings", None), "name", None)
+
+    async def until_stopped(awaitable: Any, state: AgentState) -> Any:
+        """Await something, asking for a stop every `stop_poll_seconds`; a stop
+        cancels it and raises `TurnStopped`. The cancellation is the ordinary
+        one: a model request is closed, a tool's process is killed by the
+        runner's own `except BaseException`."""
+
+        task = asyncio.ensure_future(awaitable)
+        try:
+            while True:
+                done, _ = await asyncio.wait({task}, timeout=limits.stop_poll_seconds)
+                if done:
+                    return task.result()
+                if await asked_to_stop(state):
+                    task.cancel()
+                    await asyncio.gather(task, return_exceptions=True)
+                    raise TurnStopped()
+        except BaseException:
+            if not task.done():
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+            raise
 
     async def complete(
         prompt: list[Message],
         writer: StreamWriter,
         trace: TurnTrace,
         tools: list[dict[str, Any]] | None,
+        state: AgentState,
     ) -> Completion:
         """One model call, streamed or not, with the same result either way.
 
@@ -588,27 +723,47 @@ def build_agent(
         it must not change what the graph does with it. The events carry the
         whole completion, so tool calls, usage and the finish reason survive the
         stream and the rest of this node cannot tell which path it took.
+
+        A stop is read between chunks (roadmap 32; Codex's cancellation
+        token): the request is closed and the turn ends with what was seen.
         """
 
         with trace.model("answer") as measured:
             if not stream_answers:
                 # No first-token boundary exists on this path, and inventing one
                 # would report a TTFT equal to the whole call.
-                completion = await backend.invoke(prompt, tools=tools)
+                completion = await until_stopped(backend.invoke(prompt, tools=tools), state)
                 measured.done(completion)
                 trace.trajectory(measured.index, prompt, tools, completion, model=model_name)
                 return completion
             completion = None
             seen_text = False
-            async for event in backend.stream(prompt, tools=tools):
-                if isinstance(event, TextDelta):
-                    if not seen_text:
-                        seen_text = True
-                        measured.first_token()
-                    # Presentation only. Nothing on this channel is ever persisted.
-                    writer({ASSISTANT_DELTA: event.text})
-                else:
-                    completion = event.completion
+            partial: list[str] = []
+            stream = backend.stream(prompt, tools=tools)
+            try:
+                while True:
+                    try:
+                        event = await until_stopped(stream.__anext__(), state)
+                    except StopAsyncIteration:
+                        break
+                    if isinstance(event, TextDelta):
+                        if not seen_text:
+                            seen_text = True
+                            measured.first_token()
+                        partial.append(event.text)
+                        # Presentation only. Nothing on this channel is ever persisted.
+                        writer({ASSISTANT_DELTA: event.text})
+                    else:
+                        completion = event.completion
+            except TurnStopped:
+                raise TurnStopped("".join(partial)) from None
+            finally:
+                aclose = getattr(stream, "aclose", None)
+                if aclose is not None:
+                    try:
+                        await aclose()
+                    except Exception:  # noqa: BLE001 - closing a stream is best effort
+                        pass
             if completion is None:
                 raise BackendError("the model stream ended without a completion")
             measured.done(completion)
@@ -619,6 +774,14 @@ def build_agent(
         state: AgentState, config: RunnableConfig, writer: StreamWriter
     ) -> dict[str, Any]:
         started = time.monotonic()
+        # What ended on its own while no turn ran (a background command's
+        # exit) is read at the turn's first step and rides as turn control
+        # beside the request, the way the health question rides: read by
+        # the model, answered in what it says, not stored as anyone's words.
+        told = notices.take(user_id) if state.steps == 0 else []
+        if told:
+            trace_of(config).event("turn_notified", step=state.steps + 1, count=len(told))
+            state = replace(state, steered=notice_steering(told, None))
         patch = await _ask(state, config, writer, started)
         # One step is one model call and whatever it decided to do next, which
         # is the unit a budget and a reader of the trace both care about.
@@ -649,10 +812,12 @@ def build_agent(
             spent_ms=int(state.spent_seconds * 1000),
             stopping=state.stopping or None,
         )
+        schemas, schema_tokens = current_schemas()
         # A turn ended by a repeating call still gets to answer, and is offered
         # no tools while it does: what it must not be able to do is try that
-        # call once more.
-        offered = None if state.stopping in ENDING else schemas
+        # call once more. The finalization pass is tool-free too.
+        finalizing = state.steered is not None and state.steered.steering.source == FINALIZE_SOURCE
+        offered = None if state.stopping in ENDING or finalizing else schemas
 
         def produced(completion: Completion) -> Message | None:
             """What the model wrote, and only that, once the turn is ending.
@@ -671,8 +836,11 @@ def build_agent(
             message = assistant_message(completion)
             if offered is None and message.tool_calls:
                 if not message.content:
-                    # It asked for another tool instead of answering. Saying so
-                    # is better than an empty bubble, and better than a lie.
+                    # It asked for another tool instead of answering. On the
+                    # finalization pass that is an empty answer; after a
+                    # runaway repeat, saying so is better than an empty bubble.
+                    if finalizing:
+                        return None
                     return Message(
                         role="assistant",
                         content=[ContentPart(kind="text", text=REPEAT_ANSWER)],
@@ -681,7 +849,10 @@ def build_agent(
             return message
 
         turn = carried(state)
-        prepared = await fitted(state, turn, trace)
+        # The brief names the tools; when the set grew inside the turn the
+        # context is assembled again so the inventory the model reads is true.
+        base = state.context if state.toolbox_version == toolbox.version else assemble_context(state)
+        prepared = await fitted(state, base, turn, trace, schema_tokens)
         surface = prepared.surface(turn)
         trace.event(
             "context_prepared",
@@ -695,7 +866,16 @@ def build_agent(
             placeholders=surface.placeholders,
         )
         try:
-            completion = await complete(surface.messages, writer, trace, offered)
+            completion = await complete(surface.messages, writer, trace, offered, state)
+        except TurnStopped as stop:
+            trace.event("turn_stopped", step=state.steps + 1, tool_calls=state.tool_calls, where="model")
+            return {
+                "context": prepared,
+                "messages": [stopped_message(stop.partial)],
+                "usage": Usage(),
+                "stopping": STOP_REQUESTED,
+                "toolbox_version": toolbox.version,
+            }
         except ContextOverflowError:
             try:
                 folded = await fold_older_messages(
@@ -708,7 +888,16 @@ def build_agent(
 
             recovered = assemble_context(state)
             try:
-                completion = await complete(recovered.prompt(turn), writer, trace, offered)
+                completion = await complete(recovered.prompt(turn), writer, trace, offered, state)
+            except TurnStopped as stop:
+                trace.event("turn_stopped", step=state.steps + 1, tool_calls=state.tool_calls, where="model")
+                return {
+                    "context": recovered,
+                    "messages": [stopped_message(stop.partial)],
+                    "usage": Usage(),
+                    "stopping": STOP_REQUESTED,
+                    "toolbox_version": toolbox.version,
+                }
             except ContextOverflowError:
                 return {
                     "context": recovered,
@@ -765,7 +954,12 @@ def build_agent(
 
         # The whole node, including a recovery attempt, is what this call cost.
         spent = state.spent_seconds + (time.monotonic() - started)
-        keep = {"context": context, "usage": completion.usage, "spent_seconds": spent}
+        keep = {
+            "context": context,
+            "usage": completion.usage,
+            "spent_seconds": spent,
+            "toolbox_version": toolbox.version,
+        }
         if message is None:
             if state.steered is not None and state.steered.candidate is not None:
                 # The model did what the steering asked and had nothing new
@@ -779,6 +973,19 @@ def build_agent(
                 # visible token (ISS-0055). Said so, rather than silence.
                 trace.event("output_cut_silent", step=state.steps + 1)
                 return {**keep, "messages": [silent_cut()]}
+            if not said_anything(state.messages):
+                # Nothing was said in the whole turn (roadmap 32). One
+                # tool-free request asks for one line; if that is empty too,
+                # the fixed line, so no turn ends with a delivered nothing.
+                if not state.finalized:
+                    trace.event("finalization_asked", step=state.steps + 1)
+                    return {
+                        **keep,
+                        "steered": Steered(candidate=None, steering=finalize()),
+                        "finalized": True,
+                    }
+                trace.event("no_answer_produced", step=state.steps + 1)
+                return {**keep, "messages": [no_answer()]}
             # Nothing new after what was already said beside the last call.
             # The turn ends here with no further message.
             trace.event("nothing_to_add", step=state.steps + 1)
@@ -814,7 +1021,7 @@ def build_agent(
         }
 
     async def fitted(
-        state: AgentState, turn: list[Message], trace: TurnTrace
+        state: AgentState, base: Context, turn: list[Message], trace: TurnTrace, schema_tokens: int
     ) -> Context:
         """Fold before asking, if what is about to be sent is already too big.
 
@@ -836,18 +1043,18 @@ def build_agent(
         """
 
         if policy.max_input_tokens is None:
-            return state.context
+            return base
         # Headroom for the answer (Codex: 95% of the window usable for
         # inputs): the request folds before it lands within the output's
         # reach of the budget.
         ceiling = max(1, policy.max_input_tokens - policy.limits.output_tokens)
-        estimated = backend.estimate_tokens(state.context.prompt(turn)) + schema_tokens
+        estimated = backend.estimate_tokens(base.prompt(turn)) + schema_tokens
         if estimated <= ceiling:
-            return state.context
+            return base
         # As many exchanges as have to go, oldest first; a second fold only
         # when the first, sized on an estimate, fell short. Three is a bound
         # on a summarizer that frees less than it should, not a plan.
-        context = state.context
+        context = base
         now = estimated
         folds = 0
         for _ in range(3):
@@ -897,120 +1104,114 @@ def build_agent(
         except Exception:  # noqa: BLE001 - a stop that cannot be read is not a stop
             return False
 
-    async def run_tools(
-        state: AgentState, config: RunnableConfig
-    ) -> dict[str, Any]:
-        started = time.monotonic()
-        trace = trace_of(config)
-        calls = state.messages[-1].tool_calls
+    async def run_group(
+        group: Sequence[PreparedToolCall],
+        executor: ToolExecutor,
+        state: AgentState,
+        trace: TurnTrace,
+        writer: StreamWriter,
+    ) -> tuple[dict[str, Message], bool]:
+        """Launch one group at once and wait, asking for a stop every
+        `stop_poll_seconds`; a stop cancels what is still running (the
+        runner kills its process) and answers it as ended. Returns the
+        results by call id and whether a stop was met."""
 
-        # Asked before anything runs, and before anyone is asked to approve
-        # anything: a person who has already said stop should not then be
-        # shown a consent question.
-        if await asked_to_stop(state):
-            trace.event("turn_stopped", step=state.steps, tool_calls=state.tool_calls)
-            return {
-                "messages": [
-                    *(halted(call, STOP_REASON) for call in calls),
-                    stopped_message(),
-                ],
-                "stopping": STOP_REQUESTED,
-            }
-        looping = [
-            call
-            for call in calls
-            # Everything before this batch: the attempt being judged is in
-            # `state.messages` too, and a fake or a server that reuses call ids
-            # would otherwise let it count itself.
-            if failed_before(state.messages[:-1], call) >= MAX_IDENTICAL_FAILURES
-        ]
-        if looping:
-            # Not a budget and not a stop: the turn can afford more, and nobody
-            # asked it to end. It is being ended because another attempt at a
-            # call that has failed twice identically cannot produce anything
-            # the last two did not, and each one costs a full generation.
-            trace.event(
-                "turn_repeating",
-                tool=looping[0].name,
-                attempts=failed_before(state.messages[:-1], looping[0]),
-                step=state.steps,
-            )
-            return {
-                "messages": [halted(call, REPEAT_REASON) for call in calls],
-                "stopping": REPEATED_FAILURE,
-            }
-        # A call that keeps succeeding identically is not work either. It is
-        # answered without running and the turn goes on: not an ending, one
-        # refused call (ISS-0019).
-        changing = [name for name in toolbox.names if getattr(toolbox.get(name), "mutates", False)]
-        done_again = [
-            call
-            for call in calls
-            if succeeded_before(state.messages[:-1], call, changing) >= MAX_IDENTICAL_SUCCESSES
-        ]
-        if done_again:
-            trace.event(
-                "tool_repeated_success",
-                tool=done_again[0].name,
-                attempts=succeeded_before(state.messages[:-1], done_again[0], changing),
-                step=state.steps,
-            )
-            calls = [call for call in calls if call not in done_again]
+        tasks: dict[asyncio.Task[Message], PreparedToolCall] = {}
+        for item in group:
+            writer({TOOL_STARTED: item.call})
+            tasks[asyncio.ensure_future(executor.run(item))] = item
+        results: dict[str, Message] = {}
+        stopped = False
+        pending = set(tasks)
+        while pending:
+            done, pending = await asyncio.wait(pending, timeout=limits.stop_poll_seconds)
+            for task in done:
+                item = tasks[task]
+                results[item.call.id] = task.result()
+                writer({TOOL_FINISHED: (item.call, results[item.call.id])})
+            if pending and await asked_to_stop(state):
+                for task in pending:
+                    task.cancel()
+                await asyncio.gather(*pending, return_exceptions=True)
+                for task in pending:
+                    item = tasks[task]
+                    trace.event("tool_cancelled", tool=item.call.name)
+                    results[item.call.id] = halted(item.call, ENDED_REASON)
+                    writer({TOOL_FINISHED: (item.call, results[item.call.id])})
+                pending = set()
+                stopped = True
+        return results, stopped
 
-        executor = ToolExecutor(toolbox, trace, limits=policy.limits, spill=spill)
-        prepared = [executor.pre_execute(call) for call in calls]
-        # Invalid calls go straight back to the model as tool errors. Asking a
-        # user to approve a call that cannot run is both noisy and misleading.
-        risky = [item for item in prepared if item.approval_required]
-        allowed = dict.fromkeys((call.id for call in calls), True)
-        if risky and checkpointer is None:
-            # Nowhere to ask, so the answer is no; the model is told which.
-            allowed.update(dict.fromkeys((item.call.id for item in risky), False))
-        elif risky:
-            # One question for the whole batch, asked before any tool has run:
-            # resuming restarts this node from the top, and a tool that ran
-            # before the pause would run a second time.
-            trace.event("approval_requested", calls=[item.call.name for item in risky])
-            answers = interrupt([describe_call(item.call) for item in risky])
-            allowed.update(
-                {item.call.id: bool(answers.get(item.call.id)) for item in risky}
-            )
-            trace.event(
-                "approval_resumed",
-                approved=[
-                    item.call.name for item in risky if allowed[item.call.id]
-                ],
-            )
-        messages = []
-        spent = 0
-        for item in prepared:
-            call = item.call
-            if not allowed[call.id]:
-                # Never run, so never counted as a tool call the turn spent.
-                trace.event(
-                    "tool_failed", tool=call.name, status="declined", code=DECLINED
-                )
-                messages.append(
-                    declined(call) if checkpointer is not None else nowhere_to_ask(call)
-                )
+    async def run_batch(
+        items: Sequence[PreparedToolCall],
+        executor: ToolExecutor,
+        state: AgentState,
+        trace: TurnTrace,
+        writer: StreamWriter,
+    ) -> tuple[dict[str, Message], bool, int]:
+        """The calls in the model's order: a group of reads at once, a call
+        that changes something alone as a barrier (roadmap 32; DeepSeek's
+        exclusive calls, Codex's lock). The stop is read before every launch.
+        Returns the results, whether a stop was met, and how many calls ran."""
+
+        results: dict[str, Message] = {}
+        stopped = False
+        ran = 0
+        for group in grouped(items, max(1, policy.limits.parallel_calls)):
+            if not stopped and await asked_to_stop(state):
+                stopped = True
+            if stopped:
+                for item in group:
+                    results[item.call.id] = halted(item.call, STOP_REASON)
                 continue
-            result = await executor.run(item)
-            spent += 1
-            messages.append(result)
-        messages.extend(halted(call, DONE_REASON) for call in done_again)
+            if len(group) > 1:
+                trace.event("tools_parallel", count=len(group), tools=[item.call.name for item in group])
+            found, stopped = await run_group(group, executor, state, trace, writer)
+            results.update(found)
+            ran += len(group)
+        return results, stopped, ran
+
+    async def finished_batch(
+        state: AgentState,
+        calls: Sequence[ToolCall],
+        results: dict[str, Message],
+        notes: dict[str, str],
+        ran: int,
+        stopped: bool,
+        started: float,
+        trace: TurnTrace,
+    ) -> dict[str, Any]:
+        """The batch's patch: every call's result in the model's order, then
+        what rides after the results (the health question, the person's
+        message, a background notice), or the stop."""
+
+        messages = []
+        for call in calls:
+            message = results.get(call.id) or halted(call, STOP_REASON)
+            if call.id in notes:
+                message = noted(message, notes[call.id])
+            messages.append(message)
         spent_seconds = state.spent_seconds + (time.monotonic() - started)
         patch: dict[str, Any] = {
             "messages": messages,
-            "tool_calls": state.tool_calls + spent,
+            "tool_calls": state.tool_calls + ran,
             "spent_seconds": spent_seconds,
+            "held": {},
+            "asked": (),
+            "notes": {},
         }
+        if stopped:
+            trace.event("turn_stopped", step=state.steps, tool_calls=state.tool_calls + ran, where="tools")
+            patch["messages"] = [*messages, stopped_message()]
+            patch["stopping"] = STOP_REQUESTED
+            return patch
         if limits.due(spent_seconds, state.checked_seconds):
             # The harness's question rides after these results as turn
             # control; the model's next completion answers it and decides.
             trace.event(
                 "turn_health_check",
                 step=state.steps,
-                tool_calls=state.tool_calls + spent,
+                tool_calls=state.tool_calls + ran,
                 spent_ms=int(spent_seconds * 1000),
             )
             patch["steered"] = Steered(candidate=None, steering=health_question(spent_seconds))
@@ -1027,8 +1228,149 @@ def build_agent(
             taken = []
         if taken:
             trace.event("turn_interjected", step=state.steps, count=len(taken))
+        if taken:
             patch["messages"] = [*messages, *taken]
+        # What ended on its own meanwhile (a background command's exit): turn
+        # control for the next step, joined to the health question when both
+        # are due; read by the model, not stored as anyone's words.
+        told = notices.take(user_id)
+        if told:
+            trace.event("turn_notified", step=state.steps, count=len(told))
+            patch["steered"] = notice_steering(told, patch.get("steered"))
         return patch
+
+    def repeats(state: AgentState, prepared: Sequence[PreparedToolCall]) -> tuple[dict[str, str], list[tuple[PreparedToolCall, int, str]]]:
+        """For each call, how often it already came out the same: the notes
+        to carry, and the calls past the stop count."""
+
+        # Everything before this batch: the attempt being judged is in
+        # `state.messages` too, and a fake or a server that reuses call ids
+        # would otherwise let it count itself.
+        earlier = state.messages[:-1]
+        changing = [name for name in toolbox.names if getattr(toolbox.get(name), "mutates", False)]
+        notes: dict[str, str] = {}
+        runaway: list[tuple[PreparedToolCall, int, str]] = []
+        for item in prepared:
+            failures = failed_before(earlier, item.call)
+            successes = succeeded_before(earlier, item.call, changing)
+            count, kind = (failures, FAILED_KIND) if failures >= successes else (successes, SUCCEEDED_KIND)
+            if count >= policy.limits.repeat_stop_after:
+                runaway.append((item, count, kind))
+            elif count >= policy.limits.repeat_note_after:
+                notes[item.call.id] = repeat_note(count, kind)
+        return notes, runaway
+
+    async def run_tools(
+        state: AgentState, config: RunnableConfig, writer: StreamWriter
+    ) -> dict[str, Any]:
+        started = time.monotonic()
+        trace = trace_of(config)
+        calls = state.messages[-1].tool_calls
+
+        # Asked before anything runs, and before anyone is asked to approve
+        # anything: a person who has already said stop should not then be
+        # shown a consent question.
+        if await asked_to_stop(state):
+            trace.event("turn_stopped", step=state.steps, tool_calls=state.tool_calls, where="tools")
+            return {
+                "messages": [
+                    *(halted(call, STOP_REASON) for call in calls),
+                    stopped_message(),
+                ],
+                "stopping": STOP_REQUESTED,
+            }
+        executor = ToolExecutor(toolbox, trace, limits=policy.limits, spill=spill)
+        prepared = [executor.pre_execute(call) for call in calls]
+        notes, runaway = repeats(state, prepared)
+        if runaway:
+            # A runaway repeat: the batch is not run and the model is told
+            # why, keeping its tools for one more response; an identical
+            # attempt past the stop count ends the turn's tools.
+            item, count, kind = runaway[0]
+            ending = count > policy.limits.repeat_stop_after
+            trace.event("turn_repeating", tool=item.call.name, attempts=count, step=state.steps, ending=ending)
+            patch: dict[str, Any] = {
+                "messages": [halted(call, repeat_reason(count, kind, ending)) for call in calls],
+                "held": {},
+                "asked": (),
+                "notes": {},
+            }
+            if ending:
+                patch["stopping"] = REPEATED_FAILURE
+            return patch
+        # Invalid calls go straight back to the model as tool errors. Asking a
+        # user to approve a call that cannot run is both noisy and misleading.
+        # A yes the person asked to be remembered is not asked for again.
+        risky = [
+            item
+            for item in prepared
+            if item.approval_required and not grants.allows(state.thread_id, item.call)
+        ]
+        safe = [item for item in prepared if item not in risky]
+        # The calls needing no yes run first (roadmap 32; Claude Code's
+        # auto-approved reads, Codex's per-call decision); the risky ones are
+        # asked after, in one question, by the next node, so that a resume
+        # runs nothing twice: their results are already in the state.
+        results, stopped, ran = await run_batch(safe, executor, state, trace, writer)
+        if risky and checkpointer is None:
+            # Nowhere to ask, so the answer is no; the model is told which.
+            for item in risky:
+                trace.event("tool_failed", tool=item.call.name, status="declined", code=DECLINED)
+                results[item.call.id] = nowhere_to_ask(item.call)
+            risky = []
+        if risky and not stopped:
+            trace.event("approval_requested", calls=[item.call.name for item in risky])
+            return {
+                "held": results,
+                "asked": tuple(item.call.id for item in risky),
+                "notes": notes,
+                "tool_calls": state.tool_calls + ran,
+                "spent_seconds": state.spent_seconds + (time.monotonic() - started),
+            }
+        return await finished_batch(state, calls, results, notes, ran, stopped, started, trace)
+
+    async def approve(
+        state: AgentState, config: RunnableConfig, writer: StreamWriter
+    ) -> dict[str, Any]:
+        """Ask the person about the batch's risky calls and run the approved
+        ones. Answers may arrive one at a time (Telegram's one button): a
+        call the answer does not name is asked again, not declined. Nothing
+        runs before every asked call is answered, because a resume restarts
+        this node from its top."""
+
+        started = time.monotonic()
+        trace = trace_of(config)
+        calls = state.messages[-1].tool_calls
+        risky = [call for call in calls if call.id in state.asked]
+        answers: dict[str, Any] = {}
+        unanswered = list(risky)
+        while unanswered:
+            reply = interrupt([describe_call(call) for call in unanswered])
+            if isinstance(reply, dict):
+                for call in unanswered:
+                    if call.id in reply:
+                        answers[call.id] = reply[call.id]
+            unanswered = [call for call in unanswered if call.id not in answers]
+        executor = ToolExecutor(toolbox, trace, limits=policy.limits, spill=spill)
+        approved: list[PreparedToolCall] = []
+        results: dict[str, Message] = dict(state.held)
+        for call in risky:
+            scope = scope_of(answers.get(call.id))
+            if scope is None:
+                # Never run, so never counted as a tool call the turn spent.
+                trace.event("tool_failed", tool=call.name, status="declined", code=DECLINED)
+                results[call.id] = declined(call)
+                continue
+            grants.remember(state.thread_id, call, scope)
+            approved.append(executor.pre_execute(call))
+        trace.event(
+            "approval_resumed",
+            approved=[item.call.name for item in approved],
+            declined=[call.name for call in risky if call.id not in {item.call.id for item in approved}],
+        )
+        ran_results, stopped, ran = await run_batch(approved, executor, state, trace, writer)
+        results.update(ran_results)
+        return await finished_batch(state, calls, results, state.notes, ran, stopped, started, trace)
 
     async def persist(state: AgentState, config: RunnableConfig) -> None:
         trace = trace_of(config)
@@ -1059,13 +1401,20 @@ def build_agent(
         return "tools" if state.messages[-1].tool_calls else "persist"
 
     def after_tools(state: AgentState) -> str:
-        # A turn the person stopped does not get another model call to say so.
+        # A turn the person stopped does not get another model call to say so;
+        # a batch with calls waiting on a yes goes to the question.
+        if state.stopping == STOP_REQUESTED:
+            return "persist"
+        return "approve" if state.asked else "model"
+
+    def after_approve(state: AgentState) -> str:
         return "persist" if state.stopping == STOP_REQUESTED else "model"
 
     graph = StateGraph(AgentState)
     graph.add_node("load", load)
     graph.add_node("model", call_model)
     graph.add_node("tools", run_tools)
+    graph.add_node("approve", approve)
     graph.add_node("persist", persist)
     graph.add_edge(START, "load")
     graph.add_edge("load", "model")
@@ -1076,6 +1425,9 @@ def build_agent(
         # takes another step of the same turn rather than ending it.
         {"tools": "tools", "persist": "persist", "model": "model"},
     )
-    graph.add_conditional_edges("tools", after_tools, {"model": "model", "persist": "persist"})
+    graph.add_conditional_edges(
+        "tools", after_tools, {"approve": "approve", "model": "model", "persist": "persist"}
+    )
+    graph.add_conditional_edges("approve", after_approve, {"model": "model", "persist": "persist"})
     graph.add_edge("persist", END)
     return graph.compile(checkpointer=checkpointer)

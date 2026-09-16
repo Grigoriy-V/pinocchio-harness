@@ -113,6 +113,9 @@ class CapabilityRegistry:
         # The open page, kept between the calls of one turn whichever toolbox
         # they come through (a toolbox is built per thread, and more than once).
         self.pages = Pages(open_addresses=open)
+        # Where a background command's exit is told (roadmap 32): set by the
+        # runtime to post on the agent's notice lane; `None` tells nobody.
+        self.notify: Callable[[str], None] | None = None
         configured = (
             capabilities
             if capabilities is not None
@@ -125,7 +128,10 @@ class CapabilityRegistry:
                 Capability(WEB_SEARCH, web_search_tools),
                 Capability(WEB_FETCH, lambda root: web_fetch_tools(root, open=self.open, limits=self.limits)),
                 Capability(WEB_VIEW, lambda root: web_view_tools(root, limits=self.limits)),
-                Capability(SHELL_RUN, lambda root: shell_tools(root, self.runner, limits=self.limits)),
+                Capability(
+                    SHELL_RUN,
+                    lambda root: shell_tools(root, self.runner, limits=self.limits, notify=self.notify),
+                ),
             )
         )
         self._capabilities = {capability.name: capability for capability in configured}
@@ -173,14 +179,33 @@ class CapabilityRegistry:
         grant: CapabilityGrant,
         extra_tools: Iterable[Tool] = (),
         ask_for_changes: bool = False,
+        plan: bool = False,
     ) -> Toolbox:
+        """The tools of a grant. An MCP server's tools go to the catalog
+        behind `find_tools` rather than into every request (roadmap 32); in
+        plan mode a tool that changes or runs anything is not offered."""
+
         checked = self.grant(grant.root, grant.capabilities)
         tools: list[Tool] = []
+        deferred: list[Tool] = []
+        families: list[str] = []
         for name in checked.capabilities:
-            tools.extend(self._capabilities[name].build(checked.root))
+            built = self._capabilities[name].build(checked.root)
+            if name.startswith(CAPABILITY_PREFIX):
+                deferred.extend(built)
+                if built:
+                    families.append(name[len(CAPABILITY_PREFIX):])
+            else:
+                tools.extend(built)
         tools.extend(extra_tools)
-        names = [tool.name for tool in tools]
+        if plan:
+            withheld = lambda tool: tool.mutates or tool.requires_approval  # noqa: E731
+            tools = [tool for tool in tools if not withheld(tool)]
+            deferred = [tool for tool in deferred if not withheld(tool)]
+        names = [tool.name for tool in tools] + [tool.name for tool in deferred]
         duplicates = sorted({name for name in names if names.count(name) > 1})
         if duplicates:
             raise ValueError(f"duplicate tool names: {', '.join(duplicates)}")
-        return Toolbox(tools, ask_for_changes=ask_for_changes)
+        return Toolbox(
+            tools, ask_for_changes=ask_for_changes, deferred=deferred, plan=plan, families=families
+        )

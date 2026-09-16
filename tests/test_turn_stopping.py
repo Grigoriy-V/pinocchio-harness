@@ -289,15 +289,17 @@ async def test_a_steered_turn_that_adds_nothing_keeps_its_answer(
 async def test_an_empty_answer_after_delivered_text_ends_the_turn_quietly(
     store: SqliteStore,
 ) -> None:
-    """The core prompt asks for nothing when nothing is new; that is not an error."""
+    """An empty first answer is asked once more without tools (roadmap 32);
+    a second empty one is the fixed line, so the person is never answered
+    with nothing."""
 
-    backend = ScriptedBackend(says(""))
+    backend = ScriptedBackend(says(""), says(""))
     agent = loop(backend, store)
 
     result = await agent.ainvoke(ask("hi"))
 
-    assert [message.role for message in result["messages"]] == ["user"]
-    assert [spoken(m) for m in store.messages("default")] == ["hi"]
+    assert [message.role for message in result["messages"]] == ["user", "assistant"]
+    assert [spoken(m) for m in store.messages("default")] == ["hi", "(no answer was produced)"]
 
 
 async def test_the_draft_and_the_instruction_reach_the_next_request(

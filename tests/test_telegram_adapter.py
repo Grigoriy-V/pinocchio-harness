@@ -984,31 +984,25 @@ async def test_agents_shows_how_to_start_when_there_are_none(
     assert "as you wrote them" in said or "as you wrote it" in said
 
 
-async def test_plan_on_adds_the_planning_tool_from_the_next_turn(
+async def test_the_task_list_is_always_offered_and_plan_answers_that(
     telegram: FakeTelegram, settings: TelegramSettings, tmp_path: Path
 ) -> None:
-    """Asked for 2026-09-03, to tell the plan's defects from everything else's;
-    off by default the same day, once the plan was measured to cost only."""
+    """The switch of 2026-09-03 is gone (the human, 2026-09-17): `todo_write`
+    is offered always, as the references offer theirs, and `/plan` answers
+    one line without a model."""
 
-    backend = ScriptedBackend(says("ok"), says("ok again"), says("and again"))
+    backend = ScriptedBackend(says("ok"))
     adapter = build(telegram, settings, tmp_path, backend)
 
     await adapter.handle_update(text_update("hello"))
     offered = [tool["function"]["name"] for tool in backend.tools_seen[-1]]
-    assert "todo_write" not in offered and "write_file" in offered
+    assert "todo_write" in offered and "write_file" in offered
 
     await adapter.handle_update(text_update("/plan on"))
-    await adapter.handle_update(text_update("hello again"))
 
-    assert "Planning is on" in telegram.sent[-2]
-    assert (tmp_path / "workspace" / ".agent" / "plan.on").is_file()
-    assert "todo_write" in [tool["function"]["name"] for tool in backend.tools_seen[-1]]
-
-    await adapter.handle_update(text_update("/plan off"))
-    await adapter.handle_update(text_update("once more"))
-
+    assert "always available" in telegram.sent[-1]
     assert not (tmp_path / "workspace" / ".agent" / "plan.on").exists()
-    assert "todo_write" not in [tool["function"]["name"] for tool in backend.tools_seen[-1]]
+    assert len(backend.tools_seen) == 1, "no model call for /plan"
 
 
 async def test_several_sent_files_arrive_as_one_album(
@@ -1117,7 +1111,7 @@ async def test_plan_alone_says_which_way_it_is(
 
     await adapter.handle_update(text_update("/plan"))
 
-    assert telegram.sent[-1].startswith("Planning is off (the default)")
+    assert telegram.sent[-1].startswith("The task list is always available now")
     assert needs_model(Incoming(CHAT, ALLOWED, "/plan on")) is False
 
 
@@ -1139,7 +1133,7 @@ async def test_mode_careful_makes_a_change_wait_for_a_yes(
 
     await adapter.handle_update(text_update("/mode careful"))
     assert "Careful mode" in telegram.sent[-1]
-    assert (tmp_path / "workspace" / ".agent" / "careful.on").is_file()
+    assert (tmp_path / "workspace" / ".agent" / "mode").read_text(encoding="utf-8").strip() == "careful"
     assert agent.toolbox(thread).requires_approval("write_file")
     assert agent.toolbox(thread).requires_approval("run_command")
     assert not agent.toolbox(thread).requires_approval("read_file")
@@ -1150,7 +1144,7 @@ async def test_mode_careful_makes_a_change_wait_for_a_yes(
 
     await adapter.handle_update(text_update("/mode full"))
     assert "Full mode" in telegram.sent[-1]
-    assert not (tmp_path / "workspace" / ".agent" / "careful.on").exists()
+    assert not (tmp_path / "workspace" / ".agent" / "mode").exists()
     assert not agent.toolbox(thread).requires_approval("write_file")
 
 
@@ -1406,7 +1400,7 @@ def test_the_native_menu_is_the_product_and_not_the_diagnostics() -> None:
 
     offered = [entry.command for entry in PRODUCT_COMMANDS]
 
-    assert offered == ["new", "chats", "can", "agents", "plan", "mode", "context", "compact", "stop", "help"]
+    assert offered == ["new", "chats", "can", "agents", "mode", "context", "compact", "stop", "help"]
     assert "check" not in offered
     assert all(entry.description and entry.description[0].isupper() for entry in PRODUCT_COMMANDS)
     assert len(BOT_DESCRIPTION) <= 512
@@ -1448,7 +1442,6 @@ async def test_publishing_the_profile_sends_exactly_the_product_menu(
         "chats",
         "can",
         "agents",
-        "plan",
         "mode",
         "context",
         "compact",

@@ -22,7 +22,6 @@ be honest about the plan is the other.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from pathlib import Path
 
 from app.agent.stopping import Candidate, Steering
 from app.tools.todo import current, unfinished
@@ -37,33 +36,11 @@ INSTRUCTION = (
     "answer with nothing."
 )
 
-# Whether this person's agent gets a plan at all. Off unless a marker file in
-# their own workspace says on, so the choice survives a restarted worker, is
-# the same in every interface, and sits beside `AGENTS.md` where the person
-# can see it. Off means the `todo_write` tool is not offered, and with it every
-# brief line about planning disappears, because the brief is generated from
-# the toolbox. Off by default since 2026-09-03: measured on one request, the
-# plan cost 12 model calls and 90 s where 5 and 62 s did the same work
-# (`DECISIONS.md` 2026-09-03), and its own defects wait for 4.7.
-PLAN_SWITCH = Path(".agent") / "plan.on"
-
-
-def planning_enabled(workspace: Path | str) -> bool:
-    """Never raises: an unreadable marker is a plan that is off."""
-
-    try:
-        return (Path(workspace) / PLAN_SWITCH).is_file()
-    except OSError:
-        return False
-
-
-def set_planning(workspace: Path | str, enabled: bool) -> None:
-    marker = Path(workspace) / PLAN_SWITCH
-    if not enabled:
-        marker.unlink(missing_ok=True)
-        return
-    marker.parent.mkdir(parents=True, exist_ok=True)
-    marker.write_text("planning is on; /plan off in Telegram turns it off\n", encoding="utf-8")
+# The list is offered always since 2026-09-17 (the human): the references
+# offer theirs always and the model decides whether a request has steps. The
+# switch that stood here (`/plan on|off`, `.agent/plan.on`, 2026-09-03) was
+# measured on a model that is gone; the tool is measured again on the current
+# one before anything in it is changed (roadmap 32, the todo measurement).
 
 
 # How many open items are named back to the model. The list is bounded already;

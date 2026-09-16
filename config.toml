@@ -126,6 +126,12 @@ csv_rows = 200
 # started in the background locally and refused by number deployed.
 command_timeout = 120
 command_timeout_max = 600
+# The loop (roadmap 32): read-only calls of one batch run at once up to
+# this many; a repeated identical call is noted from the second time and
+# not run from the eighth.
+parallel_calls = 10
+repeat_note_after = 2
+repeat_stop_after = 8
 stream_answers = true
 telemetry = true
 # Every model call written as the model saw it, one file per run, for a

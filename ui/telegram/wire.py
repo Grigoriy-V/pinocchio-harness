@@ -59,9 +59,9 @@ MODEL_FREE_COMMANDS = frozenset(
 # chatted to, and the instructions were silently never saved. A near miss on a
 # command that writes a file has to hit the command, not the GPU.
 INSTRUCTION_COMMANDS = frozenset({"/agents", "/agent"})
-# `/plan on` and `/plan off` write a marker file and answer from it.
+# `/plan` answers one line: its switch is gone (2026-09-17).
 PLAN_COMMANDS = frozenset({"/plan"})
-# `/mode full` and `/mode careful` write a marker file and answer from it.
+# `/mode full`, `/mode careful` and `/mode plan` write a marker file and answer from it.
 MODE_COMMANDS = frozenset({"/mode"})
 # `/context` reports from the store and an estimate; `/context small` writes a
 # marker. `/compact` is deliberately not here: it calls the summarizer, so the

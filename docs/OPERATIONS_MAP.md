@@ -116,8 +116,10 @@ it), `web_text_chars` 20,000, `snapshot_chars` 12,000,
 `command_timeout` 120 and `command_timeout_max` 600 (above the most a
 command is started in the background locally and refused by number
 deployed; never clamped). Per model set: `max_tokens`, `max_images` (4),
-`max_audio` (1). Every one is `AGENT_<FIELD>` or `MODEL_<SET>_<FIELD>` in
-the environment. At a 256K budget and three characters a token, a result
+`max_audio` (1). The loop (roadmap 32): `parallel_calls` 10 (reads of one
+batch at once), `repeat_note_after` 2 and `repeat_stop_after` 8 (a repeated
+identical call is noted, then not run). Every one is `AGENT_<FIELD>` or
+`MODEL_<SET>_<FIELD>` in the environment. At a 256K budget and three characters a token, a result
 shows 98,304 characters, a page 88,473, a fold keeps 39,321 tokens, a
 summary is at most 12,000 tokens, the instruction file 15,728 bytes.
 
@@ -157,8 +159,9 @@ application path to a reset (`drop_schema` refuses `public`).
 ## Telegram mode
 
 - **Profile and menu:** `tools/telegram_profile.py` previews; `--publish`
-  sends (external mutation, ask first). Menu: `/new /chats /can /agents /plan
-  /mode /context /compact /stop /help`; `/check` works but is not listed.
+  sends (external mutation, ask first). Menu: `/new /chats /can /agents
+  /mode /context /compact /stop /help`; `/check` and `/plan` work but are
+  not listed (`/plan` answers that its switch is gone).
 - **Webhook (deployed):** `tools/telegram_webhook.py` shows status, `--url
   <webhook>` registers, `--delete` returns to polling. The webhook is
   `telegram_webhook` in `control_app.py` over `ui/telegram/webhook.py`.
@@ -174,7 +177,10 @@ model by its absolute path; there is no `inbox/` locally. The working folder
 a conversation writes in is chosen with `/workspace <path>` and kept per
 thread in `.agent/folders.json` in the workspace (`app/agent/folder.py`).
 Reading reaches any path on the machine; a write outside the folder asks the
-person first. `/status`, which the status card polls, is an HTTP route the
+person first. A remembered yes (`once` / `conversation` / `always`) is
+`.agent/grants.json` in the workspace (`app/agent/grants.py`); a background
+command's exit is told to the model at its next step (`notify`, on by
+default). `/status`, which the status card polls, is an HTTP route the
 app adds to Chainlit's own server, not a command. On Windows `run_command`
 hands the line to PowerShell (`pwsh` when installed, else Windows PowerShell
 5.1) under the write-restricted token, as Codex and Claude Code do; the Cygwin
@@ -253,8 +259,8 @@ configured the deployed worker refuses rather than rendering beside secrets.
 |---|---|---|---|
 | `/can` | what is wired, from the runtime | `app/capabilities.py` | no |
 | `/check` | real capability probes | `app/preflight.py`, `Agent.selftest` | no (GPU probe opt in) |
-| `/plan [on\|off]` | the task list; marker `.agent/plan.on` | `app/agent/todo.py` | no |
-| `/mode [full\|careful]` | ask before workspace changes; marker `.agent/careful.on` | `app/agent/mode.py` | no |
+| `/plan` | answers that the task list is always available and a plan without changes is `/mode plan` | `app/agent/commands.py` | no |
+| `/mode [full\|careful\|plan]` | ask before workspace changes, or offer nothing that changes; marker `.agent/mode` | `app/agent/mode.py` | no |
 | `/context [small\|normal\|large]` | what the next request is made of, cached tokens, the chosen size (131,072 / 262,144 / 524,288 tokens); marker `.agent/context` | `app/context/choice.py`, `Agent.context_report` | no |
 | `/compact` | fold now | `Agent.compact` | yes, one summarizer call |
 | `/agents [set\|clear]` | standing instructions, `AGENTS.md` in the workspace | `app/instructions.py` | no |

@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from app.agent.mode import CAREFUL_SWITCH, careful_enabled, current_mode, set_mode
+from app.agent.mode import CAREFUL_SWITCH, MODE_FILE, careful_enabled, current_mode, set_mode
 from app.capabilities import capability_brief, capability_report, needs_approval
 from app.memory import LOCAL_USER_ID, SqliteStore
 from app.models import ToolCall
@@ -332,13 +332,22 @@ def test_the_mode_is_a_marker_in_the_workspace(workspace: Path) -> None:
     assert current_mode(workspace) == "full" and not careful_enabled(workspace)
 
     set_mode(workspace, "careful")
-    assert (workspace / CAREFUL_SWITCH).is_file()
+    assert (workspace / MODE_FILE).read_text(encoding="utf-8").strip() == "careful"
     assert current_mode(workspace) == "careful"
+
+    set_mode(workspace, "plan")
+    assert current_mode(workspace) == "plan" and not careful_enabled(workspace)
 
     set_mode(workspace, "full")
     assert not careful_enabled(workspace)
     with pytest.raises(ValueError):
         set_mode(workspace, "reckless")
+    # The marker careful mode was kept as before 2026-09-17 is still read.
+    (workspace / CAREFUL_SWITCH).parent.mkdir(exist_ok=True)
+    (workspace / CAREFUL_SWITCH).write_text("careful", encoding="utf-8")
+    assert current_mode(workspace) == "careful"
+    set_mode(workspace, "full")
+    assert not (workspace / CAREFUL_SWITCH).exists()
 
 
 def test_the_agent_reads_the_mode_when_it_builds_a_toolbox(workspace: Path) -> None:

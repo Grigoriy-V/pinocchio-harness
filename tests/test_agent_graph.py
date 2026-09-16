@@ -89,11 +89,35 @@ async def test_a_call_cut_at_the_cap_before_a_word_is_said_so(workspace: Path, s
     assert "output limit" in result["messages"][-1].content[0].text
 
 
-async def test_an_empty_completion_that_chose_silence_stays_silent(workspace: Path, store: SqliteStore) -> None:
-    backend = ScriptedBackend(calls("read_file", path="notes.txt"), Completion(text="", finish_reason="stop"))
+async def test_an_empty_completion_after_nothing_was_said_gets_one_more_request(workspace: Path, store: SqliteStore) -> None:
+    """Roadmap 32 (OpenClaw's finalization pass): a turn that read a file and
+    then said nothing is asked once, without tools, for one line; if that
+    is empty too, the person gets the fixed line rather than nothing."""
+
+    empty = Completion(text="", finish_reason="stop")
+    backend = ScriptedBackend(calls("read_file", path="notes.txt"), empty, empty)
     agent = agent_over(backend, workspace, store)
 
     result = await agent.ainvoke(ask("Read notes.txt and say nothing."))
+
+    assert backend.tools_seen[-1] is None, "the finalization request offers no tools"
+    assert "Say in one line what you did" in " ".join(p.text or "" for p in backend.requests[-1][-1].content)
+    assert [message.role for message in result["messages"]] == ["user", "assistant", "tool", "assistant"]
+    assert "(no answer was produced)" in " ".join(p.text or "" for p in result["messages"][-1].content)
+
+
+async def test_an_empty_completion_after_text_was_said_stays_silent(workspace: Path, store: SqliteStore) -> None:
+    """Text beside a call was delivered already; nothing more is asked for."""
+
+    spoke = Completion(
+        text="Reading it.",
+        tool_calls=(ToolCall(id="c1", name="read_file", arguments={"path": "notes.txt"}),),
+        finish_reason="tool_calls",
+    )
+    backend = ScriptedBackend(spoke, Completion(text="", finish_reason="stop"))
+    agent = agent_over(backend, workspace, store)
+
+    result = await agent.ainvoke(ask("Read notes.txt."))
 
     assert [message.role for message in result["messages"]] == ["user", "assistant", "tool"]
 

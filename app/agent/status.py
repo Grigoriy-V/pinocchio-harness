@@ -17,7 +17,6 @@ from typing import TYPE_CHECKING, Any
 import httpx
 
 from app.agent.mode import current_mode
-from app.agent.todo import planning_enabled
 from app.config import ModelSettings, chosen_model
 from app.context.choice import context_choice
 
@@ -103,7 +102,6 @@ class Status:
     summarized_through: int
     last_cached: int | None
     mode: str
-    plan: bool
     workspace: str
     # This agent's calls' own cost when the provider says it, else the
     # account's usage since the process started.
@@ -135,7 +133,6 @@ def status_of(agent: Agent, thread_id: str, credits: Credits | None, spend: floa
         summarized_through=report.summarized_through,
         last_cached=report.last_cached,
         mode=current_mode(workspace),
-        plan=planning_enabled(workspace),
         workspace=str(agent.folder(thread_id)),
         session_spend=agent.spent if agent.spent is not None else spend,
         session_spend_exact=agent.spent is not None,

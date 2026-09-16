@@ -513,6 +513,8 @@ def one_turn(text: str, model: str, thread: str, user: str, ceiling: int) -> Tur
         try:
 
             def observe(event: Any) -> None:
+                if type(event).__name__ in {"ToolStarted", "ToolFinished"}:
+                    return
                 message = getattr(event, "message", None)
                 if message is None:
                     return

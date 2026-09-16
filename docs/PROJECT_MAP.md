@@ -58,10 +58,11 @@ does not, and then the set's own budget stands (`Agent.budget`).
 `app/agent/graph.py` is the one loop:
 
 ```text
-load context ─> model ─> tools ─> model ─> … ─> persist
-                  ▲        │
-                  └────────┘
-   before each batch of tools: asked to stop?
+load context ─> model ─> tools ─(risky calls)─> approve ─> model ─> … ─> persist
+                  ▲        │                       │
+                  └────────┴───────────────────────┘
+   a batch: reads at once (up to parallel_calls), a changing call alone, in order
+   before each launch and every stop_poll_seconds while one runs: asked to stop?
    after a batch, once every check_seconds of work: "on track? what is left?"
 ```
 
@@ -84,14 +85,45 @@ load context ─> model ─> tools ─> model ─> … ─> persist
   interface sees it as `MessageTaken`, never as an answer. Memory locally
   (the polling door offers before it waits), the inbox itself deployed
   (`pending` → `done` in one statement, `ui/telegram/interjections.py`).
-  A message during the final answer is the next turn, as before.
+  A message during the final answer is the next turn, as before. The
+  calls of the batch not yet launched still run (the human, 2026-09-17:
+  a message is a comment on the work; a stop is the way to end it).
+- A batch (roadmap 32, `run_batch`): the calls whose tool is `replay_safe`
+  (a read) launch together, up to `parallel_calls` (10) at once; every
+  other call runs alone as a barrier, in the model's order; the results
+  come back in the model's order, a failure in its own slot. The calls that
+  need no yes run first; the risky ones are asked in the `approve` node,
+  one question that may be answered one call at a time (a call the answer
+  does not name is asked again, never declined); nothing runs before every
+  asked call is answered, so a resume runs nothing twice. A stop is read
+  before every launch and every `stop_poll_seconds` (3) while a call or
+  the model runs: the call in flight is cancelled (the runner kills its
+  process; a background command lives on), the model request is closed
+  and the text seen so far stands before "Stopped at your request.".
+- `Grants` (`app/agent/grants.py`): a yes the person asked to be remembered,
+  `once` / `conversation` / `always`, keyed by the tool and, for
+  `run_command`, the command's program; `.agent/grants.json` in the
+  workspace; the buttons that choose a scope are roadmap 34's.
+- `Notices` (`app/agent/notices.py`): what ended on its own (a background
+  command's exit, `run_command notify=true`, on by default) is posted by
+  the watcher and read by the model as turn control at the next boundary,
+  or beside the next request; not stored as anyone's words.
+- Events: `ToolStarted` and `ToolFinished` beside `MessageProduced` on
+  `Agent.events`; what the interfaces show of them is roadmap 34's.
 - `TurnStopping` (`app/agent/stopping.py`) is asked only for a result that
   would end the turn; the default stops; explicit `Steering` from an extension
   runs one more step. The one wired extension, the todo list's, objects to
   nothing by default.
-- Repeat guards: an identical failed call is refused the third time; an
-  identical successful call the third time too, both counts restarting when
-  something changed in between (ISS-0013, ISS-0042).
+- A repeated identical call is information (roadmap 32): from
+  `repeat_note_after` (2) identical outcomes the result says how many times
+  it already came out the same; from `repeat_stop_after` (8) the call is
+  not run and the batch ends with the reason, the model keeping its tools
+  for one more response; one identical attempt past that ends the turn's
+  tools. The counts restart when something changed in between (ISS-0013,
+  ISS-0042).
+- An empty completion before anything was said gets one tool-free request
+  for one line; a second empty one is "(no answer was produced)". After
+  text was said, an empty completion ends the turn quietly, as before.
 - A tool failure is a result the model reads (`Message.failure` typed, the
   `error:` text is wording, not protocol). Only `BaseException` propagates.
 - A turn a worker died in is taken up from its checkpoint: `replay_safe`
@@ -101,8 +133,9 @@ load context ─> model ─> tools ─> model ─> … ─> persist
 Two things the model may write down for one turn, both living in the
 arguments of its own last call inside the turn's messages and cleared by the
 next user message: the **goal** (`set_goal`, offered always, the request's
-parts written once) and the **plan** (`todo_write`, offered only with
-`/plan on`). Nothing in the loop reads either back.
+parts written once) and the **list** (`todo_write`, offered always since
+2026-09-17; the switch of 2026-09-03 is gone). Nothing in the loop reads
+either back.
 
 ## Context and memory
 
@@ -175,9 +208,8 @@ documents.read            read_document, view_pages                      (app/to
 browser.page              use_page                                       (app/tools/browser.py)
 web.search / fetch / view search_web, fetch_page, view_web_page          (app/tools/web.py)
 presentation.files        send_file                                      (app/tools/presentation.py)
-always                    remember_fact, search_memory, search_history, read_history, set_goal
-with /plan on             todo_write
-mcp.<server>              <server>_<tool> for each allowed tool       (app/tools/mcp.py)
+always                    remember_fact, search_memory, search_history, read_history, set_goal, todo_write
+mcp.<server>              <server>_<tool> for each allowed tool, in the catalog behind find_tools  (app/tools/mcp.py)
 ```
 
 - **Filesystem:** every path resolves through `resolve_in_root`; a path
@@ -211,7 +243,16 @@ mcp.<server>              <server>_<tool> for each allowed tool       (app/tools
   `mcp.error`, a transport failure `mcp.unreachable`.
 - **Modes:** `full` (default) runs everything inside the workspace without
   asking; `careful` makes `write_file`, `edit_file`, `apply_patch` and `run_command` ask
-  (`app/agent/mode.py`, `Toolbox.ask_for_changes`).
+  (`app/agent/mode.py`, `Toolbox.ask_for_changes`); `plan` (roadmap 32)
+  offers no tool that changes or runs anything and the brief says the
+  answer is the plan (`CapabilityRegistry.toolbox(plan=True)`). One marker,
+  `.agent/mode`.
+- **The catalog** (roadmap 32): an MCP server's tools are not in every
+  request; `find_tools(query)` searches their names and descriptions and
+  offers the matches for the rest of the conversation (`Toolbox.offer`,
+  `deferred_names`); the schemas are read per step, and the brief is
+  rebuilt when the set grew. The brief's inventory names how many are in
+  the catalog and from where.
 - **Documents:** `app/attachments.py` admits uploads (image/audio become
   model parts; any other file is written where the adapter says — the
   workspace's `inbox/` deployed, the temp uploads folder locally);
@@ -276,7 +317,7 @@ entry. Uploads go through `admit_uploads` like Telegram's, with `uploads_dir`
 as the destination: a picture or a sound becomes a model part, any other file
 is written under the session's folder in the machine's temp and named to the
 model by its absolute path. The composer's menu carries
-`/compact /plan /mode /context /workspace` (`set_commands`). A turn is one
+`/compact /mode /context /workspace` (`set_commands`). A turn is one
 collapsed step holding its tool calls, which opens on a click. The status
 card is `public/status.js` polling the app's own `/status` route for context,
 cost and credits. `MemoryStoreDataLayer` (`ui/chainlit_history.py`) rebuilds a

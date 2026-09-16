@@ -35,6 +35,8 @@ from app.agent.runtime import (
     AnswerWithdrawn,
     AssistantDelta,
     MessageTaken,
+    ToolFinished,
+    ToolStarted,
     create_agent,
 )
 from app.agent.commands import (
@@ -1097,6 +1099,10 @@ class TelegramAdapter:
                     # The person's own message, read by the running turn.
                     # They sent it; it is not sent back.
                     continue
+                if isinstance(event, (ToolStarted, ToolFinished)):
+                    # A call launched or returned (roadmap 32): the activity
+                    # line already names the batch; showing each is 34's.
+                    continue
                 await self._deliver(
                     chat_id, event.message, activity, preview, trace, delivered
                 )
@@ -1231,7 +1237,7 @@ class TelegramAdapter:
                     await self.client.send_document(chat_id, name, data)
 
     async def _ask_pending_calls(
-        self, agent: Agent, chat_id: int, thread_id: str
+        self, agent: Agent, chat_id: int, thread_id: str, already: frozenset[str] = frozenset()
     ) -> bool:
         """Put the graph's own consent question in front of the user.
 
@@ -1243,6 +1249,10 @@ class TelegramAdapter:
 
         pending = await agent.pending(thread_id)
         for call in pending or []:
+            if call["id"] in already:
+                # Asked before this resume and still waiting: the person has
+                # its buttons; a batch is answered one button at a time.
+                continue
             await self.client.send_message(
                 chat_id,
                 f"Run {call['name']}?\n{call['arguments']}",
@@ -1293,6 +1303,11 @@ class TelegramAdapter:
             preview = AnswerPreview(self.client, incoming.chat_id)
             trace.event("approval_resumed" if approved else "approval_declined")
             _, covered = agent.store.summary(thread_id)
+            # The calls asked before this answer: the rest of a batch keeps
+            # its buttons and is not asked twice (roadmap 32).
+            asked_before = frozenset(
+                call["id"] for call in (await agent.pending(thread_id) or []) if call["id"] != call_id
+            )
             try:
                 events = agent.resume_events(thread_id, {call_id: approved}, trace)
                 async for event in events:
@@ -1307,7 +1322,7 @@ class TelegramAdapter:
                     if isinstance(event, AnswerWithdrawn):
                         await preview.discard()
                         continue
-                    if isinstance(event, MessageTaken):
+                    if isinstance(event, (MessageTaken, ToolStarted, ToolFinished)):
                         continue
                     await self._deliver(
                         incoming.chat_id, event.message, activity, preview, trace
@@ -1318,7 +1333,7 @@ class TelegramAdapter:
             if not settled:
                 await self._settle(incoming, approved=approved)
             await self._fold_notice(agent, thread_id, incoming.chat_id, covered)
-            asked = await self._ask_pending_calls(agent, incoming.chat_id, thread_id)
+            asked = await self._ask_pending_calls(agent, incoming.chat_id, thread_id, asked_before)
             trace.finish("approval_requested" if asked else "answer_delivered")
 
     async def _settle(self, incoming: Incoming, *, approved: bool) -> None:

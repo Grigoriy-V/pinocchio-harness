@@ -214,6 +214,10 @@ class Turn:
         return self
 
     def observe(self, event) -> None:
+        if type(event).__name__ in {"ToolStarted", "ToolFinished"}:
+            # A call's own launch and return (roadmap 32); the batch's
+            # message carries the same results once, and is what is counted.
+            return
         message: Message | None = getattr(event, "message", None)
         if message is None:
             return

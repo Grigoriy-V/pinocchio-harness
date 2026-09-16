@@ -166,7 +166,7 @@ The current accepted deployed baseline includes:
 - public web search, bounded text fetch and isolated visual browser view;
 - explicit agent-controlled file/media delivery;
 - resumable approvals, and one turn bounded by its own budget that a person can stop while it runs;
-- a person's own standing instructions, plan switch, work mode and context size;
+- a person's own standing instructions, work mode (full, careful, plan) and context size;
 - an OpenAI-compatible multimodal model chosen by configuration: a hosted
   service by default, with scale-to-zero GPU Apps kept as alternatives.
 
