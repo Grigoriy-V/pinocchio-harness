@@ -11,10 +11,9 @@ deployed OpenClaw (the human, 2026-09-14). The audit of 2026-09-14
 (`reports/2026-09-14_harness_audit.md`) names what holds it below that;
 the queue below is the order approved for working through it.
 
-**Current approved step:** 32, built and tested offline 2026-09-17 on the
-human's word (`reports/2026-09-17_item32_build.md`); the live gate (the
-mini set once beside the 2026-09-16 numbers, one `find_tools` turn, one
-approval answered one call at a time; priced) waits for the human's word.
+**Current approved step:** 32 is built, tested and checked live
+(2026-09-17, `reports/2026-09-17_item32_build.md` §5). Next in the order:
+the todo measurement of 32 (below), on the human's word.
 
 Observed defects are in `ISSUES.md`, which is not a plan and authorizes
 nothing. `docs/PRODUCT.md` is the product contract; `docs/PROJECT_MAP.md`,
@@ -145,7 +144,7 @@ one line each, evidence in the linked report:
   and memory tools take the default budget's page; the provider's metadata
   is 33's. `reports/2026-09-16_item31_references.md`,
   `reports/2026-09-16_item31_build.md`.
-- **32, the graph** (2026-09-17, offline; the live gate open): a batch's
+- **32, the graph** (2026-09-17): a batch's
   reads run at once and a changing call alone, in the model's order; the
   safe calls run before the question and a yes may arrive one call at a
   time (Telegram's one button is no longer a no for the rest); a yes is
@@ -156,9 +155,11 @@ one line each, evidence in the linked report:
   noted and only a runaway is stopped; an empty completion gets one
   tool-free request; a background command's exit is told to the model;
   `ToolStarted`/`ToolFinished` events; `todo_write` offered always, the
-  `/plan` switch gone. 1,304 offline tests. Left for the live gate: the
-  mini set beside the 2026-09-16 numbers, a `find_tools` turn, an
-  approval answered one call at a time; then the todo measurement (8).
+  `/plan` switch gone. 1,304 offline tests; live on GLM: the mini set
+  41/41 beside the 2026-09-16 numbers (207 s against 688 s), two MCP
+  tools found with `find_tools` in one turn, two risky calls approved one
+  at a time and a grant honoured the next turn. Left: the todo
+  measurement (8).
   `reports/2026-09-17_item32_references.md`,
   `reports/2026-09-17_item32_build.md`.
 
@@ -167,13 +168,8 @@ one line each, evidence in the linked report:
 One item at a time; the human's word starts each. Order approved
 2026-09-14 (the human), after the audit.
 
-32. **The graph: the live gate and the todo measurement.** Built offline
-    (Done above). Open, on the human's word: the mini set once on GLM 5.3
-    Flash beside the 2026-09-16 "after" numbers (B, C, F, H, M exercise
-    the batch, the approval, the message mid-turn); one turn with two MCP
-    tools found by `find_tools`; one approval of two risky calls answered
-    one at a time through `loop_live`'s fakes. Then the todo measurement
-    (the human, 2026-09-17): `todo_write` always offered, the mini set
+32. **The todo measurement.** The graph is done (above). On the human's
+    word (2026-09-17): `todo_write` always offered, the mini set
     where short requests open no list, two or three long requests where a
     list is expected, compared with the 2026-09-16 numbers; what to fix in
     the tool (ISS-0016, a plan corrected by the person) and whether
