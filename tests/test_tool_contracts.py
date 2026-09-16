@@ -57,6 +57,9 @@ def test_no_tool_tells_the_model_which_tool_to_use_instead(tmp_path: Path) -> No
         described = tool.schema()["function"]["description"].lower()
         assert "use this instead of" not in described, tool.name
         assert "not cat" not in described and "never invoke" not in described, tool.name
+        # Roadmap 30: no route between tools, no warning from one past turn.
+        for phrase in ("is the default", "only when you need", "one screenshot", "traceback", "before you start"):
+            assert phrase not in described, (tool.name, phrase)
 
 
 def test_the_page_tool_teaches_its_use_through_what_the_model_knows(tmp_path: Path) -> None:

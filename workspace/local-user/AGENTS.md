@@ -1,0 +1,1 @@
+Each piece of work gets its own folder in the workspace, named for the task. Its files, its virtual environment and the packages it installs go in that folder and nowhere else. When I continue the same work, use that folder again.

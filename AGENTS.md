@@ -84,7 +84,11 @@ Instructions to a model, whether a brief line, a tool description or a
 scenario, are literal conditions and actions, and they say what a tool
 returns or what outcome is wanted, never which route to take. No figures of
 speech, no "use this instead of", no coaching written from one past defect:
-a description is a contract, not a changelog.
+a description is a contract, not a changelog. The harness's brief carries
+nothing that can work from the person's own `AGENTS.md`, as the references
+do (the human, 2026-09-16): a rule about this person's machine, workspace
+or habits is theirs to write there, and the brief states only what the
+harness is, gives and reaches.
 
 The repository is used from different agent applications, sometimes at the
 same time. Do not rely on application-specific behaviour in rules, documents

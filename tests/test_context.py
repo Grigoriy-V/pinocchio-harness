@@ -670,8 +670,11 @@ def test_the_working_method_is_general_and_part_of_the_core() -> None:
     from app.context.window import WORKING_METHOD
 
     assert WORKING_METHOD in DEFAULT_SYSTEM_PROMPT
-    for phrase in ("before you assume", "look at it", "names its cause", "Never claim"):
+    for phrase in ("before you assume", "look at it", "rests on a result you saw", "say so"):
         assert phrase in WORKING_METHOD
+    # Roadmap 30: no coaching from one turn.
+    for phrase in ("Change one thing", "starting over", "names its cause"):
+        assert phrase not in WORKING_METHOD
     assert not re.findall(r"[a-z]+_[a-z_]+", WORKING_METHOD)
     for case in ("PDF", "font", "pip", "reportlab", "fpdf"):
         assert case not in WORKING_METHOD

@@ -252,9 +252,8 @@ class ToolExecutor:
                     message=(
                         f"your answer was cut at the output limit before the arguments "
                         f"of {name} ended, so the call was not run and nothing was "
-                        "changed; send it in smaller pieces — write_file with the first "
-                        "part, then edit_file to add the rest — rather than the same "
-                        "call again"
+                        "changed; the same call again is cut the same way: send it in "
+                        "smaller pieces"
                     ),
                 )
             else:

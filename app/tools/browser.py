@@ -357,21 +357,19 @@ DESCRIPTION = (
     "Drive a real Chromium page. It is the same thing as Playwright or Puppeteer, "
     "packed into one tool: instead of writing a script, you call it once per action, "
     "with `action` and that action's fields.\n"
-    "- open, with `path` (an .html file in your workspace) or `url` (a public page). "
-    "Call this first; every other action needs an open page. Open a url here only "
-    "when you need to act on that page; to read one, fetch_page is the default, and "
-    "to see one rendered, view_web_page.\n"
+    "- open, with `path` (an .html file in your workspace) or `url` (a web page). "
+    "Call this first; every other action needs an open page.\n"
     "- click with `ref`; type with `ref` and `text` (clears the field first); press "
     "with `key` (Enter, Tab, Escape, ArrowDown, or one character); select with `ref` "
     "and `value`. Refs come from the latest result, like e12; an older ref is refused.\n"
     "- snapshot: the page as it is now; `query` keeps only the lines that mention a word.\n"
     "- evaluate with `expression`: JavaScript in the page, as in the DevTools console.\n"
     "- screenshot (`full_page` for the whole scroll); console: errors since the last call.\n"
-    "The page stays open between your calls until the turn ends or you open another. "
-    "To check that a page works, do what the person would do — click the button, type "
-    "into the field, press Enter — and read what came back; one screenshot is not a run. "
-    "The page reaches public addresses and nothing private."
+    "The page stays open between your calls until the turn ends or you open another."
 )
+
+REACH_PUBLIC = " The page reaches public addresses and nothing private."
+REACH_OPEN = " The page reaches any address, this machine's included."
 
 RETURNS = (
     "after open, snapshot and every action: the title, console errors since the last "
@@ -390,7 +388,7 @@ PARAMETERS: dict[str, Any] = {
     "properties": {
         "action": {"type": "string", "enum": list(ACTIONS)},
         "path": {"type": "string", "description": "open: an .html file in the workspace."},
-        "url": {"type": "string", "description": "open: a public http/https address."},
+        "url": {"type": "string", "description": "open: an http/https address."},
         "ref": {"type": "string", "description": "click, type, select: a ref from the latest result."},
         "text": {"type": "string", "description": "type: the text."},
         "key": {"type": "string", "description": "press: the key."},
@@ -425,7 +423,7 @@ def browser_tools(root: Path, browser: Path | None = None, pages: Pages | None =
             # Replaying an action on a page after a worker died is not safe:
             # the page is gone with the worker, and a click may have counted.
             replay_safe=False,
-            description=DESCRIPTION,
+            description=DESCRIPTION + (REACH_OPEN if held.open_addresses else REACH_PUBLIC),
             returns=RETURNS,
             leaves=LEAVES,
             parameters=PARAMETERS,

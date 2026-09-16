@@ -188,6 +188,15 @@ class Unfinished:
     tool_calls: int
 
 
+def model_name(backend: object) -> str | None:
+    """What the backend calls its model, for the brief's environment line;
+    `None` for a backend that has no name to give (a fake, a wrapper)."""
+
+    settings = getattr(backend, "settings", None)
+    name = getattr(settings, "name", None) or getattr(backend, "name", None)
+    return str(name) if name else None
+
+
 class Agent:
     """A model, a memory and a set of tools, answering one thread at a time.
 
@@ -423,6 +432,7 @@ class Agent:
                 self.delivery,
                 self.system_prompt,
                 where_commands_run=self.capability_registry.runner.where,
+                model=model_name(self.backend),
             )
             self._graphs[thread_id] = build_agent(
                 self.backend,

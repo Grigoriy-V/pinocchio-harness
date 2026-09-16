@@ -64,13 +64,15 @@ class Scenario:
 
     `expected_tools` is the only thing compared automatically, and it is a
     statement about the turn's shape rather than about its quality: these tools
-    should appear somewhere. An empty tuple is a real expectation — a
-    conversational question that spends a tool call has regressed in cost.
+    should appear somewhere. An empty tuple compares nothing; a scenario that
+    must spend no tool call says so with `expects_no_tools` (roadmap 30: an
+    empty expectation is not a ban, and the judges read the rest).
     """
 
     name: str
     request: str
     expected_tools: tuple[str, ...] = ()
+    expects_no_tools: bool = False
     seed: tuple[tuple[str, str], ...] = ()
     look_for: str = ""
     external: bool = False
@@ -93,6 +95,7 @@ SCENARIOS: tuple[Scenario, ...] = (
     Scenario(
         name="chat",
         request="Привет. В двух предложениях: чем отличается префиксный кеш от кеша ответов?",
+        expects_no_tools=True,
         look_for="один ход модели, ноль инструментов. Это антирегрессия по стоимости.",
     ),
     Scenario(
@@ -228,7 +231,7 @@ class Result:
         """Whether the expected tools appeared. Not whether the answer is good."""
 
         seen = set(self.names)
-        if not self.scenario.expected_tools:
+        if self.scenario.expects_no_tools:
             return not seen
         return set(self.scenario.expected_tools) <= seen
 

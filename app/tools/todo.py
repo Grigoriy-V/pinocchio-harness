@@ -45,18 +45,11 @@ MAX_ITEMS = 20
 MAX_CONTENT_CHARS = 200
 
 DESCRIPTION = (
-    "Your own list of steps. Open one when the work has phases or dependencies "
-    "where the order matters, when it is long and takes many actions, when the "
-    "person asked for a plan, or when steps came up while you worked that you "
-    "will do before answering. Do not open one for a simple or single-step "
-    "request: a list that was not needed is resent in full on every update and "
-    "carried on every step afterwards. When you do open one: "
-    "send the ENTIRE list every call, because it replaces the previous one and "
-    "there are no partial updates or per-item edits. One item per meaningful "
-    "milestone or outcome — do not mirror individual tool calls, files or small "
-    "implementation actions, and expect one item to stay in_progress across "
-    "several of them. At most one in_progress while work remains, and an item "
-    "marked completed the moment it is done rather than in one batch at the end."
+    "Your own list of steps for work with several steps; a single-step request "
+    "has none. Each call sends the whole list and replaces the previous one: "
+    "there are no partial updates. One item per outcome, not per tool call; at "
+    "most one item in_progress while work remains; an item is completed when it "
+    "is done, not in one batch at the end."
 )
 
 PARAMETERS: dict[str, Any] = {

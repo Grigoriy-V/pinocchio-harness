@@ -408,9 +408,8 @@ class LocalRunner:
         self.where = (
             f"on this machine ({system}), through {shell}{boundary}.{dialect} Your home directory "
             f"is {self.home}. `python` and `pip` are this machine's own and nothing is "
-            "activated for you: to install a package, make a virtual environment in "
-            "the task's folder and run its python. Everything in the workspace "
-            "survives between turns"
+            "activated for you: to install a package, make a virtual environment "
+            "and run its python. Everything in the workspace survives between turns"
         )
         self._runs = 0
         self._tmp: Path | None = None
@@ -592,25 +591,12 @@ class ContainerRunner(LocalRunner):
         return Path(tempfile.gettempdir())
 
 
-# What a non-zero exit carries with it, at the moment it happens: DeepSeek's
-# remedy on a typed failure, applied to the one result that is not a failure by
-# design and is read as one by the model. About every command, not about any
-# one error (the human's rule, and their ask, 2026-09-04: "the harness should
-# say why not — look at what is there").
-UNWANTED_EXIT = (
-    "The command did not do what you meant. Read the output above before your "
-    "next step: a traceback names the file, the line and the cause, and what it "
-    "says to do is the fix, not a reason to start over or give up. Before you "
-    "decide something is missing here, check with a command (ls, find, pip show)."
-)
-
-
 def describe(finished: Finished) -> str:
     """What the model reads: the exit code first, then what the command said.
 
-    A non-zero exit ends with the harness's own line about reading it
-    (`UNWANTED_EXIT`): the result is not a failure of the tool, and until
-    2026-09-04 nothing said what it was.
+    Nothing else: a non-zero exit is a result, and the references report it
+    as one (`[exit code: N]`); the sentence that followed it here until
+    2026-09-16 was coaching from one turn (roadmap 30).
     """
 
     # `fresh` is not said: what the container does and does not keep is in
@@ -622,9 +608,6 @@ def describe(finished: Finished) -> str:
     else:
         lines.append("output:")
     lines.append(finished.output.strip() or "(no output)")
-    if finished.exit_code != 0:
-        lines.append("")
-        lines.append(UNWANTED_EXIT)
     return "\n".join(lines)
 
 
@@ -692,12 +675,9 @@ def shell_tools(root: Path, runner: Runner) -> list[Tool]:
             description=(
                 f"Run one command line through {runner_shell(runner)} in your working folder: "
                 "python, pip, node, npm, git, a build, a test, an install. Written for "
-                "that shell and this operating system (the brief names them). A non-zero "
-                "exit code means the command did not do what you meant: read the whole output "
-                "before your next step; a traceback names the file, the line and the "
-                "cause, and what it tells you to do is the fix. Before you say something "
-                "is missing here, check with a command. The command cannot read from the "
-                "terminal: pass answers on the command line or with flags. "
+                "that shell and this operating system (the brief names them). The command "
+                "cannot read from the terminal: pass answers on the command line or with "
+                "flags. "
                 f"`timeout_seconds` (default {DEFAULT_TIMEOUT}, at most {MAX_TIMEOUT}) "
                 "kills it if it runs longer."
                 + (

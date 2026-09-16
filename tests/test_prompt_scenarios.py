@@ -31,7 +31,7 @@ def test_the_regression_is_a_scenario() -> None:
 
 def test_a_conversational_scenario_expects_no_tools() -> None:
     chat = next(scenario for scenario in SCENARIOS if scenario.name == "chat")
-    assert chat.expected_tools == ()
+    assert chat.expected_tools == () and chat.expects_no_tools
 
 
 def test_a_third_party_scenario_is_left_out_unless_asked_for() -> None:
@@ -74,11 +74,17 @@ def test_expected_tools_are_met_when_they_appear() -> None:
     assert result.met
 
 
-def test_a_conversational_turn_that_spends_a_tool_is_off_shape() -> None:
-    result = Result(scenario=Scenario(name="s", request="r"), run_id="r1")
+def test_a_scenario_that_must_spend_no_tool_says_so() -> None:
+    """An empty expectation compares nothing (roadmap 30); the cost
+    anti-regression is an explicit flag."""
+
+    result = Result(scenario=Scenario(name="s", request="r", expects_no_tools=True), run_id="r1")
     assert result.met
-    result.tools = [{"tool": "list_files", "status": "success"}]
+    result.tools = [{"tool": "find_files", "status": "success"}]
     assert not result.met
+    free = Result(scenario=Scenario(name="s", request="r"), run_id="r2")
+    free.tools = [{"tool": "find_files", "status": "success"}]
+    assert free.met
 
 
 def test_one_prompt_has_one_identity() -> None:

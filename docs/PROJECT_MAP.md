@@ -177,8 +177,8 @@ mcp.<server>              <server>_<tool> for each allowed tool       (app/tools
   places, on purpose: the workspace is the working directory and the work;
   home is the person's (the container's, deployed); temp is the runner's
   own, never the workspace. Nothing is activated or made for the model: a
-  venv is the model's, in the task's folder, by name; the brief carries the
-  one rule about a folder per piece of work. A container is disposable and
+  venv is the model's, by name; the rule about a folder per piece of work
+  is the person's, in their workspace `AGENTS.md` (roadmap 30). A container is disposable and
   the brief says so once (roadmap 17, 2026-09-08). A command may also be left
   running: `background=true` returns its id at once, `command_output` reads
   what it has written and `stop_command` ends it, and every background command

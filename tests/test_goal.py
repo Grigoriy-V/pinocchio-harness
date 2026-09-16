@@ -62,18 +62,22 @@ def test_the_refusal_reaches_the_model_as_a_tool_error() -> None:
 
 def test_the_description_says_once_and_never_updated() -> None:
     assert "once" in DESCRIPTION
-    assert "do not update" in DESCRIPTION
+    assert "not updated afterwards" in DESCRIPTION
     assert "more than one thing" in DESCRIPTION
+    assert "read when you try to finish" in DESCRIPTION
 
 
-def test_the_brief_says_why_only_when_the_tool_is_there(tmp_path: Path) -> None:
+def test_the_brief_lists_the_tool_and_says_nothing_more_about_it(tmp_path: Path) -> None:
+    """What set_goal records and when it is read is the description's
+    (roadmap 30); the brief carries the name in the inventory only."""
+
     registry = CapabilityRegistry(tmp_path)
     grant = registry.grant(capabilities=())
 
     with_goal = capability_brief(registry.toolbox(grant, goal_tools()))
     without = capability_brief(registry.toolbox(grant, []))
 
-    assert "set_goal" in with_goal and "more than one thing" in with_goal
+    assert with_goal.count("set_goal") == 1
     assert "set_goal" not in without
 
 

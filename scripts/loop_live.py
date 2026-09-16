@@ -456,10 +456,8 @@ async def run_scenarios(
             done(
                 "B", "B one tool", b,
                 checks={
-                    "read_file ran": "read_file" in b.tools,
                     "no tool failed": not b.failures,
-                    "the result reached the model": "marmalade" in b.read_from("read_file"),
-                    "the answer uses it": "marmalade" in b.answer.lower(),
+                    "the answer has the passphrase": "marmalade" in b.answer.lower(),
                 },
             )
 
@@ -683,8 +681,9 @@ async def run_scenarios(
 
         if wanted("G"):
             # G — the person's own request, plan off (the default). What the checks
-            # ask is what the person asked for: it was built, looked at, and both
-            # the files and the screenshot came without a second request.
+            # ask is what the person asked for: the files exist, the page has its
+            # three columns, and both the files and the screenshot came without a
+            # second request. Which tools did it is the model's (roadmap 30).
             g = await Turn(agent, telemetry, 70).ask(
                 "chat-g",
                 "Создай небольшое веб-приложение Task Board. В отдельной папке Task Board\n\n"
@@ -698,12 +697,17 @@ async def run_scenarios(
                 "В итоге пришли в чат скриншот и файлы программы",
             )
             sent = g.outbound()
+            board = max(root.glob("**/index.html"), key=lambda path: path.stat().st_mtime, default=None)
+            page = board.read_text(encoding="utf-8", errors="replace") if board else ""
             done(
                 "G", "G the person's request, plan off", g,
                 checks={
-                    "no plan tool was offered or called": "todo_write" not in g.tools
-                    and "todo_write" not in agent.toolbox(qualified("chat-g")).names,
-                    "write_file then use_page": "write_file" in g.tools and "use_page" in g.tools,
+                    "index.html, styles.css and app.js exist in one folder": board is not None
+                    and (board.parent / "styles.css").exists()
+                    and (board.parent / "app.js").exists(),
+                    "the page names the three columns": all(
+                        column in page for column in ("To Do", "In Progress", "Done")
+                    ),
                     "the files were sent": any(name.endswith(".html") for name in sent),
                     "the screenshot was sent": any(name.endswith(".png") for name in sent),
                     "no path was offered as delivery": "![" not in g.answer,
@@ -749,7 +753,7 @@ async def run_scenarios(
                 "I", "I a shortened result, read back", i,
                 checks={
                     "the value is in the answer": "4711" in i.answer,
-                    "read back by position": "read_history" in i.tools,
+                    "the line is quoted": "retry_timeout = 4711" in i.answer,
                 },
             )
             if "read_file" in i.tools:

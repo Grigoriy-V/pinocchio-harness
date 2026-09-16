@@ -64,6 +64,7 @@ and says what replaced it.
 | 2026-09-11 | The training loop lives outside the harness | standing |
 | 2026-09-13 | Locally a conversation works in a named folder: read anywhere, write inside, elsewhere after a yes | standing |
 | 2026-09-14 | The coding tools are the references': read by lines, search and find, edit and patch; PowerShell is the Windows shell | standing |
+| 2026-09-16 | The brief and the descriptions state facts and outcomes in the references' shape; the harness carries nothing the person's AGENTS.md can | standing |
 
 ---
 
@@ -832,3 +833,51 @@ deployed, the same tools inside the root with the Python search engine and
 constants a page and a search are cut at stay until roadmap 31 derives them
 from the budget. Making Cygwin run under the token (option B of the report)
 is recorded in the roadmap as not started.
+
+## 2026-09-16 — The brief and the descriptions state facts and outcomes in the references' shape; the harness carries nothing the person's AGENTS.md can
+
+Decision (the human, 2026-09-16, roadmap 30, on
+`reports/2026-09-16_item30_references.md` §4, option B): every text the
+model reads states what a tool returns and reaches, an environment fact, or
+the outcome wanted, in the shape the five references share. The core brief
+keeps the method where every reference has it, as a general property (find
+out with a tool before assuming; look at what you made before calling it
+done; a claim rests on a result seen in this turn; finish in this turn) and
+loses the sentences written from one turn ("Change one thing, then run
+it", "fix that one thing rather than starting over"). "Answer briefly" and
+"say nothing" become a sizing rule (the length matches the weight of the
+ask; finished work reports what changed, what was verified, what is left)
+and a narration rule (no narrating a tool call the person can see). The
+capability brief loses "There are no others", the fixed web-tool ranking,
+the observation coaching and the goal line; the plan line is the
+conditions plus the price. The folder-and-venv rule (roadmap 17) leaves
+the harness brief for the person's `AGENTS.md`, because none of the
+references carries a personal rule in its own prompt and every one reads
+the person's file: the harness carries nothing that can work from there.
+One generated environment line (operating system, date, model) is added,
+as every reference injects. `UNWANTED_EXIT` and the traceback sentences
+go; a non-zero exit is reported as a result. The measurement changes in
+the same step so it does not reward the old shape: an empty scenario
+expectation compares nothing and the cost anti-regression is an explicit
+flag; rubric b scores redundancy given what was known and scores no route;
+rubric e docks only what the person cannot use; `loop_live` B, G and I
+check outcomes on disk and in the answer, not which tool ran.
+
+Why: the audit of 2026-09-14 counted ~1,150 words of coaching and ~480 of
+routes in what the model reads, most written from one observed turn of a
+small model, against ~1,050 words of facts. The references state what a
+tool returns, leave the route to the agent, and the one with a public
+changelog culls its coaching release after release, keeping the general
+requirement. A rule about this person's machine belongs to this person's
+file, where the references put it and where it can be changed without a
+release.
+
+Consequences: a full local brief with every tool wired went from 1,086 to
+880 words, the descriptions from 1,799 to 1,626; the fence hint in
+`validation_error` stays because it fires only on its observed condition;
+`DONE_REASON`/`REPEAT_REASON` stay until roadmap 32. Deployed, the same
+texts reach Telegram at the next deploy, and the deployed workspace's
+`AGENTS.md` on the volume gets the folder rule at that deploy (a gate).
+Whether the new shape changes what the model does is the live
+measurement's to say (the mini set, blind judges), a priced run on the
+human's word.

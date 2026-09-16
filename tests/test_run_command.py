@@ -275,12 +275,11 @@ def test_the_brief_says_where_commands_run_and_what_survives(workspace: Path) ->
     brief = capability_brief(tools, where_commands_run=registry.runner.where)
 
     assert "run_command runs a shell command on this machine" in brief
-    # The line about reading a result is the tool's own since roadmap 16
-    # (2026-09-07); the brief keeps only what differs per profile.
+    # The tool's description says what it runs and in which shell; the brief
+    # keeps only what differs per profile (roadmap 16, 30).
     described = tools.get("run_command").schema()["function"]["description"]
-    assert "read the whole output" in described and "traceback names" in described
-    assert "read the whole output" not in brief
-    assert "virtual" in brief and "workspace" in brief
+    assert "Run one command line through" in described and "timeout_seconds" in described
+    assert "traceback" not in described.lower()
     without = registry.toolbox(registry.grant(capabilities=[name for name in DEFAULT_CAPABILITIES if name != SHELL_RUN]))
     assert "run_command" not in capability_brief(without)
 
@@ -388,7 +387,7 @@ def test_a_venv_the_model_makes_under_the_boundary_has_pip(workspace: Path) -> N
 
     finished = run(
         LocalRunner().run(
-            "python -m venv task\.venv; task\.venv\Scripts\python -m pip --version",
+            r"python -m venv task\.venv; task\.venv\Scripts\python -m pip --version",
             workspace,
             180,
         )
@@ -505,28 +504,26 @@ def test_create_agent_hands_the_runner_to_the_registry(tmp_path: Path) -> None:
         agent.store.close()
 
 
-def test_the_brief_carries_the_folder_per_task_rule(workspace: Path) -> None:
-    """Roadmap 17, the human's line, literal: one folder per piece of work."""
+def test_the_brief_says_where_commands_run_and_nothing_about_folders(workspace: Path) -> None:
+    """The folder-per-task rule (roadmap 17) is the person's own and lives in
+    their AGENTS.md since roadmap 30; the brief keeps the shell fact."""
 
     tools = Toolbox(shell_tools(workspace, LocalRunner()))
     brief = capability_brief(tools)
 
-    assert "Each piece of work gets its own folder in your workspace" in brief
-    assert "use that folder again" in brief
+    assert "run_command runs a shell command" in brief
+    assert "its own folder" not in brief and "virtual environment" not in brief
 
 
-
-def test_a_non_zero_exit_carries_the_harness_own_line_and_a_zero_does_not() -> None:
-    """The human's ask, 2026-09-04: at the moment of an error, say how to read it."""
-
-    from app.tools.shell import UNWANTED_EXIT
+def test_a_non_zero_exit_is_reported_as_a_result_and_nothing_more() -> None:
+    """The exit code and the output, as the references report it (roadmap
+    30); the sentence about tracebacks that followed since 2026-09-04 is gone."""
 
     failed = describe(Finished(exit_code=1, output="Traceback ...", cut=False, seconds=0.3))
     fine = describe(Finished(exit_code=0, output="ok", cut=False, seconds=0.3))
 
-    assert failed.endswith(UNWANTED_EXIT) and "Traceback ..." in failed
-    assert UNWANTED_EXIT not in fine
-    assert "pdf" not in UNWANTED_EXIT.lower() and "font" not in UNWANTED_EXIT.lower()
+    assert failed.startswith("exit code: 1") and failed.endswith("Traceback ...")
+    assert fine.startswith("exit code: 0") and fine.endswith("ok")
 
 
 # --- a command left running (ISS-0075) ---------------------------------------

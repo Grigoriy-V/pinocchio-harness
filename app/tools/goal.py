@@ -35,11 +35,10 @@ MAX_PARTS = 10
 MAX_PART_CHARS = 200
 
 DESCRIPTION = (
-    "Write down what the person asked for, once, before you start, when the "
-    "request asks for more than one thing: one short line per thing, in their "
-    "words, including how they want it (a language, a format, sent to them). "
-    "Then do the work; do not update this or mark anything, and do not use it "
-    "for a request that asks for one thing."
+    "Record the parts of a request that asks for more than one thing, once: one "
+    "short line per part, in the person's words, including how they want it (a "
+    "language, a format, sent to them). It is not updated afterwards; what is "
+    "still open is read when you try to finish."
 )
 
 PARAMETERS: dict[str, Any] = {

@@ -25,6 +25,7 @@ from app.capabilities import (
     Delivery,
     capability_brief,
     capability_report,
+    environment_line,
     needs_approval,
     system_message,
     tool_inventory,
@@ -211,7 +212,7 @@ def test_the_brief_says_to_choose_a_name_rather_than_write_nothing(
     brief = capability_brief(everything(registry))
 
     assert "choose a sensible name" in brief
-    assert "instead of explaining what you could do" in brief
+    assert "a result pasted for them to save is not the outcome" in brief
 
 
 def test_a_reading_grant_is_not_told_to_create_files(
@@ -233,8 +234,7 @@ def test_observation_guidance_appears_only_with_the_tool(
 
     guided = capability_brief(inspecting)
 
-    assert "look at it before you describe it" in guided
-    assert "never ask them to open it for you" in guided
+    assert "You can open what you made or changed: a page with use_page" in guided
     assert "use_page" not in capability_brief(reading_only)
 
 
@@ -258,10 +258,11 @@ def test_planning_guidance_appears_only_with_the_tool(
 
     guided = capability_brief(planning)
 
-    # The conditions are Codex's, literal (ISS-0016: "when you can hold it in
-    # your head" made GLM never open a list), and the price is stated.
-    assert "phases or dependencies where the order matters" in guided
-    assert "simple or single-step request" in guided
+    # The references' shape (roadmap 30): the condition, literal (ISS-0016:
+    # "when you can hold it in your head" made GLM never open a list), and
+    # the price and the consequence as facts.
+    assert "work with several steps" in guided
+    assert "single-step request has none" in guided
     assert "resends the whole list" in guided
     assert "read when you try to finish" in guided
     assert "todo_write" not in capability_brief(everything(registry))
@@ -297,10 +298,54 @@ def test_the_system_message_is_the_core_then_the_wiring(
 ) -> None:
     tools = everything(registry)
 
-    whole = system_message(tools)
+    whole = system_message(tools, model="glm-5.3-flash")
 
     assert whole.startswith(DEFAULT_SYSTEM_PROMPT)
     assert capability_brief(tools) in whole
+    assert whole.index("Environment:") < whole.index(capability_brief(tools))
+
+
+def test_the_environment_line_states_the_facts_the_references_inject() -> None:
+    """Roadmap 30 §4.5: the operating system, the date and the model, as
+    facts, with no rule attached."""
+
+    from datetime import date
+
+    line = environment_line("glm-5.3-flash", date(2026, 9, 16))
+
+    assert line.startswith("Environment: ")
+    assert "today is 2026-09-16" in line
+    assert line.endswith("the model is glm-5.3-flash.")
+    assert "the model" not in environment_line(None, date(2026, 9, 16))
+
+
+FORBIDDEN_IN_THE_BRIEF = (
+    # Coaching and routes the audit of 2026-09-14 named, gone since roadmap 30.
+    "Answer briefly",
+    "say nothing",
+    "no others",
+    "never name a tool",
+    "Change one thing",
+    "starting over",
+    "is the default",
+    "only when you need",
+    "instead of",
+    "never ask them",
+    "one screenshot",
+    "its own folder",
+    "virtual environment",
+)
+
+
+def test_the_brief_states_facts_and_outcomes_not_routes(registry: CapabilityRegistry) -> None:
+    """A brief line says what a tool returns or reaches, or what outcome is
+    wanted; never which route to take, and never a warning written from one
+    past turn (AGENTS.md; `reports/2026-09-16_item30_references.md`)."""
+
+    whole = system_message(everything(registry), Delivery(place="Telegram"), model="m")
+
+    for phrase in FORBIDDEN_IN_THE_BRIEF:
+        assert phrase not in whole, phrase
 
 
 # --- the hand-written prompt cannot outlive its tools -------------------------
@@ -367,7 +412,7 @@ def test_the_inventory_closes_the_list_wherever_tools_are_given() -> None:
     sentence = tool_inventory(Toolbox())
 
     assert "none" in sentence
-    assert "no others" in sentence
+    assert "generated from what is wired up" in sentence
 
 
 # --- the person can check the model's answer ---------------------------------

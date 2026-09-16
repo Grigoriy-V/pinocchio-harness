@@ -11,9 +11,11 @@ deployed OpenClaw (the human, 2026-09-14). The audit of 2026-09-14
 (`reports/2026-09-14_harness_audit.md`) names what holds it below that;
 the queue below is the order approved for working through it.
 
-**Current approved step:** 30, started 2026-09-16 (the human's word); the
-reference research is written, `reports/2026-09-16_item30_references.md`,
-and the shape waits for the human's word before the texts change.
+**Current approved step:** 30, built 2026-09-16 (shape approved by the
+human the same day: option B, the folder rule to the person's `AGENTS.md`,
+the environment line); the live measurement (the mini set, blind judges
+with the reworded rubric) is a priced run and waits for the human's word
+on its size. `reports/2026-09-16_item30_build.md`.
 
 Observed defects are in `ISSUES.md`, which is not a plan and authorizes
 nothing. `docs/PRODUCT.md` is the product contract; `docs/PROJECT_MAP.md`,
@@ -128,19 +130,13 @@ one line each, evidence in the linked report:
 One item at a time; the human's word starts each. Order approved
 2026-09-14 (the human), after the audit.
 
-30. **Briefs and descriptions say what, not how.** Every text the model
-    reads (`app/context/window.py`, `app/capabilities.py`, every tool's
-    description and error text) rewritten to what a tool returns and
-    reaches, the incident coaching removed (fence rules, traceback
-    coaching, "one screenshot is not a run", "there are no others",
-    "answer briefly", "say nothing", "change one thing then run it", the
-    fixed web-tool ranking, the folder-and-venv layout). In the same step,
-    so the measurement does not reward the old shape: `met()` in
-    `tools/prompt_scenarios.py` for empty expectations, rubric items (b)
-    and (e) in `tools/judge_pack.py` reworded to redundancy given what
-    was known, the route checks in `loop_live` G/I/B replaced by
-    outcomes. Measured on the mini set and by blind judges before and
-    after. Touches the tests that pin wording (audit §4).
+30. **Briefs and descriptions say what, not how** — built 2026-09-16,
+    the live measurement open. What is left of the step: the mini set
+    once on the new texts, judged blind with the reworded rubric, beside
+    the 2026-09-12 transcripts re-judged under the same rubric
+    (`reports/2026-09-16_item30_build.md` §4); the human names the size.
+    The deployed workspace's `AGENTS.md` gets the folder rule at the next
+    deploy.
 
 31. **Limits derived from the budget.** The context and output constants
     (`keep_results`, `keep_turns`, `STUB_MIN_CHARS`, the summary's words,
