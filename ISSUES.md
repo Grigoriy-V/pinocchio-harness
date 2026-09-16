@@ -22,6 +22,7 @@ authorizes nothing; `ROADMAP.md` alone orders work. Evidence lives in
 
 | Id | Status | Defect | Related |
 |---|---|---|---|
+| ISS-0077 | open, both profiles | a `<select>` (or any control) inside a `<label>` has no line and no ref in `use_page`'s structure: the walker emits the label's text and does not descend | roadmap 31 smoke |
 | ISS-0076 | fixed 2026-09-14 | after a page reload a turn's tool calls come back as separate rows: the one collapsed step per turn is not kept | 0071, roadmap 27 |
 | ISS-0075 | fixed 2026-09-14 | a server the model starts with `start` opens a console window on the person's desktop and outlives the conversation untracked; `run_command` has no background mode | roadmap 27 |
 | ISS-0074 | fixed 2026-09-14 | `use_page open http://localhost:…` is refused (`ERR_ACCESS_DENIED`): the browser's public-only policy also holds on the person's own machine | roadmap 27 |
@@ -105,6 +106,21 @@ in use since 2026-09-06; it is not seen on the hosted model.
 ---
 
 ## Open
+
+### ISS-0077 — a control inside a `<label>` has no ref in the page structure
+
+- **Status:** open. Seen on the roadmap 31 smoke, 2026-09-17, local.
+- **Seen:** `select.html` with `<label>City <select id='city'>…</select></label>`:
+  the structure showed `heading` and one `label "City City number 1 …"` line
+  and no `combobox` at all, so the select had no ref to `select` by and the
+  note about hidden options (roadmap 31) never appeared. The visible text
+  listed every option, so the model could read them, not act on them.
+- **Where:** `app/tools/chromium.py` `_SNAPSHOT`: after a `label` (and
+  `heading`, `paragraph`, `option`, `cell`, …) line the walker returns
+  without visiting the node's children.
+- **Reproduce:** open any page whose input sits inside its label; no ref.
+- **Fix belongs to:** the harness (the snapshot's walker); roadmap 21 (the
+  browser tool) or a small fix on its own.
 
 ### ISS-0070 — the first turn on a fresh worker builds the graph for ~150 s
 

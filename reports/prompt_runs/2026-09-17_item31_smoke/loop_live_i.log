@@ -1,0 +1,52 @@
+telemetry C:\Users\user\AppData\Local\Temp\loop-live-7_eaprqp\telemetry.sqlite3
+model set OR: z-ai/glm-5.3-flash at https://openrouter.ai/api/v1
+workspace C:\Users\user\AppData\Local\Temp\loop-live-7_eaprqp\workspace\loop-live-check
+{"run_id": "live-90", "event": "turn_started", "seq": 1, "timestamp": "2026-09-16T18:31:54.805+00:00", "user_id": "loop-live-check", "thread_id": "chat-i", "source": "loop-live"}
+{"run_id": "live-90", "event": "graph_built", "seq": 2, "timestamp": "2026-09-16T18:31:59.344+00:00", "duration_ms": 4547}
+{"run_id": "live-90", "event": "checkpoint_read", "seq": 3, "timestamp": "2026-09-16T18:31:59.345+00:00", "op": "aget_tuple", "duration_ms": 0}
+{"run_id": "live-90", "event": "context_loaded", "seq": 4, "timestamp": "2026-09-16T18:31:59.346+00:00", "duration_ms": 0}
+{"run_id": "live-90", "event": "checkpoint_write", "seq": 5, "timestamp": "2026-09-16T18:31:59.347+00:00", "op": "aput", "duration_ms": 0}
+{"run_id": "live-90", "event": "loop_step", "seq": 6, "timestamp": "2026-09-16T18:31:59.396+00:00", "step": 1, "tool_calls": 0, "spent_ms": 0}
+{"run_id": "live-90", "event": "context_prepared", "seq": 7, "timestamp": "2026-09-16T18:31:59.396+00:00", "step": 1, "schemas": 9509, "prelude": 1616, "history": 412, "facts": 0, "turn": 24, "stubbed": 1, "placeholders": 0}
+{"run_id": "live-90", "event": "model_started", "seq": 8, "timestamp": "2026-09-16T18:31:59.396+00:00", "purpose": "answer", "call_index": 1}
+{"run_id": "live-90", "event": "checkpoint_write", "seq": 9, "timestamp": "2026-09-16T18:31:59.399+00:00", "op": "aput_writes", "duration_ms": 47}
+{"run_id": "live-90", "event": "checkpoint_write", "seq": 10, "timestamp": "2026-09-16T18:31:59.400+00:00", "op": "aput", "duration_ms": 0}
+{"run_id": "live-90", "event": "checkpoint_write", "seq": 11, "timestamp": "2026-09-16T18:31:59.401+00:00", "op": "aput_writes", "duration_ms": 0}
+{"run_id": "live-90", "event": "checkpoint_write", "seq": 12, "timestamp": "2026-09-16T18:31:59.402+00:00", "op": "aput", "duration_ms": 15}
+{"run_id": "live-90", "event": "model_finished", "seq": 13, "timestamp": "2026-09-16T18:32:04.648+00:00", "purpose": "answer", "call_index": 1, "input_tokens": 8670, "output_tokens": 25, "cached_tokens": 0, "reasoning_tokens": 12, "finish_reason": "tool_calls", "duration_ms": 5250}
+{"run_id": "live-90", "event": "tool_started", "seq": 14, "timestamp": "2026-09-16T18:32:04.649+00:00", "tool": "search_history", "call_index": 1, "stage": "execute"}
+{"run_id": "live-90", "event": "tool_finished", "seq": 15, "timestamp": "2026-09-16T18:32:04.650+00:00", "tool": "search_history", "call_index": 1, "status": "success", "stage": "execute", "duration_ms": 0}
+{"run_id": "live-90", "event": "interjections_read", "seq": 16, "timestamp": "2026-09-16T18:32:04.650+00:00", "duration_ms": 0}
+{"run_id": "live-90", "event": "loop_step", "seq": 17, "timestamp": "2026-09-16T18:32:04.651+00:00", "step": 2, "tool_calls": 1, "spent_ms": 5250}
+{"run_id": "live-90", "event": "context_prepared", "seq": 18, "timestamp": "2026-09-16T18:32:04.651+00:00", "step": 2, "schemas": 9509, "prelude": 1997, "history": 355, "facts": 0, "turn": 180, "stubbed": 2, "placeholders": 0}
+{"run_id": "live-90", "event": "model_started", "seq": 19, "timestamp": "2026-09-16T18:32:04.651+00:00", "purpose": "answer", "call_index": 2}
+{"run_id": "live-90", "event": "checkpoint_write", "seq": 20, "timestamp": "2026-09-16T18:32:04.653+00:00", "op": "aput_writes", "duration_ms": 15}
+{"run_id": "live-90", "event": "checkpoint_write", "seq": 21, "timestamp": "2026-09-16T18:32:04.654+00:00", "op": "aput", "duration_ms": 15}
+{"run_id": "live-90", "event": "checkpoint_write", "seq": 22, "timestamp": "2026-09-16T18:32:04.656+00:00", "op": "aput_writes", "duration_ms": 15}
+{"run_id": "live-90", "event": "checkpoint_write", "seq": 23, "timestamp": "2026-09-16T18:32:04.657+00:00", "op": "aput", "duration_ms": 0}
+{"run_id": "live-90", "event": "model_first_token", "seq": 24, "timestamp": "2026-09-16T18:32:08.978+00:00", "purpose": "answer", "call_index": 2, "duration_ms": 4327}
+{"run_id": "live-90", "event": "model_finished", "seq": 25, "timestamp": "2026-09-16T18:32:09.357+00:00", "purpose": "answer", "call_index": 2, "input_tokens": 8646, "output_tokens": 14, "cached_tokens": 8128, "reasoning_tokens": 0, "finish_reason": "stop", "duration_ms": 4719}
+{"run_id": "live-90", "event": "persist_started", "seq": 26, "timestamp": "2026-09-16T18:32:09.361+00:00"}
+{"run_id": "live-90", "event": "history_written", "seq": 27, "timestamp": "2026-09-16T18:32:09.363+00:00", "duration_ms": 0}
+{"run_id": "live-90", "event": "persist_finished", "seq": 28, "timestamp": "2026-09-16T18:32:09.363+00:00", "duration_ms": 0}
+{"run_id": "live-90", "event": "checkpoint_write", "seq": 29, "timestamp": "2026-09-16T18:32:09.365+00:00", "op": "aput_writes", "duration_ms": 0}
+{"run_id": "live-90", "event": "checkpoint_write", "seq": 30, "timestamp": "2026-09-16T18:32:09.367+00:00", "op": "aput", "duration_ms": 0}
+{"run_id": "live-90", "event": "checkpoint_write", "seq": 31, "timestamp": "2026-09-16T18:32:09.368+00:00", "op": "aput_writes", "duration_ms": 0}
+{"run_id": "live-90", "event": "checkpoint_write", "seq": 32, "timestamp": "2026-09-16T18:32:09.369+00:00", "op": "aput", "duration_ms": 0}
+{"run_id": "live-90", "event": "checkpoint_read", "seq": 33, "timestamp": "2026-09-16T18:32:09.370+00:00", "op": "aget_tuple", "duration_ms": 0}
+{"run_id": "live-90", "event": "turn_finished", "seq": 34, "timestamp": "2026-09-16T18:32:09.370+00:00", "outcome": "answer_delivered", "model_calls": 2, "tool_calls": 1, "input_tokens": 17316, "output_tokens": 39, "duration_ms": 14563}
+{"run_id": "live-90", "event": "telemetry_written", "seq": 35, "timestamp": "2026-09-16T18:32:09.371+00:00", "duration_ms": 15}
+
+I a shortened result, read back
+  model calls 2   tool calls 1   approvals 0   tokens 17316 in / 39 out
+  tools       ['search_history']
+  seconds      14.58   run live-90
+  answer      The config had `retry_timeout = 4711`.
+  PASS  the value is in the answer
+  PASS  the line is quoted
+
+all scenarios passed
+
+Read any of them back with:
+  AGENT_TELEMETRY_DATABASE=C:\Users\user\AppData\Local\Temp\loop-live-7_eaprqp\telemetry.sqlite3 AGENT_DATABASE_URL= python tools/show_run.py --last 10
+exit 0

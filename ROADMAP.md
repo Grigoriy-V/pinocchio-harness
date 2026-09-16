@@ -11,10 +11,10 @@ deployed OpenClaw (the human, 2026-09-14). The audit of 2026-09-14
 (`reports/2026-09-14_harness_audit.md`) names what holds it below that;
 the queue below is the order approved for working through it.
 
-**Current approved step:** 31, built 2026-09-16 (shape approved the same
-day: option B, the result share one eighth, the kept tail 0.15); the live
-smoke (`reports/2026-09-16_item31_build.md` §5) is a priced run and waits
-for the human's word.
+**Current approved step:** none; 31 closed 2026-09-17 (built, the live
+smoke passed: a 228 KB command output whole in its file and paged, a
+5,000-line read, the browser text by offset, scenario I). Next in the
+queue is 32, on the human's word.
 
 Observed defects are in `ISSUES.md`, which is not a plan and authorizes
 nothing. `docs/PRODUCT.md` is the product contract; `docs/PROJECT_MAP.md`,
@@ -134,19 +134,22 @@ one line each, evidence in the linked report:
   provider stall. The deployed workspace's `AGENTS.md` gets the folder
   rule at the next deploy. `reports/2026-09-16_item30_references.md`,
   `reports/2026-09-16_item30_build.md`.
+- **31, limits derived from the budget** (2026-09-17): every bound in
+  `app/limits.py`, the whole-request ones as shares of the budget (a result
+  1/8, the kept tail 0.15, the summary 0.05, the instruction file 2%), one
+  tool's page as a setting with the references' defaults, the model's media
+  per set; every cut names its way back (spill files under `.agent/`,
+  offsets, sections); a timeout above the most is backgrounded locally and
+  refused by number deployed. Smoked live on GLM (a 228 KB output whole in
+  its file, paged), scenario I passed; ISS-0077 found. Left: the history
+  and memory tools take the default budget's page; the provider's metadata
+  is 33's. `reports/2026-09-16_item31_references.md`,
+  `reports/2026-09-16_item31_build.md`.
 
 ## Queue
 
 One item at a time; the human's word starts each. Order approved
 2026-09-14 (the human), after the audit.
-
-31. **Limits derived from the budget** — built 2026-09-16, the live smoke
-    open (`reports/2026-09-16_item31_build.md` §5). Every constant of the
-    audit's §1.3 and §1.4 is a share of the budget or a setting in
-    `app/limits.py`, every cut names its way back, a timeout is never
-    clamped. Left for later: the history and memory tools take the default
-    budget's page (built outside the registry); the provider's metadata for
-    the window and the output cap is 33's.
 
 32. **The graph.** Independent tool calls run in parallel, a tool
     declaring `mutates` serialised; tool output streams while it runs;
