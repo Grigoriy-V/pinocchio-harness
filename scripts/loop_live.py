@@ -102,6 +102,11 @@ def qualified(thread_id: str) -> str:
 
 MINI = "ABCFWHEM"
 WIDER = "GIJKOPQRS"
+# The long requests of the todo measurement (roadmap 32, 2026-09-17): work
+# with several steps whose outcomes are checked; whether the model opens a
+# list is read from the trace, never asked for. `--no-todo` withholds the
+# tool for the control run.
+LONG = "YZ1"
 
 
 def settings_in(room: Path) -> AgentSettings:
@@ -312,7 +317,7 @@ def chosen(argv: list[str]) -> frozenset[str]:
     """Which scenarios to run: letters, or the mini set."""
 
     letters = {
-        arg.upper() for arg in argv if len(arg) == 1 and arg.upper() in MINI + WIDER + TRAINING
+        arg.upper() for arg in argv if len(arg) == 1 and arg.upper() in MINI + WIDER + TRAINING + LONG
     }
     return frozenset(letters) if letters else frozenset(MINI)
 
@@ -952,6 +957,107 @@ async def run_scenarios(
                 },
             )
 
+        # --- the long requests (the todo measurement, roadmap 32) ----------------
+
+        if wanted("Y"):
+            y = await Turn(agent, telemetry, 300).ask(
+                "chat-y",
+                "В папке wordcount сделай маленький Python-пакет: модуль wordcount.py с функцией "
+                "count_words(text), которая возвращает словарь слово → число вхождений, без учёта "
+                "регистра и без знаков препинания; файл test_wordcount.py с тремя тестами на unittest "
+                "(регистр, знаки препинания, пустая строка). Запусти тесты и добейся, чтобы все три "
+                "прошли. Напиши README.md с описанием функции и командой запуска тестов. В конце скажи, "
+                "сколько тестов прошло.",
+            )
+            module = max(root.glob("**/wordcount.py"), key=lambda p: p.stat().st_mtime, default=None)
+            folder = module.parent if module else root
+            runs = y.read_from("run_command")
+            done(
+                "Y", "Y a package, its tests run green, a README", y,
+                checks={
+                    "wordcount.py is in a folder, not the root": module is not None and module.parent != root,
+                    "the test file is beside it": (folder / "test_wordcount.py").exists(),
+                    "the tests were run and passed": "exit code: 0" in runs and "OK" in runs,
+                    "README.md names the function": "count_words" in ((folder / "README.md").read_text(encoding="utf-8", errors="replace") if (folder / "README.md").exists() else ""),
+                    "the answer says three tests passed": "3" in y.answer or "три" in y.answer.lower(),
+                    "no tool failed": not y.failures,
+                },
+            )
+
+        if wanted("Z"):
+            regions = ("north", "south", "east", "west")
+            rows = [(f"2026-01-{1 + n % 28:02d}", regions[n % 4], 100 + (n * 37) % 250) for n in range(40)]
+            (root / "sales.csv").write_text(
+                "date,region,amount\n" + "\n".join(f"{d},{r},{a}" for d, r, a in rows) + "\n", encoding="utf-8"
+            )
+            totals = {r: sum(a for _, rr, a in rows if rr == r) for r in regions}
+            top = max(totals, key=totals.get)
+            z = await Turn(agent, telemetry, 310).ask(
+                "chat-z",
+                "В sales.csv продажи по регионам. Посчитай сумму amount по каждому region и сохрани в "
+                "totals.json (регион → сумма). Сделай страницу totals.html с таблицей регион / сумма, "
+                "отсортированной по сумме по убыванию. Открой страницу и проверь, что в таблице четыре "
+                "строки данных. В ответе назови регион с наибольшей суммой и её значение.",
+            )
+            saved = {}
+            if (root / "totals.json").exists():
+                try:
+                    import json as _json
+
+                    saved = _json.loads((root / "totals.json").read_text(encoding="utf-8"))
+                except ValueError:
+                    saved = {}
+            page = (root / "totals.html").read_text(encoding="utf-8", errors="replace") if (root / "totals.html").exists() else ""
+            done(
+                "Z", "Z a CSV to a JSON to a page, opened and checked", z,
+                checks={
+                    "totals.json holds the four sums": all(
+                        str(saved.get(r, "")).replace(".0", "") == str(totals[r]) for r in regions
+                    ) if isinstance(saved, dict) else False,
+                    "totals.html names the four regions": all(r in page for r in regions),
+                    "the page was opened": "use_page" in z.tools,
+                    "the answer names the top region and its sum": top in z.answer.lower() and str(totals[top]) in z.answer,
+                    "no tool failed": not z.failures,
+                },
+            )
+
+        if wanted("1"):
+            (root / "stats.py").write_text(
+                "def mean(values):\n    return sum(values) / (len(values) - 1)\n\n\n"
+                "def median(values):\n    ordered = sorted(values)\n    return ordered[len(ordered) // 2]\n\n\n"
+                "def mode(values):\n    return values[0]\n",
+                encoding="utf-8",
+            )
+            tests = (
+                "import unittest\n\nfrom stats import mean, median, mode\n\n\n"
+                "class StatsTest(unittest.TestCase):\n"
+                "    def test_mean(self):\n        self.assertEqual(mean([2, 4, 6]), 4)\n\n"
+                "    def test_median_even(self):\n        self.assertEqual(median([1, 2, 3, 4]), 2.5)\n\n"
+                "    def test_mode(self):\n        self.assertEqual(mode([1, 2, 2, 3]), 2)\n\n\n"
+                'if __name__ == "__main__":\n    unittest.main()\n'
+            )
+            (root / "test_stats.py").write_text(tests, encoding="utf-8")
+            one = await Turn(agent, telemetry, 320).ask(
+                "chat-1",
+                "Тесты test_stats.py не проходят. Запусти их, исправь все ошибки в stats.py (тесты не "
+                "менять), добейся, чтобы все проходили, и запиши в CHANGES.md по строке на каждое "
+                "исправление. В ответе скажи, сколько ошибок исправлено.",
+            )
+            runs = one.read_from("run_command")
+            last_run = runs[runs.rfind("exit code:"):] if "exit code:" in runs else ""
+            changes = (root / "CHANGES.md").read_text(encoding="utf-8", errors="replace") if (root / "CHANGES.md").exists() else ""
+            done(
+                "1", "1 failing tests fixed, each fix written down", one,
+                checks={
+                    "the tests were run": "run_command" in one.tools,
+                    "the last run is green": "exit code: 0" in last_run and "OK" in last_run,
+                    "the tests were not changed": (root / "test_stats.py").read_text(encoding="utf-8") == tests,
+                    "CHANGES.md has three lines or more": len([l for l in changes.splitlines() if l.strip()]) >= 3,
+                    "the answer says three": "3" in one.answer or "три" in one.answer.lower(),
+                    "no tool failed": not one.failures,
+                },
+            )
+
         # --- the training families (roadmap 24) ------------------------------
         # Data, not code: `scripts/training_scenarios.py` holds each family's
         # prompts, seeds and outcome checks; this loop owns the turn, and a
@@ -1128,6 +1234,12 @@ def apply_model(argv: list[str]) -> None:
 
     if model_of(argv):
         os.environ["MODEL"] = model_of(argv)
+    if "--no-todo" in argv:
+        # The control of the todo measurement: the same requests with the
+        # list withheld; the runtime reads the tool from its own module.
+        import app.agent.runtime as runtime
+
+        runtime.todo_tools = lambda: ()
     if temperature_of(argv):
         chosen = chosen_model()
         prefix = f"MODEL_{chosen}_" if chosen else "MODEL_"

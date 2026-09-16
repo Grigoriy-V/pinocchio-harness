@@ -3,7 +3,7 @@ two runs are laid side by side (item 15, 2026-09-07)."""
 
 from __future__ import annotations
 
-from scripts.loop_live import MINI, WIDER, Result, chosen, side_by_side
+from scripts.loop_live import LONG, MINI, WIDER, Result, chosen, side_by_side
 
 
 def test_the_default_is_the_mini_set_and_letters_pick_from_both() -> None:
@@ -11,8 +11,9 @@ def test_the_default_is_the_mini_set_and_letters_pick_from_both() -> None:
     assert chosen(["--deployed"]) == frozenset(MINI)
     assert chosen(["b", "M"]) == frozenset("BM")
     assert chosen(["R", "S"]) == frozenset("RS")
-    assert chosen(["z"]) == frozenset(MINI), "an unknown letter is not a scenario"
-    assert not set(MINI) & set(WIDER)
+    assert chosen(["9"]) == frozenset(MINI), "an unknown letter is not a scenario"
+    assert chosen(["y", "1"]) == frozenset("Y1"), "the long requests of the todo measurement"
+    assert not set(MINI) & set(WIDER) and not set(LONG) & set(MINI + WIDER)
 
 
 def row(letter: str, failed: int = 0, seconds: float = 10.0) -> Result:
