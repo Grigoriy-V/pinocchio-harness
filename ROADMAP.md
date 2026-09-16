@@ -11,8 +11,9 @@ deployed OpenClaw (the human, 2026-09-14). The audit of 2026-09-14
 (`reports/2026-09-14_harness_audit.md`) names what holds it below that;
 the queue below is the order approved for working through it.
 
-**Current approved step:** none; 29 closed 2026-09-16 (offline, no model,
-the deploy not touched). Next in the queue is 30, on the human's word.
+**Current approved step:** 30, started 2026-09-16 (the human's word); the
+reference research is written, `reports/2026-09-16_item30_references.md`,
+and the shape waits for the human's word before the texts change.
 
 Observed defects are in `ISSUES.md`, which is not a plan and authorizes
 nothing. `docs/PRODUCT.md` is the product contract; `docs/PROJECT_MAP.md`,
