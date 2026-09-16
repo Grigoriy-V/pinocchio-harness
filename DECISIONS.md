@@ -65,6 +65,7 @@ and says what replaced it.
 | 2026-09-13 | Locally a conversation works in a named folder: read anywhere, write inside, elsewhere after a yes | standing |
 | 2026-09-14 | The coding tools are the references': read by lines, search and find, edit and patch; PowerShell is the Windows shell | standing |
 | 2026-09-16 | The brief and the descriptions state facts and outcomes in the references' shape; the harness carries nothing the person's AGENTS.md can | standing |
+| 2026-09-16 | A limit is a share of the budget or a page setting, in one place; every cut names its way back; a timeout is never clamped | standing |
 
 ---
 
@@ -881,3 +882,42 @@ texts reach Telegram at the next deploy, and the deployed workspace's
 Whether the new shape changes what the model does is the live
 measurement's to say (the mini set, blind judges), a priced run on the
 human's word.
+
+## 2026-09-16 — A limit is a share of the budget or a page setting, in one place; every cut names its way back; a timeout is never clamped
+
+Decision (the human, 2026-09-16, roadmap 31, on
+`reports/2026-09-16_item31_references.md` §4, option B; the result share
+one eighth and the kept tail 0.15 named in the approval): every bound on
+what the model reads, keeps and produces lives in `app/limits.py`. What
+concerns the request as a whole is a share of the request's budget in the
+model's own characters: the largest tool result shown inline (1/8), the
+newest text a fold keeps verbatim (0.15), the summary's size (0.05, at most
+12,000 tokens), the stub threshold (0.0005), the person's instruction file
+(0.02, at most 32 KiB). What concerns one tool's page is a setting with the
+references' default, the same on every model: 2,000 lines a read, 100
+matches a search, 30,000 characters of a command's output, 20,000 of a web
+page, the browser's snapshot and text, a screenshot's height, a CSV's rows,
+a command's default and most seconds. The model's own numbers are per set:
+output tokens, images and audio a request may carry. A cut is never silent
+and never final: a result past its cap is kept whole in a file the result
+names (`.agent/results/`, a command's output in `.agent/commands/`), a page
+names its next offset, a dropped picture names the file that shows it, the
+instruction notice says how many bytes of how many and where the rest is. A
+timeout above the most is started in the background with the reason where
+a process can be kept and refused with the number where it cannot.
+
+Why: the audit of 2026-09-14 found about seventy written constants, many
+from a 64K local model, a vLLM serving limit or one Telegram message, and
+eighteen cuts with no way back; the references derive the whole-request
+limits from the window (Codex 90%/95%, DeepSeek 0.8/0.16, OpenClaw's
+result cap by window band) and keep the page limits as settings, and none
+of them lowers a number the model asked for in silence.
+
+Consequences: `Limits` is built once per agent when the window is known
+and reaches the fold through the policy and every tool through the
+registry; a test builds a toolbox on a small budget and walks every cut;
+`config.toml [agent]` lists the shares and the pages, `[model.sets.*]` the
+media; the deployed Function carries the page and the spill file at the
+next deploy (a gate), and its runner's ceiling makes a longer timeout a
+refusal by number. The history and memory tools take the default budget's
+page until they are built through the registry.

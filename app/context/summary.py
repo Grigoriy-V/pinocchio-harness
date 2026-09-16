@@ -10,6 +10,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from app.context.window import ContextPolicy, shortened, system, transcript, turn_boundary
+from app.limits import DEFAULT_LIMITS, Limits
 from app.memory import ConversationStore
 from app.models import ContentPart, Message, ModelBackend
 
@@ -29,14 +30,16 @@ INSTRUCTION = (
 # size takes in everything but the newest window at once — forty messages
 # is ordinary — and two hundred words for forty messages loses the file
 # names first. Fifteen words a message, from a floor, to a ceiling that is
-# still a small share of any window.
+# the budget's (`Limits.summary_tokens`, a share of the budget under a
+# ceiling in tokens; roadmap 31), counted in words at the ratio below.
 WORDS_FLOOR = 150
 WORDS_PER_MESSAGE = 15
-WORDS_CEILING = 600
+WORDS_PER_TOKEN = 0.6
 
 
-def summary_words(covered: int) -> int:
-    return min(WORDS_CEILING, WORDS_FLOOR + WORDS_PER_MESSAGE * covered)
+def summary_words(covered: int, limits: Limits = DEFAULT_LIMITS) -> int:
+    ceiling = max(WORDS_FLOOR, int(limits.summary_tokens * WORDS_PER_TOKEN))
+    return min(ceiling, WORDS_FLOOR + WORDS_PER_MESSAGE * covered)
 
 
 async def summarize(
@@ -44,6 +47,7 @@ async def summarize(
     previous: str | None,
     messages: Sequence[Message],
     first_position: int = 0,
+    limits: Limits = DEFAULT_LIMITS,
 ) -> str:
     """One summarizer call over the surface of `messages`, not their whole text.
 
@@ -57,21 +61,18 @@ async def summarize(
     `read_history`.
     """
 
-    surface, _ = shortened(messages, keep=0, stored=len(messages), base=first_position)
+    surface, _ = shortened(
+        messages, keep=0, stored=len(messages), base=first_position, min_chars=limits.stub_min_chars
+    )
     body = transcript(surface)
     if previous:
         body = f"Earlier summary:\n{previous}\n\nNew exchange:\n{body}"
-    instruction = INSTRUCTION.format(words=summary_words(len(messages)))
+    instruction = INSTRUCTION.format(words=summary_words(len(messages), limits))
     completion = await backend.invoke(
         [system(instruction), Message(role="user", content=[ContentPart(kind="text", text=body)])]
     )
     return completion.text.strip()
 
-
-# What a fold has to free beyond the overshoot itself: room for the summary
-# that replaces the folded text, which grows with what it covers (at most
-# `WORDS_CEILING` words, roughly this many tokens).
-SUMMARY_ALLOWANCE = 800
 
 # Inside one long tool-using exchange there is no earlier exchange to keep,
 # so the floor is the newest steps instead: the result the model is reading
@@ -79,8 +80,19 @@ SUMMARY_ALLOWANCE = 800
 KEEP_STEPS = 2
 
 
-def verbatim_floor(messages: Sequence[Message], keep_turns: int) -> int:
+def verbatim_floor(
+    messages: Sequence[Message],
+    keep_turns: int,
+    backend: ModelBackend | None = None,
+    keep_tokens: int | None = None,
+) -> int:
     """Where the part that always stays verbatim begins.
+
+    With `keep_tokens` (a share of the budget, `Limits.keep_recent_tokens`,
+    roadmap 31) the floor moves earlier until the newest text kept whole is
+    about that many tokens, on the surface the model carries; `keep_turns`
+    stays the floor beneath it, so a 512K budget keeps more of a
+    conversation verbatim than a 128K one and never less than two exchanges.
 
     The start of the `keep_turns`-th newest exchange, an exchange being a
     person's message and everything up to the next one. With fewer whole
@@ -93,11 +105,20 @@ def verbatim_floor(messages: Sequence[Message], keep_turns: int) -> int:
 
     turns = [index for index, message in enumerate(messages) if message.role == "user"]
     if len(turns) >= keep_turns:
-        return turns[-keep_turns]
-    steps = [index for index, message in enumerate(messages) if message.role == "assistant"]
-    if len(steps) >= KEEP_STEPS:
-        return steps[-KEEP_STEPS]
-    return 0
+        floor = turns[-keep_turns]
+    else:
+        steps = [index for index, message in enumerate(messages) if message.role == "assistant"]
+        floor = steps[-KEEP_STEPS] if len(steps) >= KEEP_STEPS else 0
+    if backend is None or keep_tokens is None:
+        return floor
+    # Earlier exchange boundaries, newest first, while the newest text kept
+    # whole still fits the share.
+    for boundary in reversed([index for index in turns if 0 < index < floor]):
+        surface, _ = shortened(messages[boundary:], keep=0, stored=len(messages) - boundary)
+        if backend.estimate_tokens(surface) > keep_tokens:
+            break
+        floor = boundary
+    return floor
 
 
 def cut_for(
@@ -175,16 +196,28 @@ async def fold_older_messages(
         excess = used_tokens - policy.max_input_tokens  # type: ignore[operator]
 
     floor = verbatim_floor(pending, policy.keep_turns)
-    cut = (
-        cut_for(backend, pending, floor, excess + SUMMARY_ALLOWANCE, through)
-        if excess is not None and excess > 0
-        else floor
-    )
+    if excess is not None and excess > 0:
+        # A fold by size frees what the overshoot needs and, the references'
+        # shape (DeepSeek's `retainRatio`, Codex's 20K of recent text), folds
+        # everything older than the budget's share of the newest text
+        # (`Limits.keep_recent_share`), so folds are rare rather than minimal;
+        # `keep_turns` stays the floor beneath both. A fold the person asked
+        # for (`/compact`) folds down to `keep_turns`, so asking frees what it can.
+        share = policy.limits.with_budget(policy.max_input_tokens).keep_recent_tokens
+        by_share = verbatim_floor(pending, policy.keep_turns, backend, share)
+        cut = max(
+            cut_for(backend, pending, floor, excess + policy.limits.summary_tokens, through),
+            by_share,
+        )
+    else:
+        cut = floor
     cut = turn_boundary(pending, cut)
     if cut <= 0 or cut >= len(pending):
         return None
 
-    updated = await summarize(backend, previous, pending[:cut], first_position=through)
+    updated = await summarize(
+        backend, previous, pending[:cut], first_position=through, limits=policy.limits
+    )
     if not updated:
         return None
     store.set_summary(thread_id, updated, through + cut)

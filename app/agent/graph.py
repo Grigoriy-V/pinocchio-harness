@@ -36,6 +36,7 @@ from app.agent.stopping import (
 )
 from app.context import Context, ContextPolicy, fold_older_messages, load_turn_context
 from app.context.window import system, DEFAULT_SYSTEM_PROMPT
+from app.tools.execution import Spill
 from app.memory import ConversationStore
 from app.models import (
     BackendError,
@@ -498,6 +499,7 @@ def build_agent(
     stopping: TurnStopping = STOP_ON_ANSWER,
     interjections: Interjections = NO_INTERJECTIONS,
     instructions: Callable[[], str] | None = None,
+    spill: Spill | None = None,
 ) -> CompiledStateGraph:
     """Compile the graph. This is the loop, and there is only one of it.
 
@@ -563,6 +565,7 @@ def build_agent(
             system_prompt,
             instructions() if instructions is not None else "",
             policy.keep_results,
+            policy.limits,
         )
 
     def load(state: AgentState) -> dict[str, Context]:
@@ -834,8 +837,12 @@ def build_agent(
 
         if policy.max_input_tokens is None:
             return state.context
+        # Headroom for the answer (Codex: 95% of the window usable for
+        # inputs): the request folds before it lands within the output's
+        # reach of the budget.
+        ceiling = max(1, policy.max_input_tokens - policy.limits.output_tokens)
         estimated = backend.estimate_tokens(state.context.prompt(turn)) + schema_tokens
-        if estimated <= policy.max_input_tokens:
+        if estimated <= ceiling:
             return state.context
         # As many exchanges as have to go, oldest first; a second fold only
         # when the first, sized on an estimate, fell short. Three is a bound
@@ -851,7 +858,7 @@ def build_agent(
                     state.thread_id,
                     policy,
                     force=True,
-                    excess=now - policy.max_input_tokens,
+                    excess=now - ceiling,
                 )
             except BackendError as error:
                 # A summarizer that could not answer is not a reason to lose
@@ -866,7 +873,7 @@ def build_agent(
             folds += 1
             context = assemble_context(state)
             now = backend.estimate_tokens(context.prompt(turn)) + schema_tokens
-            if now <= policy.max_input_tokens:
+            if now <= ceiling:
                 break
         if folds:
             trace.event(
@@ -950,7 +957,7 @@ def build_agent(
             )
             calls = [call for call in calls if call not in done_again]
 
-        executor = ToolExecutor(toolbox, trace)
+        executor = ToolExecutor(toolbox, trace, limits=policy.limits, spill=spill)
         prepared = [executor.pre_execute(call) for call in calls]
         # Invalid calls go straight back to the model as tool errors. Asking a
         # user to approve a call that cannot run is both noisy and misleading.

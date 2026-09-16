@@ -115,14 +115,28 @@ Before every model step (`app/context/window.py`, `fitted` in the graph):
    the turn;
 2. the surface is shortened by age: tool results older than the newest two
    become stubs naming tool, subject, size and stored position; failures,
-   short results, the model's own text and arguments, and the whole current
-   turn stay verbatim; pictures share one media budget;
+   short results (under a share of the budget), the model's own text and
+   arguments, and the whole current turn stay verbatim; pictures share the
+   model set's media budget (`max_images`, `max_audio`), and a dropped one
+   names the file `read_file` shows it from;
 3. the request is estimated (`ModelBackend.estimate_tokens`, calibrated from
-   reported usage) and folded before it is sent when over budget, the oldest
-   exchanges one at a time, the last `keep_turns` (2) exchanges always
-   verbatim. Nothing folds by message count (2026-09-07): only a request
-   that would not fit, or `/compact`. The summarizer reads the same stubs; a
-   failed fold leaves the turn as it is.
+   reported usage) and folded before it is sent when it would land within
+   the output's reach of the budget: what the overshoot needs is freed and
+   everything older than the newest `keep_recent_share` (0.15) of the
+   budget is folded, the last `keep_turns` (2) exchanges always verbatim;
+   `/compact` folds down to `keep_turns`. The summary is at most the
+   budget's share (`summary_share`). Nothing folds by message count
+   (2026-09-07): only a request that would not fit, or `/compact`. The
+   summarizer reads the same stubs; a failed fold leaves the turn as it is.
+
+Every bound on what the model reads, keeps and produces is in
+`app/limits.py` (roadmap 31): the whole-request ones as shares of the
+budget, one tool's page as a setting; one `Limits` per agent, put on the
+budget once the window is known, carried by the context policy and handed
+to every tool by the registry. A result past its cap is kept whole in a
+file the result names (`.agent/results/`, a command's output in
+`.agent/commands/`); a page names its next offset; nothing is clamped in
+silence (`docs/OPERATIONS_MAP.md` lists the numbers).
 
 Stored history is canonical and never rewritten. The model gets back to it
 with `search_history` (full text, this person only) and `read_history` (by

@@ -42,6 +42,8 @@ from app.capabilities import (
     system_message,
 )
 from app.instructions import read_instructions
+from app.limits import DEFAULT_LIMITS, Limits
+from app.tools.execution import Spill
 from app.config import AgentSettings, McpSettings, ModelSettings
 from app.context import ContextPolicy, fold_older_messages, load_turn_context
 from app.context.choice import budget_of, context_choice
@@ -80,6 +82,7 @@ CHECKPOINT_TYPES = [
     ("app.models.base", "ToolFailure"),
     ("app.models.base", "Usage"),
     ("app.context.window", "Context"),
+    ("app.limits", "Limits"),
     ("app.agent.stopping", "Steered"),
     ("app.agent.stopping", "Steering"),
 ]
@@ -230,9 +233,13 @@ class Agent:
         stops: StopRequests = NO_STOPS,
         stopping: TurnStopping = STOP_ON_ANSWER,
         interjections: Interjections = NO_INTERJECTIONS,
+        limits: Limits = DEFAULT_LIMITS,
     ) -> None:
         self.backend = backend
         self.stream_answers = stream_answers
+        # The settings' numbers; put on the budget once the window is known
+        # (`limits()`), then carried by the policy and the registry.
+        self._limits = limits
         # When a long turn is asked how it is doing, and where a request to
         # end one is recorded. Both belong to the agent rather than to a
         # graph, because a graph is compiled per thread and these are the
@@ -309,6 +316,15 @@ class Agent:
             self._limit = await self.backend.context_limit()
             self._asked_the_limit = True
         return budget_of(context_choice(self.workspace), self._limit or self.context_tokens)
+
+    async def limits(self) -> Limits:
+        """Every derived bound, on this agent's budget and the model's ratio."""
+
+        found = self._limits.with_budget(
+            await self.budget(), getattr(self.backend, "chars_per_token", None)
+        )
+        self.capability_registry.limits = found
+        return found
 
     async def fill(self) -> Fill | None:
         """How full the last request was, or `None` before there was one."""
@@ -422,6 +438,7 @@ class Agent:
 
     async def _build(self, thread_id: str) -> None:
         if True:
+            limits = await self.limits()
             toolbox = self.toolbox(thread_id)
             # The model is told what it actually has. Left to its own account it
             # denies abilities it has and invents tools it does not. What it is
@@ -439,7 +456,7 @@ class Agent:
                 toolbox,
                 self.store,
                 self.user_id,
-                replace(self.policy, max_input_tokens=await self.budget()),
+                replace(self.policy, max_input_tokens=limits.budget, limits=limits),
                 prompt,
                 await self._checkpointer(),
                 self.stream_answers,
@@ -449,12 +466,14 @@ class Agent:
                 self.stopping,
                 self.interjections,
                 self.instructions,
+                Spill(self.folder(thread_id) / ".agent" / "results"),
             )
 
     def instructions(self) -> str:
-        """The person's standing instructions, read fresh for each turn."""
+        """The person's standing instructions, read fresh for each turn, within
+        the budget's share (`Limits.instruction_bytes`)."""
 
-        return read_instructions(self.workspace)
+        return read_instructions(self.workspace, self.capability_registry.limits.instruction_bytes)
 
     async def _run(
         self, thread_id: str, command: Any, trace: TurnTrace = NO_TRACE
@@ -719,7 +738,12 @@ class Agent:
         replayed = unknown = 0
         if left.node == "tools" and left.messages and left.messages[-1].tool_calls:
             toolbox = self.toolbox(thread_id)
-            executor = ToolExecutor(toolbox, trace)
+            executor = ToolExecutor(
+                toolbox,
+                trace,
+                limits=self.capability_registry.limits,
+                spill=Spill(self.folder(thread_id) / ".agent" / "results"),
+            )
             results: list[Message] = []
             for call in left.messages[-1].tool_calls:
                 tool = toolbox.get(toolbox.resolve(call.name) or call.name)
@@ -876,6 +900,8 @@ def create_agent(
         retrieved_facts=agent_settings.retrieved_facts,
         keep_results=agent_settings.keep_results,
     )
+    served = model_settings or ModelSettings()
+    limits = Limits.from_settings(agent_settings, served)
     # Each person gets their own root inside the configured workspace. The
     # directory the agent may touch has to exist before it is resolved, or the
     # first `find_files` fails on a machine that has simply never run it.
@@ -895,7 +921,8 @@ def create_agent(
         else None
     )
     return Agent(
-        backend=OpenAICompatibleBackend(model_settings or ModelSettings()),
+        backend=OpenAICompatibleBackend(served),
+        limits=limits,
         store=open_store(agent_settings),
         workspace=workspace,
         capability_registry=registry,

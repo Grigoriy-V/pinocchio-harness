@@ -11,9 +11,10 @@ deployed OpenClaw (the human, 2026-09-14). The audit of 2026-09-14
 (`reports/2026-09-14_harness_audit.md`) names what holds it below that;
 the queue below is the order approved for working through it.
 
-**Current approved step:** 31, started 2026-09-16 (the human's word); the
-reference research is written, `reports/2026-09-16_item31_references.md`,
-and the shape waits for the human's word before the limits change.
+**Current approved step:** 31, built 2026-09-16 (shape approved the same
+day: option B, the result share one eighth, the kept tail 0.15); the live
+smoke (`reports/2026-09-16_item31_build.md` §5) is a priced run and waits
+for the human's word.
 
 Observed defects are in `ISSUES.md`, which is not a plan and authorizes
 nothing. `docs/PRODUCT.md` is the product contract; `docs/PROJECT_MAP.md`,
@@ -139,15 +140,13 @@ one line each, evidence in the linked report:
 One item at a time; the human's word starts each. Order approved
 2026-09-14 (the human), after the audit.
 
-31. **Limits derived from the budget.** The context and output constants
-    (`keep_results`, `keep_turns`, `STUB_MIN_CHARS`, the summary's words,
-    `SUMMARY_ALLOWANCE`, `MEDIA_BUDGET`, `SIZES`, `max_tokens`,
-    `MAX_INSTRUCTION_BYTES`, `retrieved_facts`) become functions of the
-    model's window and the request budget; the remaining caps become
-    settings; every cut gets a paging path or a spill file
-    (`list_files`, `run_command`, `use_page`, screenshots, `select`,
-    CSV, pages per view); the command timeout no longer clamps silently
-    and has no ceiling where the runner can wait.
+31. **Limits derived from the budget** — built 2026-09-16, the live smoke
+    open (`reports/2026-09-16_item31_build.md` §5). Every constant of the
+    audit's §1.3 and §1.4 is a share of the budget or a setting in
+    `app/limits.py`, every cut names its way back, a timeout is never
+    clamped. Left for later: the history and memory tools take the default
+    budget's page (built outside the registry); the provider's metadata for
+    the window and the output cap is 33's.
 
 32. **The graph.** Independent tool calls run in parallel, a tool
     declaring `mutates` serialised; tool output streams while it runs;

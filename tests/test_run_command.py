@@ -196,7 +196,7 @@ class Scripted:
         self.finished = finished
         self.calls: list[tuple[str, Path, float]] = []
 
-    async def run(self, command: str, cwd: Path, timeout: float) -> Finished:
+    async def run(self, command: str, cwd: Path, timeout: float, output_chars: int = 30_000) -> Finished:
         self.calls.append((command, cwd, timeout))
         if isinstance(self.finished, Exception):
             raise self.finished
@@ -223,18 +223,45 @@ def test_the_model_reads_the_exit_code_and_output(workspace: Path) -> None:
     assert runner.calls[0][2] == 120.0
 
 
-def test_a_fresh_environment_is_not_said_and_the_timeout_is_clamped(workspace: Path) -> None:
+def test_a_fresh_environment_is_not_said(workspace: Path) -> None:
     """Roadmap 17: what a container keeps is in the brief once; the line per
     fresh container read as the model's own work being gone (ISS-0053)."""
 
     runner = Scripted(Finished(exit_code=0, output="", cut=False, seconds=0.1, fresh=True))
     tools = Toolbox(shell_tools(workspace, runner))
 
-    outcome, _ = executed(tools, "run_command", command="ls", timeout_seconds=10_000)
+    outcome, _ = executed(tools, "run_command", command="ls", timeout_seconds=30)
 
     assert "new environment" not in outcome.content[0].text
     assert "(no output)" in outcome.content[0].text
-    assert runner.calls[0][2] == float(MAX_TIMEOUT)
+    assert runner.calls[0][2] == 30.0
+
+
+def test_a_timeout_above_the_most_is_refused_by_number_where_nothing_can_wait(workspace: Path) -> None:
+    """Roadmap 31: never clamped in silence. A runner that cannot keep a
+    process (the deployed Function) refuses with the number; the schema's
+    maximum says it too."""
+
+    runner = Scripted(Finished(exit_code=0, output="", cut=False, seconds=0.1))
+    tools = Toolbox(shell_tools(workspace, runner))
+
+    outcome, _ = executed(tools, "run_command", command="ls", timeout_seconds=10_000)
+
+    assert outcome.failure is not None and outcome.failure.code == "bad_arguments"
+    assert f"must be at most {MAX_TIMEOUT}" in outcome.failure.message
+    assert runner.calls == []
+    schema = tools.get("run_command").parameters["properties"]["timeout_seconds"]
+    assert schema["maximum"] == MAX_TIMEOUT
+
+
+def test_a_runner_with_a_ceiling_lowers_the_most(workspace: Path) -> None:
+    runner = Scripted(Finished(exit_code=0, output="", cut=False, seconds=0.1))
+    runner.ceiling = 45
+    tools = Toolbox(shell_tools(workspace, runner))
+
+    outcome, _ = executed(tools, "run_command", command="ls", timeout_seconds=60)
+
+    assert outcome.failure is not None and "must be at most 45" in outcome.failure.message
 
 
 def test_the_runners_failure_reaches_the_model_typed(workspace: Path) -> None:

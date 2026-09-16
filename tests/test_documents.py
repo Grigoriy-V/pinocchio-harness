@@ -10,7 +10,6 @@ import pytest
 from app.attachments import AttachmentBytes, AttachmentError, admit_uploads, safe_filename
 from app.documents import (
     CSV,
-    MAX_PAGES_PER_VIEW,
     DOCX,
     MARKDOWN,
     PDF,
@@ -162,9 +161,12 @@ async def test_the_tool_says_where_it_stopped_and_how_to_continue(tmp_path: Path
     body = "\n".join(f"# Section {index}\n{'text ' * 400}" for index in range(1, 12))
     (tmp_path / "long.md").write_text(body, encoding="utf-8")
 
-    result = await Toolbox(document_tools(tmp_path)).run_async(
-        ToolCall("d", "read_document", {"path": "long.md"})
-    )
+    from app.limits import Limits
+
+    # A page is the budget's share (roadmap 31): a small budget, a short page.
+    result = await Toolbox(
+        document_tools(tmp_path, limits=Limits(budget=4_000, chars_per_token=1.0))
+    ).run_async(ToolCall("d", "read_document", {"path": "long.md"}))
     text = result.content[0].text or ""
 
     assert "11 section(s)" in text
@@ -334,7 +336,9 @@ async def test_more_pages_than_the_schema_allows_are_refused_by_name(
     )
 
     assert result.failure is not None and result.failure.code == "bad_arguments"
-    assert f"argument 'pages' must be at most {MAX_PAGES_PER_VIEW}" in result.failure.message
+    from app.limits import DEFAULT_LIMITS
+
+    assert f"argument 'pages' must be at most {DEFAULT_LIMITS.max_images}" in result.failure.message
     assert not any(part.kind == "image" for part in result.content)
 
 

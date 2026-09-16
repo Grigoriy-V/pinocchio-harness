@@ -43,7 +43,11 @@ from app.tools import (
     web_fetch_tools,
 )
 from app.tools.browser import Pages, use_page
-from app.tools.execution import MAX_IMAGES, MAX_RESULT_CHARS, TAIL_CHARS
+from app.limits import DEFAULT_LIMITS
+
+MAX_RESULT_CHARS = DEFAULT_LIMITS.result_chars
+MAX_IMAGES = DEFAULT_LIMITS.max_images
+TAIL_CHARS = max(500, int(MAX_RESULT_CHARS / 16))
 from app.tools.web import _search
 from tests.fakes import Completion, ScriptedBackend, body, calls, says
 

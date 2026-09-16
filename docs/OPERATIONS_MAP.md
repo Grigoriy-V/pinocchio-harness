@@ -101,6 +101,26 @@ a fold happens only when the request would not fit, or on `/compact`;
 `keep_turns` 2. `stream_answers` and `telemetry` are on; telemetry holds
 timings and counts only and can never fail a turn.
 
+The limits (`app/limits.py`, roadmap 31) are of two kinds. Shares of the
+request's budget, in `[agent]`: `result_share` (1/8: the most one tool
+result shows inline, the whole text in `.agent/results/` past it),
+`keep_recent_share` (0.15: the newest text kept verbatim by a fold),
+`summary_share` (0.05, at most `summary_ceiling_tokens` 12,000),
+`stub_share` (0.0005), `instruction_share` (0.02, at most
+`instruction_ceiling_bytes` 32,768: the person's `AGENTS.md`). One tool's
+page, settings with the references' defaults: `read_lines` 2,000,
+`line_chars` 2,000, `search_page` 100, `preview_chars` 400,
+`shell_output_chars` 30,000 (the whole output in `.agent/commands/` past
+it), `web_text_chars` 20,000, `snapshot_chars` 12,000,
+`visible_text_chars` 8,000, `screenshot_height` 6,000, `csv_rows` 200,
+`command_timeout` 120 and `command_timeout_max` 600 (above the most a
+command is started in the background locally and refused by number
+deployed; never clamped). Per model set: `max_tokens`, `max_images` (4),
+`max_audio` (1). Every one is `AGENT_<FIELD>` or `MODEL_<SET>_<FIELD>` in
+the environment. At a 256K budget and three characters a token, a result
+shows 98,304 characters, a page 88,473, a fold keeps 39,321 tokens, a
+summary is at most 12,000 tokens, the instruction file 15,728 bytes.
+
 ## Secrets
 
 **Owner:** `tools/sync_control_secret.py`.

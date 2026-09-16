@@ -100,18 +100,22 @@ def test_a_hit_on_a_call_shows_what_came_back(store: SqliteStore) -> None:
 
 
 def test_a_long_message_comes_in_pages(store: SqliteStore) -> None:
-    store.append("t1", [user("x"), result("a" * 30_000)], LOCAL_USER_ID)
+    from app.tools.history import PAGE_CHARS
+
+    # A page is the budget's (roadmap 31); the message is two and a half pages.
+    page = PAGE_CHARS
+    store.append("t1", [user("x"), result("a" * (page * 5 // 2))], LOCAL_USER_ID)
     read = tools(store)["read_history"]
 
     first = read.run(position=1)
-    middle = read.run(position=1, offset=12_000)
-    last = read.run(position=1, offset=24_000)
+    middle = read.run(position=1, offset=page)
+    last = read.run(position=1, offset=2 * page)
 
-    assert first.endswith("for the rest, read_history again with position=1, count=1, offset=12000")
+    assert first.endswith(f"for the rest, read_history again with position=1, count=1, offset={page}")
     body = first.split("\n... showing")[0]
-    assert body == "#1 tool\n" + "a" * (12_000 - len("#1 tool\n"))
-    assert middle.endswith("offset=24000")
-    assert last == "a" * (30_000 - body.count("a") - 12_000)
+    assert body == "#1 tool\n" + "a" * (page - len("#1 tool\n"))
+    assert middle.endswith(f"offset={2 * page}")
+    assert last == "a" * (page * 5 // 2 - body.count("a") - page)
 
 
 def test_another_person_s_conversation_is_not_there(store: SqliteStore) -> None:

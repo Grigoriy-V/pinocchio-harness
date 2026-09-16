@@ -504,9 +504,10 @@ async def test_a_long_page_comes_in_pages() -> None:
     async with transport(lambda request: html_response(body)) as client:
         fetched = await fetch_page("https://example.com/", settings(), client, PUBLIC)
 
-    first = fetched.as_text()
-    rest = fetched.as_text(offset=12_000)
-    last = fetched.as_text(offset=24_000)
+    # The page is the limits' setting (roadmap 31); here a 12,000-character one.
+    first = fetched.as_text(limit=12_000)
+    rest = fetched.as_text(limit=12_000, offset=12_000)
+    last = fetched.as_text(limit=12_000, offset=24_000)
     assert not fetched.truncated
     assert "stopped at 12000 of" in first and "fetch_page again with offset=12000" in first
     assert "Continuing from character 12000." in rest and "offset=24000" in rest

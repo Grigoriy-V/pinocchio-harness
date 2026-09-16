@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from app.limits import DEFAULT_LIMITS, Limits
+
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -64,20 +66,20 @@ class CapabilityGrant:
         return capability in self.capabilities
 
 
-def _filesystem_read(root: Path, open_reads: bool = False) -> list[Tool]:
+def _filesystem_read(root: Path, open_reads: bool, limits: Limits = DEFAULT_LIMITS) -> list[Tool]:
     """The file tools that change nothing: reading, searching, finding."""
 
     return [
-        *(tool for tool in filesystem_tools(root, open_reads=open_reads) if not tool.mutates),
-        *search_tools(root, open_reads=open_reads),
+        *(tool for tool in filesystem_tools(root, open_reads=open_reads, limits=limits) if not tool.mutates),
+        *search_tools(root, open_reads=open_reads, limits=limits),
     ]
 
 
-def _filesystem_write(root: Path, open_reads: bool = False) -> list[Tool]:
+def _filesystem_write(root: Path, open_reads: bool, limits: Limits = DEFAULT_LIMITS) -> list[Tool]:
     """The file tools that change the tree: write, edit, a patch."""
 
     return [
-        *(tool for tool in filesystem_tools(root, open_reads=open_reads) if tool.mutates),
+        *(tool for tool in filesystem_tools(root, open_reads=open_reads, limits=limits) if tool.mutates),
         *patch_tools(root, open_reads=open_reads),
     ]
 
@@ -92,8 +94,12 @@ class CapabilityRegistry:
         runner: Runner | None = None,
         mcp: McpSessions | None = None,
         open: bool = False,
+        limits: Limits = DEFAULT_LIMITS,
     ) -> None:
         self.workspace = Path(workspace).resolve()
+        # Every bound the tools it builds take (roadmap 31): the settings'
+        # numbers, put on the budget by the runtime once the window is known.
+        self.limits: Limits = limits
         # The person's own machine (roadmap 27, 2026-09-13): a grant may name
         # any folder on it, reading reaches anywhere, a write outside the
         # folder asks. Deployed, off: several people share one Volume.
@@ -111,15 +117,15 @@ class CapabilityRegistry:
             capabilities
             if capabilities is not None
             else (
-                Capability(FILESYSTEM_READ, lambda root: _filesystem_read(root, self.open)),
-                Capability(FILESYSTEM_WRITE, lambda root: _filesystem_write(root, self.open)),
-                Capability(BROWSER_INSPECT, lambda root: browser_tools(root, pages=self.pages)),
-                Capability(DOCUMENTS_READ, lambda root: document_tools(root, open_reads=self.open)),
+                Capability(FILESYSTEM_READ, lambda root: _filesystem_read(root, self.open, self.limits)),
+                Capability(FILESYSTEM_WRITE, lambda root: _filesystem_write(root, self.open, self.limits)),
+                Capability(BROWSER_INSPECT, lambda root: browser_tools(root, pages=self.pages, limits=self.limits)),
+                Capability(DOCUMENTS_READ, lambda root: document_tools(root, open_reads=self.open, limits=self.limits)),
                 Capability(PRESENT_FILES, lambda root: presentation_tools(root, open_reads=self.open)),
                 Capability(WEB_SEARCH, web_search_tools),
-                Capability(WEB_FETCH, lambda root: web_fetch_tools(root, open=self.open)),
-                Capability(WEB_VIEW, web_view_tools),
-                Capability(SHELL_RUN, lambda root: shell_tools(root, self.runner)),
+                Capability(WEB_FETCH, lambda root: web_fetch_tools(root, open=self.open, limits=self.limits)),
+                Capability(WEB_VIEW, lambda root: web_view_tools(root, limits=self.limits)),
+                Capability(SHELL_RUN, lambda root: shell_tools(root, self.runner, limits=self.limits)),
             )
         )
         self._capabilities = {capability.name: capability for capability in configured}

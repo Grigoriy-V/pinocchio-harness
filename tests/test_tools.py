@@ -395,8 +395,10 @@ def test_a_path_wrapped_in_quotes_or_carrying_a_delimiter_is_refused(tmp_path: P
 def test_a_long_file_comes_in_pages(workspace: Path) -> None:
     """Until 2026-09-03 a file was cut at the limit with no way to the rest."""
 
+    from app.limits import Limits
+
     (workspace / "big.txt").write_text("\n".join(f"line {n}" for n in range(1, 701)) + "\n", encoding="utf-8")
-    read = tools(workspace)["read_file"]
+    read = {t.name: t for t in filesystem_tools(workspace, limits=Limits(read_lines=500))}["read_file"]
 
     first = read.run(path="big.txt")
     rest = read.run(path="big.txt", offset=501)

@@ -233,7 +233,9 @@ _commands_run = 0
     timeout=660,
     include_source=False,
 )
-async def run_command(workspace: str, command: str, timeout: float) -> dict[str, object]:
+async def run_command(
+    workspace: str, command: str, timeout: float, output_chars: int = 30_000
+) -> dict[str, object]:
     """Run one shell command in one person's workspace, beside the secrets, not with them.
 
     `workspace` is the person's directory name inside the Volume, never a path
@@ -269,7 +271,7 @@ async def run_command(workspace: str, command: str, timeout: float) -> dict[str,
         # The worker made the person's directory before it wrote anything; a
         # probe with a name of its own gets one made here, inside the root.
         cwd.mkdir(parents=True, exist_ok=True)
-        finished = await ContainerRunner().run(command, cwd, timeout)
+        finished = await ContainerRunner().run(command, cwd, timeout, output_chars)
     except ToolError as error:
         return {"failure": {"code": error.code, "message": str(error), "detail": error.detail}}
     finally:
@@ -280,6 +282,8 @@ async def run_command(workspace: str, command: str, timeout: float) -> dict[str,
         "cut": finished.cut,
         "seconds": finished.seconds,
         "fresh": fresh,
+        "total": finished.total,
+        "spilled": finished.spilled,
     }
 
 
@@ -312,7 +316,13 @@ class ModalRunner:
         "make a venv in the task's folder and run its python"
     )
 
-    async def run(self, command: str, cwd: Path, timeout: float):
+    # The most a foreground command may be given here: the Function's own
+    # deadline (660 s) with a minute for the container's start and the
+    # volume round trip; a longer request is refused with the number, never
+    # clamped (roadmap 31), because nothing here can keep a process.
+    ceiling = 600
+
+    async def run(self, command: str, cwd: Path, timeout: float, output_chars: int = 30_000):
         from app.tools.base import ToolError
         from app.tools.shell import COMMAND_NOT_STARTED, Finished
 
@@ -327,7 +337,9 @@ class ModalRunner:
         with spent("volume_commit", where="before_command"):
             await workspaces.commit.aio()
         with spent("command_remote"):
-            result = await run_command.remote.aio(str(relative.as_posix()), command, timeout)
+            result = await run_command.remote.aio(
+                str(relative.as_posix()), command, timeout, output_chars
+            )
         with spent("volume_reload", where="after_command"):
             await workspaces.reload.aio()
         failure = result.get("failure")
@@ -341,6 +353,8 @@ class ModalRunner:
             # part of what the person waited for, and the model should see it.
             seconds=time.monotonic() - started,
             fresh=bool(result["fresh"]),
+            total=int(result.get("total") or 0),
+            spilled=result.get("spilled"),
         )
 
 

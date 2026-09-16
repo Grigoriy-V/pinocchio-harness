@@ -20,12 +20,13 @@ from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
+from app.limits import DEFAULT_LIMITS, Limits
 from app.tools.base import BAD_ARGUMENTS, Tool, ToolError
 from app.tools.filesystem import IO, NOT_A_DIRECTORY, NOT_FOUND, _detail, resolve_path
 
-DEFAULT_LIMIT = 100
+DEFAULT_LIMIT = DEFAULT_LIMITS.search_page
 # A match line shown to the model is cut here; the file is read for the rest.
-PREVIEW_CHARS = 400
+PREVIEW_CHARS = DEFAULT_LIMITS.preview_chars
 # A file with a NUL in its first bytes is not text and is not searched.
 BINARY_PROBE = 8_000
 SKIPPED_DIRS = frozenset({".git"})
@@ -256,11 +257,11 @@ def search_files(
     return _paged([f"{name}: {n}" for name, n in counts.items()], int(offset), int(limit), "files with matches", again)
 
 
-def _cut(text: str) -> str:
+def _cut(text: str, preview_chars: int = PREVIEW_CHARS) -> str:
     text = text.rstrip("\r\n")
-    if len(text) <= PREVIEW_CHARS:
+    if len(text) <= preview_chars:
         return text
-    return text[:PREVIEW_CHARS] + f"… (line cut at {PREVIEW_CHARS} chars; read_file shows it whole)"
+    return text[:preview_chars] + f"… (line cut at {preview_chars} chars; read_file shows it whole)"
 
 
 def find_files(
@@ -306,9 +307,12 @@ def _mtime(path: Path) -> float:
         return 0.0
 
 
-def search_tools(root: Path, *, open_reads: bool = False) -> list[Tool]:
+def search_tools(
+    root: Path, *, open_reads: bool = False, limits: Limits = DEFAULT_LIMITS
+) -> list[Tool]:
     resolved = Path(root).resolve()
     confined = not open_reads
+    default_limit = limits.search_page
     where = (
         "A directory inside the workspace root, absolute or relative to it."
         if confined
@@ -318,7 +322,7 @@ def search_tools(root: Path, *, open_reads: bool = False) -> list[Tool]:
         "limit": {
             "type": "integer",
             "minimum": 1,
-            "description": f"How many results to show. Defaults to {DEFAULT_LIMIT}.",
+            "description": f"How many results to show. Defaults to {default_limit}.",
         },
         "offset": {
             "type": "integer",
@@ -368,7 +372,7 @@ def search_tools(root: Path, *, open_reads: bool = False) -> list[Tool]:
                 "required": ["pattern"],
                 "additionalProperties": False,
             },
-            run=lambda pattern, path=".", glob=None, mode="content", limit=DEFAULT_LIMIT, offset=0, ignore_case=False, multiline=False: search_files(
+            run=lambda pattern, path=".", glob=None, mode="content", limit=default_limit, offset=0, ignore_case=False, multiline=False: search_files(
                 resolved, pattern, path, glob, mode, limit, offset, bool(ignore_case), bool(multiline), confined=confined
             ),
         ),
@@ -398,7 +402,7 @@ def search_tools(root: Path, *, open_reads: bool = False) -> list[Tool]:
                 "required": [],
                 "additionalProperties": False,
             },
-            run=lambda pattern="*", path=".", limit=DEFAULT_LIMIT, offset=0: find_files(
+            run=lambda pattern="*", path=".", limit=default_limit, offset=0: find_files(
                 resolved, pattern, path, limit, offset, confined=confined
             ),
         ),

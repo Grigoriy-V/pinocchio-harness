@@ -18,6 +18,8 @@ does not need the library that reads one.
 
 from __future__ import annotations
 
+from app.limits import DEFAULT_LIMITS
+
 import csv
 import io
 from dataclasses import dataclass
@@ -49,7 +51,7 @@ SUFFIX_MEDIA_TYPES = {
     ".csv": CSV,
 }
 
-MAX_CSV_ROWS = 200
+MAX_CSV_ROWS = DEFAULT_LIMITS.csv_rows
 
 
 class DocumentError(ValueError):
@@ -173,17 +175,23 @@ def _docx_sections(data: bytes) -> list[Section]:
     return [section for section in sections if section.text]
 
 
-def _csv_sections(data: bytes) -> list[Section]:
+def _csv_sections(data: bytes, rows_per_section: int = MAX_CSV_ROWS) -> list[Section]:
+    """A CSV as sections of `rows_per_section` rows, so `from_section` reaches
+    every row of a long table (roadmap 31: nothing past a cut is unreachable)."""
+
     rows = list(csv.reader(io.StringIO(_decode(data))))
     if not rows:
         raise DocumentError("the CSV file has no rows")
-    shown = rows[:MAX_CSV_ROWS]
-    text = "\n".join(" | ".join(cell for cell in row) for row in shown)
-    label = f"rows 1-{len(shown)} of {len(rows)}"
-    return [Section(label, text)]
+    step = max(1, int(rows_per_section))
+    sections = []
+    for start in range(0, len(rows), step):
+        shown = rows[start : start + step]
+        text = "\n".join(" | ".join(cell for cell in row) for row in shown)
+        sections.append(Section(f"rows {start + 1}-{start + len(shown)} of {len(rows)}", text))
+    return sections
 
 
-def read_sections(data: bytes, media_type: str) -> list[Section]:
+def read_sections(data: bytes, media_type: str, csv_rows: int = MAX_CSV_ROWS) -> list[Section]:
     """Extract one document into labelled sections, or say why it cannot be."""
 
     if media_type == PDF:
@@ -191,7 +199,7 @@ def read_sections(data: bytes, media_type: str) -> list[Section]:
     if media_type == DOCX:
         return _docx_sections(data)
     if media_type == CSV:
-        return _csv_sections(data)
+        return _csv_sections(data, csv_rows)
     if media_type == MARKDOWN:
         return _markdown_sections(_decode(data))
     if media_type == PLAIN:
@@ -208,10 +216,6 @@ def read_sections(data: bytes, media_type: str) -> list[Section]:
 # so there is no OCR step for a bigger image to help.
 PAGE_LONG_SIDE = 1400
 
-# The serving limit is four images per prompt, and a turn may already carry the
-# person's own photo and images from earlier messages. Two is what can be handed
-# over without risking a refusal from the server.
-MAX_PAGES_PER_VIEW = 2
 
 
 def page_count(data: bytes) -> int:

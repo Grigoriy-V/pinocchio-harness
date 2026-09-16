@@ -21,6 +21,7 @@ import re
 from app.memory import ConversationStore
 from app.memory.records import message_text
 from app.models import Message
+from app.limits import DEFAULT_LIMITS
 from app.tools.base import BAD_ARGUMENTS, Tool, ToolError
 from app.tools.paging import page
 
@@ -28,7 +29,8 @@ from app.tools.paging import page
 # the one, not the whole message.
 SNIPPET_CHARS = 300
 # What one `read_history` call returns before it asks to be called again.
-PAGE_CHARS = 12_000
+# A page of stored history: the budget's page (`app/limits.py`), paged by offset.
+PAGE_CHARS = DEFAULT_LIMITS.page_chars
 NOT_FOUND = "history.not_found"
 
 TOKEN = re.compile(r"\w+", re.UNICODE)

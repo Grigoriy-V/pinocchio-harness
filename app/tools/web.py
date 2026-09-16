@@ -22,6 +22,7 @@ from typing import Any
 
 from app.config import WebSettings
 from app.models import ContentPart
+from app.limits import DEFAULT_LIMITS, Limits
 from app.tools.base import Tool, ToolError, handover
 from app.web import (
     WebError,
@@ -34,9 +35,16 @@ from app.web import (
 MAX_VIEWS_KEPT = 20
 
 
-async def _fetch(settings: WebSettings, url: str, offset: int = 0, *, open: bool = False) -> str:
+async def _fetch(
+    settings: WebSettings,
+    url: str,
+    offset: int = 0,
+    *,
+    open: bool = False,
+    text_chars: int = DEFAULT_LIMITS.web_text_chars,
+) -> str:
     try:
-        return (await fetch_page(url, settings, open=open)).as_text(offset=offset)
+        return (await fetch_page(url, settings, open=open)).as_text(limit=text_chars, offset=offset)
     except WebError as error:
         raise ToolError(str(error), code=error.code) from error
 
@@ -72,7 +80,12 @@ def _keep_recent(directory: Path, protect: Path, keep: int | None = None) -> Non
 
 
 async def _view(
-    root: Path, settings: WebSettings, url: str, full_page: bool
+    root: Path,
+    settings: WebSettings,
+    url: str,
+    full_page: bool,
+    offset: int = 0,
+    text_chars: int = DEFAULT_LIMITS.web_text_chars,
 ) -> list[ContentPart]:
     try:
         rendered = await render_page(url, settings, full_page)
@@ -84,7 +97,7 @@ async def _view(
     artifact.write_bytes(rendered.screenshot)
     _keep_recent(artifact.parent, artifact)
     note = [
-        rendered.as_text(),
+        rendered.as_text(text_chars, offset),
         "",
         f"Screenshot saved at {artifact.relative_to(root).as_posix()} for your inspection. "
         f"Nothing was sent to the person; {handover(artifact.relative_to(root).as_posix(), 'this screenshot')}",
@@ -143,12 +156,17 @@ def web_search_tools(root: Path, settings: WebSettings | None = None) -> list[To
 
 
 def web_fetch_tools(
-    root: Path, settings: WebSettings | None = None, *, open: bool = False
+    root: Path,
+    settings: WebSettings | None = None,
+    *,
+    open: bool = False,
+    limits: Limits = DEFAULT_LIMITS,
 ) -> list[Tool]:
     """`open`: the person's own machine, where localhost and any port are
     reachable (roadmap 27 step 3); deployed, public addresses only."""
 
     resolved = settings or WebSettings()
+    text_chars = limits.web_text_chars
     reach = (
         "Any http or https address reachable from this machine, localhost and a "
         "dev server's port included."
@@ -187,16 +205,19 @@ def web_fetch_tools(
                 "required": ["url"],
                 "additionalProperties": False,
             },
-            run=lambda url, offset=0: _fetch(resolved, url, int(offset), open=open),
+            run=lambda url, offset=0: _fetch(resolved, url, int(offset), open=open, text_chars=text_chars),
         )
     ]
 
 
-def web_view_tools(root: Path, settings: WebSettings | None = None) -> list[Tool]:
+def web_view_tools(
+    root: Path, settings: WebSettings | None = None, *, limits: Limits = DEFAULT_LIMITS
+) -> list[Tool]:
     resolved_root = Path(root).resolve()
     if not resolved_root.is_dir():
         raise ValueError(f"the tool root {root} is not a directory")
     resolved = settings or WebSettings()
+    text_chars = limits.web_text_chars
     return [
         Tool(
             name="view_web_page",
@@ -231,12 +252,17 @@ def web_view_tools(root: Path, settings: WebSettings | None = None) -> list[Tool
                             "Defaults to false."
                         ),
                     },
+                    "offset": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": "Show the page's text from this character; the result names the next offset.",
+                    },
                 },
                 "required": ["url"],
                 "additionalProperties": False,
             },
-            run=lambda url, full_page=False: _view(
-                resolved_root, resolved, url, bool(full_page)
+            run=lambda url, full_page=False, offset=0: _view(
+                resolved_root, resolved, url, bool(full_page), int(offset), text_chars
             ),
         )
     ]

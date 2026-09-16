@@ -23,14 +23,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field, replace
 
 from app.instructions import instruction_message
+from app.limits import DEFAULT_LIMITS, Limits
 from app.models import ContentPart, Message
-
-# How many media items of each kind one request may carry. This mirrors the
-# served model's own per-prompt limits — `MM_LIMITS` in `deploy/modal/model_app.py`
-# — and is duplicated rather than imported because the application never depends
-# on a deployment. A model served with different limits needs this changed too;
-# exceeding them is an HTTP 400, not a degraded answer.
-MEDIA_BUDGET = {"image": 4, "audio": 1}
 
 # The core names no tool, no file format and no workflow, and it is meant to
 # stay this short. Anything true only because a particular capability is wired
@@ -106,6 +100,10 @@ class ContextPolicy:
     # on, and its size is the size fold's business.
     keep_results: int = 2
     max_input_tokens: int | None = None
+    # Every bound derived from the budget (roadmap 31): the newest tokens
+    # kept verbatim after a fold, the summary's size, the stub threshold,
+    # the media one request may carry. Built by the runtime on the budget.
+    limits: Limits = DEFAULT_LIMITS
 
 
 @dataclass(frozen=True)
@@ -145,6 +143,7 @@ class Context:
     # The stored position of `history[0]`, so a stub can say where the whole
     # result is. The turn's own messages have no position yet.
     first_position: int = 0
+    limits: Limits = DEFAULT_LIMITS
 
     def surface(self, new: Sequence[Message]) -> Surface:
         """The request, shortened on the surface only.
@@ -160,9 +159,13 @@ class Context:
 
         combined = [*self.history, *new]
         combined, stubbed = shortened(
-            combined, self.keep_results, stored=len(self.history), base=self.first_position
+            combined,
+            self.keep_results,
+            stored=len(self.history),
+            base=self.first_position,
+            min_chars=self.limits.stub_min_chars,
         )
-        combined, placeholders = within_media_budget(combined, dict(MEDIA_BUDGET))
+        combined, placeholders = within_media_budget(combined, self.limits.media_budget)
         split = len(self.history)
         return Surface(
             prelude=list(self.prelude),
@@ -187,6 +190,17 @@ def describe(part: ContentPart) -> str:
     return f"[{part.kind} {part.media_type}]"
 
 
+def dropped(part: ContentPart) -> str:
+    """The placeholder for media this request does not carry, with the way
+    back when there is one: a file on disk is opened again with `read_file`
+    (a picture is shown), a page number with `view_pages`."""
+
+    where = part.path or part.name
+    if where:
+        return f"[{part.kind} {part.media_type}, not carried in this request; read_file {where!r} shows it]"
+    return f"[{part.kind} {part.media_type}, not carried in this request]"
+
+
 def count_media(messages: Sequence[Message]) -> dict[str, int]:
     counts: dict[str, int] = {}
     for message in messages:
@@ -196,13 +210,12 @@ def count_media(messages: Sequence[Message]) -> dict[str, int]:
     return counts
 
 
-# A tool result shorter than this is left alone wherever it is: the stub
-# would not be much shorter, and a one-line result is usually the point.
-STUB_MIN_CHARS = 200
-
-
 def shortened(
-    messages: Sequence[Message], keep: int, stored: int | None = None, base: int = 0
+    messages: Sequence[Message],
+    keep: int,
+    stored: int | None = None,
+    base: int = 0,
+    min_chars: int = DEFAULT_LIMITS.stub_min_chars,
 ) -> tuple[list[Message], int]:
     """Stored tool results older than the newest `keep` become stubs.
 
@@ -240,7 +253,10 @@ def shortened(
         if index in old and message.failure is None:
             text = "".join(part.text or "" for part in message.content if part.kind == "text")
             media = [part for part in message.content if part.kind != "text"]
-            if len(text) > STUB_MIN_CHARS or media:
+            # A result shorter than `min_chars` (a share of the budget) is
+            # left alone: the stub would not be shorter, and a one-line
+            # result is usually the point.
+            if len(text) > min_chars or media:
                 call = calls.get(message.tool_call_id or "")
                 out.append(
                     replace(message, content=[ContentPart(kind="text", text=stub(call, text, media, base + index))])
@@ -303,7 +319,7 @@ def within_media_budget(
                 remaining[part.kind] -= 1
                 content.append(part)
             else:
-                content.append(ContentPart(kind="text", text=describe(part)))
+                content.append(ContentPart(kind="text", text=dropped(part)))
                 placeholders += 1
         kept.append(replace(message, content=content))
     kept.reverse()

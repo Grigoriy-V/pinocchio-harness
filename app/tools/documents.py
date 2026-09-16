@@ -18,7 +18,6 @@ from pathlib import Path
 
 from app.documents import (
     DOCUMENT_MEDIA_TYPES,
-    MAX_PAGES_PER_VIEW,
     PDF,
     DocumentError,
     Section,
@@ -28,11 +27,12 @@ from app.documents import (
     render_pages,
 )
 from app.models import ContentPart
+from app.limits import DEFAULT_LIMITS, Limits
 from app.tools.base import BAD_ARGUMENTS, Tool, ToolError, handover
 from app.tools.filesystem import NOT_A_FILE, NOT_FOUND, TOO_LARGE, resolve_path
 
 MAX_BYTES = 20 * 1024 * 1024
-MAX_CHARS = 12_000
+MAX_CHARS = DEFAULT_LIMITS.page_chars
 
 # The family's codes: a file this does not read, and one it tried to and could not.
 UNSUPPORTED = "doc.unsupported"
@@ -76,7 +76,14 @@ def _render(name: str, sections: list[Section], start: int, budget: int) -> str:
     return "\n".join(lines)
 
 
-def read_document(root: Path, path: str, from_section: int = 1, *, confined: bool = True) -> str:
+def read_document(
+    root: Path,
+    path: str,
+    from_section: int = 1,
+    *,
+    confined: bool = True,
+    limits: Limits = DEFAULT_LIMITS,
+) -> str:
     target = _existing_file(root, path, confined=confined)
     media_type = media_type_for(target.name, None)
     if media_type is None:
@@ -85,7 +92,7 @@ def read_document(root: Path, path: str, from_section: int = 1, *, confined: boo
             f"{target.name} is not a document this reads ({readable})", code=UNSUPPORTED
         )
     try:
-        sections = read_sections(target.read_bytes(), media_type)
+        sections = read_sections(target.read_bytes(), media_type, limits.csv_rows)
     except DocumentError as error:
         raise ToolError(str(error), code=UNREADABLE) from error
     if from_section < 1 or from_section > len(sections):
@@ -93,11 +100,17 @@ def read_document(root: Path, path: str, from_section: int = 1, *, confined: boo
             f"from_section must be between 1 and {len(sections)} for {target.name}",
             code=BAD_ARGUMENTS,
         )
-    return _render(target.name, sections, from_section - 1, MAX_CHARS)
+    return _render(target.name, sections, from_section - 1, limits.page_chars)
 
 
 def view_pages(
-    root: Path, path: str, page: int = 1, pages: int = 1, *, confined: bool = True
+    root: Path,
+    path: str,
+    page: int = 1,
+    pages: int = 1,
+    *,
+    confined: bool = True,
+    limits: Limits = DEFAULT_LIMITS,
 ) -> list[ContentPart]:
     """Hand the model a picture of a page, which is how a scan is read.
 
@@ -112,7 +125,7 @@ def view_pages(
         raise ToolError(
             f"{target.name} is not a PDF, so there are no pages to look at", code=UNSUPPORTED
         )
-    wanted = max(1, min(int(pages), MAX_PAGES_PER_VIEW))
+    wanted = max(1, min(int(pages), limits.max_images))
     data = target.read_bytes()
     try:
         total = page_count(data)
@@ -145,9 +158,14 @@ def view_pages(
     return parts
 
 
-def document_tools(root: Path, *, open_reads: bool = False) -> list[Tool]:
+def document_tools(
+    root: Path, *, open_reads: bool = False, limits: Limits = DEFAULT_LIMITS
+) -> list[Tool]:
     resolved = Path(root).resolve()
     confined = not open_reads
+    # Pages a call may show at once: the model's own images-per-request
+    # number, per set (roadmap 31), never a serving engine's.
+    max_pages = max(1, limits.max_images)
     if not resolved.is_dir():
         raise ValueError(f"the tool root {root} is not a directory")
     readable = ", ".join(sorted(DOCUMENT_MEDIA_TYPES.values()))
@@ -186,7 +204,7 @@ def document_tools(root: Path, *, open_reads: bool = False) -> list[Tool]:
                 "additionalProperties": False,
             },
             run=lambda path, from_section=1: read_document(
-                resolved, path, from_section, confined=confined
+                resolved, path, from_section, confined=confined, limits=limits
             ),
         ),
         Tool(
@@ -194,7 +212,7 @@ def document_tools(root: Path, *, open_reads: bool = False) -> list[Tool]:
             replay_safe=True,
             description=(
                 "Look at PDF pages as pictures: scans, layout, tables, diagrams, forms. "
-                f"At most {MAX_PAGES_PER_VIEW} page(s) per call; ask again for the next."
+                f"At most {max_pages} page(s) per call; ask again for the next."
             ),
             returns="the rendered pages, shown to you, and their workspace paths.",
             leaves=(
@@ -217,7 +235,7 @@ def document_tools(root: Path, *, open_reads: bool = False) -> list[Tool]:
                     "pages": {
                         "type": "integer",
                         "minimum": 1,
-                        "maximum": MAX_PAGES_PER_VIEW,
+                        "maximum": max_pages,
                         "description": "How many pages from there. Defaults to one.",
                     },
                 },
@@ -225,7 +243,7 @@ def document_tools(root: Path, *, open_reads: bool = False) -> list[Tool]:
                 "additionalProperties": False,
             },
             run=lambda path, page=1, pages=1: view_pages(
-                resolved, path, page, pages, confined=confined
+                resolved, path, page, pages, confined=confined, limits=limits
             ),
         ),
     ]

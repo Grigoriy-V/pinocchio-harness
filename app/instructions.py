@@ -22,15 +22,17 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from app.limits import DEFAULT_LIMITS
 from app.models import ContentPart, Message
 
 INSTRUCTIONS_FILE = "AGENTS.md"
 
-# Roughly two Telegram messages, and a bound on what this costs in every single
-# request: the overlay is sent on every turn, so an unbounded file would be a
-# per-turn tax the person never sees. Bytes rather than characters because the
-# file is on disk and Cyrillic costs two.
-MAX_INSTRUCTION_BYTES = 8_000
+# A bound on what this costs in every single request: the overlay is sent on
+# every turn, so an unbounded file would be a per-turn tax the person never
+# sees. The number is the budget's share (`Limits.instruction_bytes`, roadmap
+# 31); this is the default before the budget is known. Bytes rather than
+# characters because the file is on disk and Cyrillic costs two.
+MAX_INSTRUCTION_BYTES = DEFAULT_LIMITS.instruction_bytes
 
 FRAME = (
     "Standing instructions from the person you are talking to, from {name} in "
@@ -40,7 +42,10 @@ FRAME = (
     "unsafe action safe.\n\n{text}"
 )
 
-TRUNCATED = "\n\n[... the rest of {name} was too long to include ...]"
+TRUNCATED = (
+    "\n\n[... {shown} of {total} bytes of {name} shown, the share of the budget an "
+    "instruction file gets; read_file {name!r} shows it whole ...]"
+)
 
 
 class InstructionsError(ValueError):
@@ -51,7 +56,7 @@ def instructions_path(workspace: Path | str) -> Path:
     return Path(workspace) / INSTRUCTIONS_FILE
 
 
-def read_instructions(workspace: Path | str) -> str:
+def read_instructions(workspace: Path | str, max_bytes: int = MAX_INSTRUCTION_BYTES) -> str:
     """What the person wrote, or nothing at all.
 
     Never raises. This is read on the way to every model call, and a file that
@@ -64,16 +69,20 @@ def read_instructions(workspace: Path | str) -> str:
         raw = path.read_bytes()
     except (OSError, ValueError):
         return ""
-    if len(raw) > MAX_INSTRUCTION_BYTES:
+    if len(raw) > max_bytes:
         # Truncated visibly rather than silently: instructions the model was
         # only half given, without saying so, would look like instructions the
-        # person never wrote.
-        text = raw[:MAX_INSTRUCTION_BYTES].decode("utf-8", errors="ignore")
-        return text.strip() + TRUNCATED.format(name=INSTRUCTIONS_FILE)
+        # person never wrote; the note names the way to the rest.
+        text = raw[:max_bytes].decode("utf-8", errors="ignore")
+        return text.strip() + TRUNCATED.format(
+            name=INSTRUCTIONS_FILE, shown=max_bytes, total=len(raw)
+        )
     return raw.decode("utf-8", errors="replace").strip()
 
 
-def write_instructions(workspace: Path | str, text: str) -> str:
+def write_instructions(
+    workspace: Path | str, text: str, max_bytes: int = MAX_INSTRUCTION_BYTES
+) -> str:
     """Replace the file wholesale, which is the only edit this offers.
 
     A command that appended would need a way to remove one line again, and that
@@ -84,9 +93,9 @@ def write_instructions(workspace: Path | str, text: str) -> str:
     body = text.strip()
     if not body:
         raise InstructionsError("there is nothing to save")
-    if len(body.encode("utf-8")) > MAX_INSTRUCTION_BYTES:
+    if len(body.encode("utf-8")) > max_bytes:
         raise InstructionsError(
-            f"instructions must fit in {MAX_INSTRUCTION_BYTES} bytes"
+            f"instructions must fit in {max_bytes} bytes; this is {len(body.encode('utf-8'))}"
         )
     path = instructions_path(workspace)
     path.parent.mkdir(parents=True, exist_ok=True)

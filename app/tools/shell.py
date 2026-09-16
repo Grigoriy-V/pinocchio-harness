@@ -55,7 +55,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
 
+from app.limits import DEFAULT_LIMITS, Limits
+
 from .base import BAD_ARGUMENTS, Tool, ToolError
+from .paging import page
 
 try:  # the write boundary exists on Windows only; see shell_windows.py
     from . import shell_windows
@@ -66,12 +69,16 @@ except ImportError:  # pragma: no cover - not Windows, or pywin32 missing
 COMMAND_TIMEOUT = "shell.timeout"
 COMMAND_NOT_STARTED = "shell.not_started"
 
-DEFAULT_TIMEOUT = 120
-MAX_TIMEOUT = 600
-# What the model reads back of a command's output: below the executor's own
-# 32k backstop, with the tail kept because a build says what failed at the end.
-MAX_OUTPUT_CHARS = 16_000
-TAIL_CHARS = 4_000
+# The command's seconds and what the model reads of its output are the
+# limits' (`app/limits.py`, roadmap 31): a default and a most for the
+# seconds, a page for the output. Past the page the whole output is in a
+# file under `.agent/commands/` that the result names, the tail kept inline
+# because a build says what failed at the end.
+DEFAULT_TIMEOUT = DEFAULT_LIMITS.command_timeout
+MAX_TIMEOUT = DEFAULT_LIMITS.command_timeout_max
+MAX_OUTPUT_CHARS = DEFAULT_LIMITS.shell_output_chars
+TAIL_SHARE = 1 / 4
+SPILL_DIR = ".agent/commands"
 
 # What a shell needs and nothing else. `SYSTEMROOT` and `COMSPEC` are what
 # `cmd` itself needs to start on Windows. Home and temp are set by the runner,
@@ -180,6 +187,10 @@ class Finished:
     # A container that was created for this command, so nothing installed by
     # an earlier one is present. Never true on the person's own machine.
     fresh: bool = False
+    # When `cut`: how long the whole output was, and the workspace path of the
+    # file that holds it whole (none when it could not be written).
+    total: int = 0
+    spilled: str | None = None
 
 
 class Runner(Protocol):
@@ -190,7 +201,9 @@ class Runner(Protocol):
     # survives between turns. Not guessed by the brief, because it differs.
     where: str
 
-    async def run(self, command: str, cwd: Path, timeout: float) -> Finished: ...
+    async def run(
+        self, command: str, cwd: Path, timeout: float, output_chars: int = MAX_OUTPUT_CHARS
+    ) -> Finished: ...
 
 
 @dataclass
@@ -323,11 +336,25 @@ def decoded(raw: bytes) -> str:
         return raw.decode(codec, errors="replace")
 
 
-def bounded(text: str, limit: int = MAX_OUTPUT_CHARS, tail: int = TAIL_CHARS) -> tuple[str, bool]:
+def bounded(text: str, limit: int = MAX_OUTPUT_CHARS, tail: int | None = None) -> tuple[str, bool]:
     if len(text) <= limit:
         return text, False
+    tail = max(200, int(limit * TAIL_SHARE)) if tail is None else tail
     head = text[: limit - tail]
     return f"{head}\n… [{len(text) - limit} characters left out] …\n{text[-tail:]}", True
+
+
+def spilled(cwd: Path, sequence: int, text: str) -> str | None:
+    """The whole output in a file under the working folder, for `read_file`;
+    `None` when it could not be written."""
+
+    target = cwd / SPILL_DIR / f"{sequence}.txt"
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(text, encoding="utf-8", newline="\n")
+    except OSError:
+        return None
+    return f"{SPILL_DIR}/{sequence}.txt"
 
 
 def _kill_tree(process: subprocess.Popen) -> None:
@@ -525,7 +552,9 @@ class LocalRunner:
             creationflags=(subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0),
         )
 
-    async def run(self, command: str, cwd: Path, timeout: float) -> Finished:
+    async def run(
+        self, command: str, cwd: Path, timeout: float, output_chars: int = MAX_OUTPUT_CHARS
+    ) -> Finished:
         started = time.monotonic()
         try:
             await asyncio.to_thread(self.prepare, cwd)
@@ -552,7 +581,7 @@ class LocalRunner:
         except subprocess.TimeoutExpired as error:
             _kill_tree(process)
             partial = decoded(error.output or b"")
-            tail, _ = bounded(partial, TAIL_CHARS, TAIL_CHARS // 2)
+            tail, _ = bounded(partial, max(400, output_chars // 8))
             raise ToolError(
                 f"the command did not finish within {timeout:g} seconds and was killed",
                 code=COMMAND_TIMEOUT,
@@ -563,12 +592,16 @@ class LocalRunner:
             # outlive the turn that asked for it.
             _kill_tree(process)
             raise
-        output, cut = bounded(decoded(raw or b""))
+        whole = decoded(raw or b"")
+        output, cut = bounded(whole, output_chars)
+        kept = spilled(cwd, self._runs, whole) if cut else None
         return Finished(
             exit_code=process.returncode,
             output=output,
             cut=cut,
             seconds=time.monotonic() - started,
+            total=len(whole) if cut else 0,
+            spilled=kept,
         )
 
 
@@ -603,7 +636,12 @@ def describe(finished: Finished) -> str:
     # the brief once (roadmap 17); a line per fresh container read as the
     # model's own work being gone (ISS-0053).
     lines = [f"exit code: {finished.exit_code}   ({finished.seconds:.1f} s)"]
-    if finished.cut:
+    if finished.cut and finished.spilled:
+        lines.append(
+            f"output (cut in the middle; the beginning and the end are kept; the whole "
+            f"output, {finished.total} characters, is in {finished.spilled}: read_file pages it):"
+        )
+    elif finished.cut:
         lines.append("output (cut in the middle; the beginning and the end are kept):")
     else:
         lines.append("output:")
@@ -611,18 +649,41 @@ def describe(finished: Finished) -> str:
     return "\n".join(lines)
 
 
-def _background_report(running: Running, *, stopped: bool = False) -> str:
+def _background_report(
+    running: Running,
+    *,
+    stopped: bool = False,
+    offset: int | None = None,
+    output_chars: int = MAX_OUTPUT_CHARS,
+) -> str:
+    """The command's state and its output: the newest page by default, or a
+    page from `offset` (characters from the start) when asked; the note
+    says how to reach the rest."""
+
     alive = running.alive()
     state = (
         "stopped"
         if stopped
         else ("running" if alive else f"exited with code {running.process.returncode}")
     )
-    output, cut = bounded(running.read(), TAIL_CHARS, TAIL_CHARS // 2)
+    whole = running.read()
+    window = max(400, output_chars // 4)
     lines = [f"{running.id}: {state}   ({time.monotonic() - running.started:.0f} s since start)"]
-    if cut:
-        lines.append("(older output cut)")
-    lines.append(f"output:\n{output.rstrip()}" if output.strip() else "output: (nothing yet)")
+    if not whole.strip():
+        lines.append("output: (nothing yet)")
+    elif offset is not None:
+        lines.append(
+            "output:\n"
+            + page(whole, int(offset), window, f"command_output {running.id!r} again with offset={{offset}}")
+        )
+    elif len(whole) > window:
+        start = len(whole) - window
+        lines.append(
+            f"output (the newest {window} of {len(whole)} characters; an earlier part with "
+            f"command_output {running.id!r} and offset=0):\n{whole[start:].rstrip()}"
+        )
+    else:
+        lines.append(f"output:\n{whole.rstrip()}")
     return "\n".join(lines)
 
 
@@ -632,14 +693,30 @@ def runner_shell(runner: Runner) -> str:
     return getattr(runner, "shell", None) or "the shell"
 
 
-def shell_tools(root: Path, runner: Runner) -> list[Tool]:
+def shell_tools(root: Path, runner: Runner, *, limits: Limits = DEFAULT_LIMITS) -> list[Tool]:
     resolved = Path(root).resolve()
     # A runner without `start` (a remote one) cannot keep a process; the
     # tool says so rather than pretending.
     can_background = callable(getattr(runner, "start", None))
+    default_timeout = limits.command_timeout
+    # The most a command may be given: the setting, and under a runner's own
+    # ceiling where it has one (a deployed Function ends at its deadline).
+    ceiling = getattr(runner, "ceiling", None)
+    max_timeout = min(limits.command_timeout_max, ceiling) if ceiling else limits.command_timeout_max
+    output_chars = limits.shell_output_chars
+
+    async def start_background(command: str, why: str = "") -> str:
+        running = await runner.start(command, resolved)  # type: ignore[attr-defined]
+        await asyncio.sleep(BACKGROUND_SETTLE)
+        return (
+            why
+            + _background_report(running, output_chars=output_chars)
+            + "\nIt keeps running: read its output later with command_output, end it "
+            "with stop_command; it ends with this app in any case."
+        )
 
     async def run_command(
-        command: str, timeout_seconds: int = DEFAULT_TIMEOUT, background: bool = False
+        command: str, timeout_seconds: int | None = None, background: bool = False
     ) -> str:
         if background:
             if not can_background:
@@ -647,27 +724,38 @@ def shell_tools(root: Path, runner: Runner) -> list[Tool]:
                     "a background command is not possible here: run it in the foreground",
                     code=COMMAND_NOT_STARTED,
                 )
-            running = await runner.start(str(command), resolved)  # type: ignore[attr-defined]
-            await asyncio.sleep(BACKGROUND_SETTLE)
-            return (
-                _background_report(running)
-                + "\nIt keeps running: read its output later with command_output, end it "
-                "with stop_command; it ends with this app in any case."
+            return await start_background(str(command))
+        seconds = int(timeout_seconds) if timeout_seconds else default_timeout
+        if seconds < 1:
+            raise ToolError("timeout_seconds must be 1 or more", code=BAD_ARGUMENTS)
+        if seconds > max_timeout:
+            # Never clamped in silence (roadmap 31). Where a process can be
+            # kept, the command runs in the background with the reason said
+            # (Hermes's shape); where it cannot, the number is refused.
+            if can_background:
+                return await start_background(
+                    str(command),
+                    f"timeout_seconds={seconds} is above the {max_timeout} s most a foreground "
+                    "command gets here, so it was started in the background instead:\n",
+                )
+            raise ToolError(
+                f"timeout_seconds must be at most {max_timeout} here: a command runs to its "
+                f"end in one call and the place it runs in ends at {max_timeout} s",
+                code=BAD_ARGUMENTS,
             )
-        limit = max(1, min(int(timeout_seconds), MAX_TIMEOUT))
-        return describe(await runner.run(str(command), resolved, float(limit)))
+        return describe(await runner.run(str(command), resolved, float(seconds), output_chars))
 
-    async def command_output(id: str) -> str:
+    async def command_output(id: str, offset: int | None = None) -> str:
         running = runner.peek(str(id)) if can_background else None  # type: ignore[attr-defined]
         if running is None:
             raise ToolError(f"no background command {id!r}", code=BAD_ARGUMENTS)
-        return _background_report(running)
+        return _background_report(running, offset=offset, output_chars=output_chars)
 
     async def stop_command(id: str) -> str:
         running = runner.stop(str(id)) if can_background else None  # type: ignore[attr-defined]
         if running is None:
             raise ToolError(f"no background command {id!r}", code=BAD_ARGUMENTS)
-        return _background_report(running, stopped=True)
+        return _background_report(running, stopped=True, output_chars=output_chars)
 
     tools = [
         Tool(
@@ -678,20 +766,21 @@ def shell_tools(root: Path, runner: Runner) -> list[Tool]:
                 "that shell and this operating system (the brief names them). The command "
                 "cannot read from the terminal: pass answers on the command line or with "
                 "flags. "
-                f"`timeout_seconds` (default {DEFAULT_TIMEOUT}, at most {MAX_TIMEOUT}) "
-                "kills it if it runs longer."
+                f"`timeout_seconds` (default {default_timeout}) kills it if it runs longer"
                 + (
-                    " A command that should keep running, a dev server or a watcher, "
+                    f"; above {max_timeout} the command is started in the background instead. "
+                    "A command that should keep running, a dev server or a watcher, "
                     "is started with background=true: it runs hidden, you get its id "
                     "at once, command_output reads what it wrote and stop_command "
-                    "ends it. Never use start, nohup or & for that."
+                    "ends it."
                     if can_background
-                    else ""
+                    else f"; at most {max_timeout} here."
                 )
             ),
             returns=(
-                "the exit code and the output (stdout and stderr), cut with a note when "
-                "it is very long."
+                f"the exit code and the output (stdout and stderr); past {output_chars} "
+                "characters the middle is cut and the whole output is in a file the result "
+                "names, which read_file pages."
             ),
             leaves=(
                 "whatever the command wrote in your workspace, which stays; what it "
@@ -704,7 +793,9 @@ def shell_tools(root: Path, runner: Runner) -> list[Tool]:
                     "command": {"type": "string", "description": "The command line, as for the shell."},
                     "timeout_seconds": {
                         "type": "integer",
-                        "description": f"Seconds before the command is killed; default {DEFAULT_TIMEOUT}.",
+                        "minimum": 1,
+                        "description": f"Seconds before the command is killed; default {default_timeout}.",
+                        **({} if can_background else {"maximum": max_timeout}),
                     },
                     **(
                         {
@@ -724,7 +815,7 @@ def shell_tools(root: Path, runner: Runner) -> list[Tool]:
             mutates=True,
             # The executor's own deadline, above the longest the tool allows, so
             # a runner that hangs is still stopped.
-            timeout_seconds=MAX_TIMEOUT + 30,
+            timeout_seconds=max_timeout + 30,
         ),
     ]
     if not can_background:
@@ -739,11 +830,22 @@ def shell_tools(root: Path, runner: Runner) -> list[Tool]:
                 "What a background command (run_command with background=true) has "
                 "written so far, and whether it still runs."
             ),
-            returns="the command's id, running or its exit code, the tail of its output.",
+            returns=(
+                "the command's id, running or its exit code, and the newest page of its "
+                "output; with `offset`, a page from that character, and the note says the "
+                "next offset."
+            ),
             leaves="nothing.",
             parameters={
                 "type": "object",
-                "properties": {"id": {"type": "string", "description": "The id run_command gave, like bg-1."}},
+                "properties": {
+                    "id": {"type": "string", "description": "The id run_command gave, like bg-1."},
+                    "offset": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": "A page of the output from this character, counted from the start.",
+                    },
+                },
                 "required": ["id"],
                 "additionalProperties": False,
             },

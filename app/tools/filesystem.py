@@ -29,15 +29,16 @@ import tempfile
 from pathlib import Path
 
 from app.models import ContentPart
+from app.limits import DEFAULT_LIMITS, Limits
 from app.tools.base import BAD_ARGUMENTS, Tool, ToolError, handover
 
-# A page of a file, in lines, and the width a line is cut at. Until roadmap
-# 31 derives them from the request budget these are the references' shape:
-# a default of some hundreds of lines and a whole page under the executor's
-# result cap (`MAX_RESULT_CHARS`), so the middle of a page is never cut.
-DEFAULT_LINES = 500
-PAGE_CHARS = 30_000
-LINE_CHARS = 2_000
+# A page of a file, in lines, and the width a line is cut at: the limits'
+# (`app/limits.py`, roadmap 31): the lines and the width are settings with
+# the references' defaults, the page's characters a share of the budget under
+# the executor's result cap, so the middle of a page is never cut.
+DEFAULT_LINES = DEFAULT_LIMITS.read_lines
+PAGE_CHARS = DEFAULT_LIMITS.page_chars
+LINE_CHARS = DEFAULT_LIMITS.line_chars
 
 # The family's codes. Added only when something has to branch on one.
 OUTSIDE_ROOT = "fs.outside_root"
@@ -157,7 +158,13 @@ IMAGE_SUFFIXES = {
 
 
 def _read_file(
-    root: Path, path: str, offset: int = 1, limit: int | None = None, *, confined: bool = True
+    root: Path,
+    path: str,
+    offset: int = 1,
+    limit: int | None = None,
+    *,
+    confined: bool = True,
+    limits: Limits = DEFAULT_LIMITS,
 ) -> str | list[ContentPart]:
     target = _existing_file(root, path, confined=confined)
     media_type = IMAGE_SUFFIXES.get(target.suffix.lower())
@@ -178,13 +185,27 @@ def _read_file(
             ),
             ContentPart(kind="image", data=data, media_type=media_type),
         ]
-    return numbered_page(text, int(offset), int(limit) if limit else DEFAULT_LINES, f"read_file {path!r}")
+    return numbered_page(
+        text,
+        int(offset),
+        int(limit) if limit else limits.read_lines,
+        f"read_file {path!r}",
+        page_chars=limits.page_chars,
+        line_chars=limits.line_chars,
+    )
 
 
-def numbered_page(text: str, offset: int, limit: int, call: str) -> str:
+def numbered_page(
+    text: str,
+    offset: int,
+    limit: int,
+    call: str,
+    page_chars: int = PAGE_CHARS,
+    line_chars: int = LINE_CHARS,
+) -> str:
     """`limit` lines of `text` from line `offset` (1-based), each as `N: text`,
     and a last line that says how to get the rest. A page also stops at
-    `PAGE_CHARS`, so one result never has its middle cut by the executor."""
+    `page_chars`, so one result never has its middle cut by the executor."""
 
     if offset < 1 or limit < 1:
         raise ToolError("offset must be 1 or more and limit at least 1", code=BAD_ARGUMENTS)
@@ -202,10 +223,11 @@ def numbered_page(text: str, offset: int, limit: int, call: str) -> str:
     number = offset
     while number <= total and number < offset + limit:
         line = lines[number - 1].rstrip("\r")
-        if len(line) > LINE_CHARS:
-            line = line[:LINE_CHARS] + f"… (line cut at {LINE_CHARS} chars)"
+        if len(line) > line_chars:
+            line = line[:line_chars] + f"… (line cut at {line_chars} chars)"
         rendered = f"{number:>{width}}: {line}"
-        if size + len(rendered) + 1 > PAGE_CHARS and out:
+        # The footer that names the next offset fits in the page too.
+        if size + len(rendered) + 1 > page_chars - 120 and out:
             break
         out.append(rendered)
         size += len(rendered) + 1
@@ -385,7 +407,9 @@ def _edit_file(
     return f"edited {path}: replaced {len(at)} match{plural} at line{'s' if len(at) > 1 else ''} {where}; now {_lines(count_lines(updated))}"
 
 
-def filesystem_tools(root: Path, *, open_reads: bool = False) -> list[Tool]:
+def filesystem_tools(
+    root: Path, *, open_reads: bool = False, limits: Limits = DEFAULT_LIMITS
+) -> list[Tool]:
     """Build the filesystem tools on `root`.
 
     Confined (the default, the deployed profile): every path stays inside
@@ -430,14 +454,14 @@ def filesystem_tools(root: Path, *, open_reads: bool = False) -> list[Tool]:
                     "limit": {
                         "type": "integer",
                         "minimum": 1,
-                        "description": f"How many lines to show. Defaults to {DEFAULT_LINES}.",
+                        "description": f"How many lines to show. Defaults to {limits.read_lines}.",
                     },
                 },
                 "required": ["path"],
                 "additionalProperties": False,
             },
             run=lambda path, offset=1, limit=None: _read_file(
-                resolved, path, int(offset), int(limit) if limit else None, confined=confined
+                resolved, path, int(offset), int(limit) if limit else None, confined=confined, limits=limits
             ),
         ),
         Tool(

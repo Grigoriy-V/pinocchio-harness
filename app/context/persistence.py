@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from app.context.window import Context, build_prelude, facts_layer
+from app.limits import DEFAULT_LIMITS, Limits
 from app.memory import ConversationStore
 
 
@@ -15,6 +16,7 @@ def load_turn_context(
     system_prompt: str,
     instructions: str = "",
     keep_results: int = 2,
+    limits: Limits = DEFAULT_LIMITS,
 ) -> Context:
     """Perform the complete durable read needed to prepare one model turn.
 
@@ -30,4 +32,5 @@ def load_turn_context(
         facts=facts_layer(records.facts),
         keep_results=keep_results,
         first_position=records.summarized_through,
+        limits=limits,
     )

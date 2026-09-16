@@ -30,6 +30,7 @@ from pathlib import Path
 from typing import Any
 
 from app.models import ContentPart
+from app.limits import DEFAULT_LIMITS, Limits
 from app.tools.base import BAD_ARGUMENTS, Tool, ToolError, handover
 from app.tools.chromium import (
     LOAD_FAILED,
@@ -245,12 +246,34 @@ def _need(arguments: dict[str, Any], name: str, action: str) -> str:
     return value
 
 
-async def _report(held: _Open, did: str = "", query: str | None = None) -> str:
-    """The page as it is now, and what the page said since the last report."""
+async def _report(
+    held: _Open,
+    did: str = "",
+    query: str | None = None,
+    *,
+    limits: Limits = DEFAULT_LIMITS,
+    max_chars: int | None = None,
+    offset: int = 0,
+) -> str:
+    """The page as it is now, and what the page said since the last report.
+
+    `max_chars` bounds the structure and the visible text of this one
+    report; `offset` is where the visible text starts, so a long page is
+    read in pages and the report names the next offset."""
 
     session = held.session
-    snapshot = await session.snapshot(MAX_SNAPSHOT_CHARS, query)
-    text = await session.visible_text(MAX_VISIBLE_TEXT)
+    snapshot_chars = int(max_chars) if max_chars else limits.snapshot_chars
+    text_chars = int(max_chars) if max_chars else limits.visible_text_chars
+    snapshot = await session.snapshot(snapshot_chars, query)
+    text, total = await session.visible_text(text_chars, offset)
+    end = offset + len(text)
+    if end < total:
+        text += (
+            f"\n… (visible text: characters {offset}-{end} of {total}; for the rest, "
+            f"snapshot with offset={end})"
+        )
+    elif offset:
+        text = f"(visible text from character {offset} of {total})\n" + text
     title = await session.title()
     # One more evaluation drains console events that arrived after the last
     # call, which is where a script's late error would otherwise hide.
@@ -270,7 +293,9 @@ async def _report(held: _Open, did: str = "", query: str | None = None) -> str:
     )
 
 
-async def use_page(root: Path, pages: Pages, action: str, **arguments: Any) -> list[ContentPart]:
+async def use_page(
+    root: Path, pages: Pages, action: str, limits: Limits = DEFAULT_LIMITS, **arguments: Any
+) -> list[ContentPart]:
     """One action on the page, and what the page looks like after it."""
 
     if action not in ACTIONS:
@@ -289,7 +314,7 @@ async def use_page(root: Path, pages: Pages, action: str, **arguments: Any) -> l
             else:
                 held = await pages.open(root, url=str(url))
                 did = f"opened {url}"
-            return [ContentPart(kind="text", text=await _report(held, did))]
+            return [ContentPart(kind="text", text=await _report(held, did, limits=limits))]
 
         held = pages.get(root)
         if held is None:
@@ -299,27 +324,38 @@ async def use_page(root: Path, pages: Pages, action: str, **arguments: Any) -> l
         pages.touch(root)
         session = held.session
         if action == "snapshot":
-            return [ContentPart(kind="text", text=await _report(held, query=arguments.get("query")))]
+            return [
+                ContentPart(
+                    kind="text",
+                    text=await _report(
+                        held,
+                        query=arguments.get("query"),
+                        limits=limits,
+                        max_chars=arguments.get("max_chars"),
+                        offset=int(arguments.get("offset") or 0),
+                    ),
+                )
+            ]
         if action == "click":
             ref = _need(arguments, "ref", action)
             await session.click(ref)
-            return [ContentPart(kind="text", text=await _report(held, f"clicked {ref}"))]
+            return [ContentPart(kind="text", text=await _report(held, f"clicked {ref}", limits=limits))]
         if action == "type":
             ref = _need(arguments, "ref", action)
             text = arguments.get("text")
             if not isinstance(text, str):
                 raise ToolError("type needs text", code=BAD_ARGUMENTS)
             await session.type(ref, text)
-            return [ContentPart(kind="text", text=await _report(held, f"typed {text!r} into {ref}"))]
+            return [ContentPart(kind="text", text=await _report(held, f"typed {text!r} into {ref}", limits=limits))]
         if action == "press":
             key = _need(arguments, "key", action)
             await session.press(key)
-            return [ContentPart(kind="text", text=await _report(held, f"pressed {key}"))]
+            return [ContentPart(kind="text", text=await _report(held, f"pressed {key}", limits=limits))]
         if action == "select":
             ref = _need(arguments, "ref", action)
             value = _need(arguments, "value", action)
             await session.select(ref, value)
-            return [ContentPart(kind="text", text=await _report(held, f"selected {value!r} in {ref}"))]
+            return [ContentPart(kind="text", text=await _report(held, f"selected {value!r} in {ref}", limits=limits))]
         if action == "evaluate":
             expression = _need(arguments, "expression", action)
             value = await session.evaluate(expression)
@@ -337,14 +373,25 @@ async def use_page(root: Path, pages: Pages, action: str, **arguments: Any) -> l
         name = Path(str(await session.location()).rsplit("/", 1)[-1] or "page").stem or "page"
         artifact = root / ".agent" / "browser" / f"{name}-{secrets.token_hex(4)}.png"
         full = bool(arguments.get("full_page", False))
-        image = await asyncio.to_thread(write_png, artifact, await session.screenshot(full_page=full))
+        image = await asyncio.to_thread(
+            write_png,
+            artifact,
+            await session.screenshot(full_page=full, max_height=limits.screenshot_height),
+        )
         shown = artifact.relative_to(root).as_posix()
+        clipped = getattr(session, "clipped", None)
+        clip = (
+            f" The page is {clipped[1]} px tall and the picture shows its first {clipped[0]} px;"
+            " what is below is in the visible text and the structure."
+            if clipped
+            else ""
+        )
         return [
             ContentPart(
                 kind="text",
                 text=(
                     f"screenshot: {shown}; you see it below, the person has not; "
-                    f"{handover(shown, 'this screenshot')}"
+                    f"{handover(shown, 'this screenshot')}{clip}"
                 ),
             ),
             ContentPart(kind="image", data=image, media_type="image/png"),
@@ -362,7 +409,8 @@ DESCRIPTION = (
     "- click with `ref`; type with `ref` and `text` (clears the field first); press "
     "with `key` (Enter, Tab, Escape, ArrowDown, or one character); select with `ref` "
     "and `value`. Refs come from the latest result, like e12; an older ref is refused.\n"
-    "- snapshot: the page as it is now; `query` keeps only the lines that mention a word.\n"
+    "- snapshot: the page as it is now; `query` keeps only the lines that mention a word; "
+    "`max_chars` and `offset` page the visible text of a long page.\n"
     "- evaluate with `expression`: JavaScript in the page, as in the DevTools console.\n"
     "- screenshot (`full_page` for the whole scroll); console: errors since the last call.\n"
     "The page stays open between your calls until the turn ends or you open another."
@@ -395,6 +443,16 @@ PARAMETERS: dict[str, Any] = {
         "value": {"type": "string", "description": "select: the option's value or visible text."},
         "expression": {"type": "string", "description": "evaluate: a JavaScript expression."},
         "query": {"type": "string", "description": "snapshot: keep only lines that mention this."},
+        "max_chars": {
+            "type": "integer",
+            "minimum": 200,
+            "description": "snapshot: how many characters of structure and of visible text to show.",
+        },
+        "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "snapshot: show the visible text from this character.",
+        },
         "full_page": {"type": "boolean", "description": "screenshot: the whole page. Defaults to false."},
     },
     "required": ["action"],
@@ -402,7 +460,13 @@ PARAMETERS: dict[str, Any] = {
 }
 
 
-def browser_tools(root: Path, browser: Path | None = None, pages: Pages | None = None) -> list[Tool]:
+def browser_tools(
+    root: Path,
+    browser: Path | None = None,
+    pages: Pages | None = None,
+    *,
+    limits: Limits = DEFAULT_LIMITS,
+) -> list[Tool]:
     """Build the model-selected page capability for one allowed root.
 
     `pages` is where the open page lives between calls; a caller that builds
@@ -415,7 +479,7 @@ def browser_tools(root: Path, browser: Path | None = None, pages: Pages | None =
     held = pages if pages is not None else Pages(browser=browser)
 
     async def run(action: str, **arguments: Any) -> list[ContentPart]:
-        return await use_page(resolved, held, action, **arguments)
+        return await use_page(resolved, held, action, limits, **arguments)
 
     return [
         Tool(

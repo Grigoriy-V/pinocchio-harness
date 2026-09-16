@@ -223,6 +223,11 @@ class ModelSettings(Configured):
     # 15k characters is 5k tokens, and 4096 cut it mid-call (ISS-0031); output
     # is cheap next to prefill, and the loop's budget bounds the rest.
     max_tokens: int = 8192
+    # How many pictures and how many sound clips one request to this model
+    # may carry; the model's own limit, per set (roadmap 31). Until a set
+    # says more, the numbers the served models of 2026-09 accepted.
+    max_images: int = 4
+    max_audio: int = 1
     temperature: float = 0.0
     # Extra attempts after the first, for failures that say "later", not "no".
     retries: int = 2
@@ -492,6 +497,33 @@ class AgentSettings(Configured):
     # part a person notices breaking: turning it off is a redeployed setting,
     # not a reverted release.
     stream_answers: bool = True
+
+    # --- the limits (roadmap 31; `app/limits.py` says what each bounds) ------
+    # Shares of the request's budget: the whole-request limits.
+    result_share: float = 1 / 8
+    keep_recent_share: float = 0.15
+    summary_share: float = 0.05
+    summary_ceiling_tokens: int = 12_000
+    stub_share: float = 0.001
+    instruction_share: float = 0.02
+    instruction_ceiling_bytes: int = 32_768
+    # One tool's page: settings with the references' defaults; the rest of a
+    # page is always reachable (an offset, a file the result names).
+    read_lines: int = 2_000
+    line_chars: int = 2_000
+    search_page: int = 100
+    preview_chars: int = 400
+    shell_output_chars: int = 30_000
+    web_text_chars: int = 20_000
+    snapshot_chars: int = 12_000
+    visible_text_chars: int = 8_000
+    screenshot_height: int = 6_000
+    csv_rows: int = 200
+    # A command's default seconds and the most the tool allows; above the
+    # most, a command is started in the background where the runner can keep
+    # one, and refused with the number where it cannot. Never clamped.
+    command_timeout: int = 120
+    command_timeout_max: int = 600
 
 
 class McpServerConfig(BaseModel):

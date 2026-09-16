@@ -242,7 +242,7 @@ def test_a_second_voice_message_does_not_replay_the_first() -> None:
     prompt = context.prompt([voice(b"second")])
 
     assert [part.kind for part in prompt[0].content] == ["text"]
-    assert prompt[0].content[0].text == "[audio audio/ogg]"
+    assert prompt[0].content[0].text == "[audio audio/ogg, not carried in this request]"
     assert prompt[1].content[0].data == b"second"
 
 
@@ -259,7 +259,7 @@ def test_the_turn_s_own_pictures_share_the_budget_newest_first() -> None:
 
     kept = [m.content[0].data for m in prompt if m.content[0].kind == "image"]
     assert kept == [b"h2", b"t1", b"t2", b"t3"]
-    assert prompt[0].content[0].text == "[image image/png]"
+    assert prompt[0].content[0].text == "[image image/png, not carried in this request]"
 
 
 def test_a_stored_voice_message_is_replayed_when_the_new_turn_is_text() -> None:
@@ -297,7 +297,10 @@ def test_a_past_turn_keeps_its_text_beside_the_placeholder() -> None:
 
     recalled_turn, _new = context.prompt([voice()])
 
-    assert [part.text for part in recalled_turn.content] == ["what is this?", "[audio audio/ogg]"]
+    assert [part.text for part in recalled_turn.content] == [
+        "what is this?",
+        "[audio audio/ogg, not carried in this request]",
+    ]
 
 
 def test_a_text_only_history_turn_is_left_untouched() -> None:
@@ -642,9 +645,15 @@ async def test_the_summary_may_grow_with_what_it_covers(store: SqliteStore) -> N
 def test_the_summary_length_has_a_floor_and_a_ceiling() -> None:
     from app.context.summary import summary_words
 
+    from app.limits import Limits
+
     assert summary_words(0) == 150
     assert summary_words(12) == 330
-    assert summary_words(100) == 600
+    # The ceiling is the budget's share (roadmap 31): a 128K budget allows
+    # about 3,900 words, a tiny budget falls to the floor.
+    assert summary_words(100) == 1650
+    assert summary_words(1000) == int(Limits().summary_tokens * 0.6)
+    assert summary_words(1000, Limits(budget=2_000)) == 150
 
 
 async def test_nothing_folds_on_count_alone(store: SqliteStore) -> None:

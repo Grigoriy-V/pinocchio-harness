@@ -83,8 +83,9 @@ def test_a_file_written_around_the_command_is_truncated_visibly(tmp_path) -> Non
 
     text = read_instructions(tmp_path)
 
-    assert "too long to include" in text
-    assert len(text) < MAX_INSTRUCTION_BYTES + 200
+    assert f"read_file '{INSTRUCTIONS_FILE}' shows it whole" in text
+    assert f"{MAX_INSTRUCTION_BYTES} of {MAX_INSTRUCTION_BYTES * 2} bytes" in text
+    assert len(text) < MAX_INSTRUCTION_BYTES + 250
 
 
 def test_clearing_removes_the_overlay(tmp_path) -> None:

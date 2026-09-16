@@ -22,6 +22,9 @@ import asyncio
 import inspect
 import logging
 from collections.abc import Sequence
+from pathlib import Path
+
+from app.limits import DEFAULT_LIMITS, Limits
 from dataclasses import dataclass, replace
 from typing import Any, Protocol
 
@@ -52,13 +55,13 @@ ERROR_WORD = "error: "
 # A tool result goes straight into the next request and the model cannot decline
 # what it has already been given. Each tool caps its own output; this is the
 # backstop that does not depend on a tool remembering to. The text cap sits
-# above every current tool's own limit (filesystem 20k, documents 12k, web 12k,
-# browser 8k of visible text plus its report), so it changes nothing today and
-# catches the next tool. Head and tail both survive because the end of a result
-# is where a tool says what it did not show.
-MAX_RESULT_CHARS = 32_000
-TAIL_CHARS = 2_000
-MAX_IMAGES = 4  # `view_pages` returns at most two; the browsers return one
+# above every tool's own page, so it changes nothing on a paged result and
+# catches the next tool. The cap is the budget's (`Limits.result_chars`, one
+# eighth of the request; roadmap 31): past it the whole text is written to a
+# file under `.agent/results/` and the result names the path, so nothing is
+# unreachable (DeepSeek's and Hermes's spill file). Head and tail both survive
+# because the end of a result is where a tool says what it did not show.
+TAIL_SHARE = 1 / 16
 MAX_IMAGE_BYTES = 16 * 1024 * 1024
 
 # --- sanitizing failure text --------------------------------------------------
@@ -90,7 +93,10 @@ def sanitized(text: str | None) -> str:
     first = lines[0] if lines else ""
     for token in FORBIDDEN_IN_FAILURES:
         first = first.replace(token, "")
-    return " ".join(first.split())[:MAX_FAILURE_CHARS]
+    cleaned = " ".join(first.split())
+    if len(cleaned) > MAX_FAILURE_CHARS:
+        return cleaned[:MAX_FAILURE_CHARS] + f"… (cut at {MAX_FAILURE_CHARS} chars)"
+    return cleaned
 
 
 def sanitized_failure(failure: ToolFailure) -> ToolFailure:
@@ -101,25 +107,56 @@ def sanitized_failure(failure: ToolFailure) -> ToolFailure:
     )
 
 
-def bounded(content: Sequence[ContentPart]) -> tuple[ContentPart, ...]:
-    """The content within the caps, with a marker where something was cut."""
+@dataclass(frozen=True)
+class Spill:
+    """Where a result too large to show goes whole: a directory, and how the
+    model names a file in it (`read_file` from the folder's root)."""
+
+    directory: Path
+    label: str = ".agent/results"
+
+    def keep(self, name: str, text: str) -> str | None:
+        try:
+            self.directory.mkdir(parents=True, exist_ok=True)
+            (self.directory / f"{name}.txt").write_text(text, encoding="utf-8", newline="\n")
+        except OSError:
+            return None
+        return f"{self.label}/{name}.txt"
+
+
+def bounded(
+    content: Sequence[ContentPart],
+    limit: int = DEFAULT_LIMITS.result_chars,
+    max_images: int = DEFAULT_LIMITS.max_images,
+    spill: Spill | None = None,
+    name: str = "result",
+) -> tuple[ContentPart, ...]:
+    """The content within the caps, with a marker where something was cut
+    and, when the whole text was kept in a file, its path."""
 
     kept: list[ContentPart] = []
     images = 0
     image_bytes = 0
     omitted_images = 0
+    tail_chars = max(min(500, limit // 4), int(limit * TAIL_SHARE))
     for part in content:
         if part.kind == "text":
             text = part.text or ""
-            if len(text) > MAX_RESULT_CHARS:
-                head = text[: MAX_RESULT_CHARS - TAIL_CHARS]
-                tail = text[-TAIL_CHARS:]
+            if len(text) > limit:
+                head = text[: limit - tail_chars]
+                tail = text[-tail_chars:]
                 cut = len(text) - len(head) - len(tail)
-                text = f"{head}\n[... {cut} characters omitted ...]\n{tail}"
+                path = spill.keep(name, text) if spill is not None else None
+                where = (
+                    f"the whole result, {len(text)} characters, is in {path}: read_file pages it"
+                    if path
+                    else "the rest is not kept"
+                )
+                text = f"{head}\n[... {cut} characters omitted; {where} ...]\n{tail}"
             kept.append(replace(part, text=text))
         elif part.kind == "image":
             size = len(part.data or b"")
-            if images >= MAX_IMAGES or image_bytes + size > MAX_IMAGE_BYTES:
+            if images >= max_images or image_bytes + size > MAX_IMAGE_BYTES:
                 omitted_images += 1
                 continue
             images += 1
@@ -222,9 +259,18 @@ def project(call: ToolCall, outcome: ToolOutcome, signature: str = "") -> Messag
 class ToolExecutor:
     """Run every tool through ``pre_execute -> execute -> post_execute``."""
 
-    def __init__(self, toolbox: Toolbox, trace: TurnTrace = NO_TRACE) -> None:
+    def __init__(
+        self,
+        toolbox: Toolbox,
+        trace: TurnTrace = NO_TRACE,
+        *,
+        limits: Limits = DEFAULT_LIMITS,
+        spill: Spill | None = None,
+    ) -> None:
         self.toolbox = toolbox
         self.trace = trace
+        self.limits = limits
+        self.spill = spill
 
     # --- pre_execute ---------------------------------------------------------
 
@@ -375,7 +421,13 @@ class ToolExecutor:
     ) -> Message:
         """Bound, sanitize, record and project one outcome."""
 
-        content = bounded(outcome.content)
+        content = bounded(
+            outcome.content,
+            self.limits.result_chars,
+            self.limits.max_images,
+            self.spill,
+            f"{prepared.call.name}-{prepared.call.id}",
+        )
         failure = None
         if outcome.failure is not None:
             failure = sanitized_failure(outcome.failure)

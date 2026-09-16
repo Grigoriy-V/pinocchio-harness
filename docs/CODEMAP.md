@@ -23,6 +23,7 @@ are not reachable by following imports from `app/`.
 | Change a setting (not a secret) | `config.toml`, `app/config.py` | `Configured`, `section`, `load_config`, `CONFIG_FILE`, `tests/test_config_file.py` |
 | Change a secret's name or what is published | `env.example`, `tools/sync_control_secret.py` | `ALLOWED`, `MODEL_SET` |
 | Choose or add a model set | `config.toml` `[model.sets.<name>]`, `app/config.py` | `ModelChoice`, `chosen_model`, `_env_prefix`, `ModelBudget`, `providers`, `tests/test_model_settings_chat_template.py` |
+| Change a limit on what the model reads, keeps or produces | `app/limits.py`, `app/config.py` | `Limits` (shares of the budget, page settings, `result_chars`, `page_chars`, `keep_recent_tokens`, `summary_tokens`, `instruction_bytes`, `media_budget`), `Agent.limits`, `CapabilityRegistry.limits`, `Spill`, `tests/test_limits.py` |
 | Change the agent loop | `app/agent/graph.py` | `build_agent`, `AgentState`, `interrupt`, `tests/test_agent_graph.py` |
 | Change when a long turn is asked how it is doing | `app/agent/graph.py` | `TurnWatch`, `HEALTH_QUESTION`, `health_question`, `checked_seconds`, `turn_health_check`, `tests/test_turn_bounds.py` |
 | Change the repeat guards | `app/agent/graph.py` | `failed_before`, `succeeded_before`, `MAX_IDENTICAL_FAILURES`, `MAX_IDENTICAL_SUCCESSES`, `tests/test_repeated_failure.py` |

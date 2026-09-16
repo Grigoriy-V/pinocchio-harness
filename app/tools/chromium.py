@@ -16,6 +16,8 @@ policy for a public page.
 
 from __future__ import annotations
 
+from app.limits import DEFAULT_LIMITS
+
 import asyncio
 import base64
 import contextlib
@@ -35,7 +37,7 @@ from typing import Any
 
 from websockets.asyncio.client import connect
 
-MAX_VISIBLE_TEXT = 8_000
+MAX_VISIBLE_TEXT = DEFAULT_LIMITS.visible_text_chars
 
 
 def find_chromium_browser() -> Path | None:
@@ -367,7 +369,7 @@ LOAD_FAILED = "browser.load_failed"  # the page could not be shown
 STALE_REF = "browser.stale_ref"  # a ref the last snapshot did not give, or its element is gone
 REFUSED = "browser.refused"  # an address this session's policy does not allow
 
-MAX_SNAPSHOT_CHARS = 12_000
+MAX_SNAPSHOT_CHARS = DEFAULT_LIMITS.snapshot_chars
 MAX_LINE_CHARS = 120
 
 # Where a local artifact lives while the browser looks at it. A `data:` URL has
@@ -506,7 +508,8 @@ _SNAPSHOT = r"""
         parts.push('value=' + JSON.stringify(String(node.value).slice(0, 80)));
       }
       if (role === 'combobox' && node.options) {
-        parts.push('options=' + JSON.stringify(Array.from(node.options).slice(0, 12).map((o) => o.textContent.trim())));
+        const shownOptions = Array.from(node.options).slice(0, 12).map((o) => o.textContent.trim());
+        parts.push('options=' + JSON.stringify(shownOptions) + (node.options.length > 12 ? ' (+' + (node.options.length - 12) + ' more; query the option to see it)' : ''));
       }
       if (node.checked) parts.push('checked');
       if (node.disabled) parts.push('disabled');
@@ -697,11 +700,18 @@ class BrowserSession:
         text, shown = format_snapshot(lines, max_chars, query)
         return Snapshot(text=text, refs=self._refs, total_lines=len(lines), shown_lines=shown)
 
-    async def visible_text(self, max_chars: int = MAX_VISIBLE_TEXT) -> str:
+    async def visible_text(self, max_chars: int = MAX_VISIBLE_TEXT, offset: int = 0) -> tuple[str, int]:
+        """`max_chars` of the page's visible text from `offset`, and the whole
+        text's length, so a cut can say where the rest begins."""
+
+        start = max(0, int(offset))
         value = await self.cdp.evaluate(
-            f"(document.body && document.body.innerText || '').slice(0, {int(max_chars)})"
+            "(() => { const t = (document.body && document.body.innerText || ''); "
+            f"return [t.slice({start}, {start + int(max_chars)}), t.length]; }})()"
         )
-        return str(value or "")
+        if isinstance(value, list) and len(value) == 2:
+            return str(value[0] or ""), int(value[1] or 0)
+        return str(value or ""), len(str(value or ""))
 
     async def title(self) -> str:
         return " ".join(str(await self.cdp.evaluate("document.title") or "").split())
@@ -715,14 +725,18 @@ class BrowserSession:
     async def screenshot(
         self, full_page: bool = False, max_height: int = 6_000, timeout: float = 15.0
     ) -> str:
-        """A PNG of the viewport, base64; the whole page when asked."""
+        """A PNG of the viewport, base64; the whole page when asked, up to
+        `max_height` pixels (`clipped` says when the page was taller)."""
 
+        self.clipped: tuple[int, int] | None = None
         if full_page:
             metrics = await self.cdp.call("Page.getLayoutMetrics")
             size = metrics.get("cssContentSize") or metrics.get("contentSize") or {}
             visual = metrics.get("cssVisualViewport") or metrics.get("visualViewport") or {}
             width = int(visual.get("clientWidth") or size.get("width") or 900)
             height = int(size.get("height") or visual.get("clientHeight") or 700)
+            if height > max_height:
+                self.clipped = (max_height, height)
             await self.cdp.viewport(width, max(1, min(height, max_height)))
         return await self.cdp.screenshot(timeout=timeout)
 

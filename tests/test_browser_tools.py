@@ -54,8 +54,9 @@ class FakeSession:
             lines = [line for line in lines if query in line]
         return Snapshot(text="\n".join(lines), refs=("e1",), total_lines=2, shown_lines=len(lines))
 
-    async def visible_text(self, max_chars: int) -> str:
-        return f"{self.count} clicks\nCount"
+    async def visible_text(self, max_chars: int, offset: int = 0) -> tuple[str, int]:
+        text = f"{self.count} clicks\nCount"
+        return text[offset : offset + max_chars], len(text)
 
     async def title(self) -> str:
         return "Counter"
@@ -90,7 +91,7 @@ class FakeSession:
     async def select(self, ref: str, value: str) -> None:
         self.done.append(f"select {ref} {value}")
 
-    async def screenshot(self, full_page: bool = False) -> str:
+    async def screenshot(self, full_page: bool = False, max_height: int = 6_000) -> str:
         return PNG
 
 

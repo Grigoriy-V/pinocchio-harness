@@ -860,6 +860,10 @@ class OpenAICompatibleBackend(ModelBackend):
         except OSError:
             return None
 
+    @property
+    def chars_per_token(self) -> float:
+        return self._chars_per_token
+
     def estimate_tokens(self, messages: Sequence[Message]) -> int:
         """The inherited estimate, at the ratio this endpoint has been observed at.
 

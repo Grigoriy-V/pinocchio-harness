@@ -101,6 +101,31 @@ turn_check_seconds = 360
 keep_turns = 2
 keep_results = 2
 retrieved_facts = 5
+# The limits (roadmap 31, `app/limits.py`): shares of the request's budget
+# for what concerns the whole request, settings with the references' defaults
+# for one tool's page. A cut is never silent: past a page the rest is reachable
+# by an offset or in a file the result names.
+result_share = 0.125
+keep_recent_share = 0.15
+summary_share = 0.05
+summary_ceiling_tokens = 12000
+stub_share = 0.0005
+instruction_share = 0.02
+instruction_ceiling_bytes = 32768
+read_lines = 2000
+line_chars = 2000
+search_page = 100
+preview_chars = 400
+shell_output_chars = 30000
+web_text_chars = 20000
+snapshot_chars = 12000
+visible_text_chars = 8000
+screenshot_height = 6000
+csv_rows = 200
+# A command's default seconds and the most; above the most a command is
+# started in the background locally and refused by number deployed.
+command_timeout = 120
+command_timeout_max = 600
 stream_answers = true
 telemetry = true
 # Every model call written as the model saw it, one file per run, for a

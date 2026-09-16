@@ -273,6 +273,12 @@ class ModelBackend(ABC):
 
         return None
 
+    @property
+    def chars_per_token(self) -> float:
+        """The ratio `estimate_tokens` uses; a backend that calibrates it says so."""
+
+        return CHARS_PER_TOKEN
+
     def estimate_tokens(self, messages: Sequence[Message]) -> int:
         """About how large this request would be, without sending it.
 
