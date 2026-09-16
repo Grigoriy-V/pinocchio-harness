@@ -1,0 +1,156 @@
+[
+ {
+  "transcript": "t01",
+  "run_id": "after-live-50",
+  "model": "z-ai/glm-5.3-flash",
+  "case": "E",
+  "passed": true
+ },
+ {
+  "transcript": "t02",
+  "run_id": "after-live-40",
+  "model": "z-ai/glm-5.3-flash",
+  "case": "C",
+  "passed": true
+ },
+ {
+  "transcript": "t03",
+  "run_id": "before-live-10",
+  "model": "z-ai/glm-5.3-flash",
+  "case": "A",
+  "passed": true
+ },
+ {
+  "transcript": "t04",
+  "run_id": "before-live-81",
+  "model": "z-ai/glm-5.3-flash",
+  "case": "H",
+  "passed": false
+ },
+ {
+  "transcript": "t05",
+  "run_id": "before-live-180",
+  "model": "z-ai/glm-5.3-flash",
+  "case": "M",
+  "passed": true
+ },
+ {
+  "transcript": "t06",
+  "run_id": "before-live-190",
+  "model": "z-ai/glm-5.3-flash",
+  "case": "M",
+  "passed": true
+ },
+ {
+  "transcript": "t07",
+  "run_id": "before-live-50",
+  "model": "z-ai/glm-5.3-flash",
+  "case": "E",
+  "passed": false
+ },
+ {
+  "transcript": "t08",
+  "run_id": "after-live-190",
+  "model": "z-ai/glm-5.3-flash",
+  "case": "M",
+  "passed": true
+ },
+ {
+  "transcript": "t09",
+  "run_id": "before-live-65",
+  "model": "z-ai/glm-5.3-flash",
+  "case": "W",
+  "passed": true
+ },
+ {
+  "transcript": "t10",
+  "run_id": "after-live-65",
+  "model": "z-ai/glm-5.3-flash",
+  "case": "W",
+  "passed": true
+ },
+ {
+  "transcript": "t11",
+  "run_id": "before-live-40",
+  "model": "z-ai/glm-5.3-flash",
+  "case": "C",
+  "passed": true
+ },
+ {
+  "transcript": "t12",
+  "run_id": "after-live-180",
+  "model": "z-ai/glm-5.3-flash",
+  "case": "M",
+  "passed": true
+ },
+ {
+  "transcript": "t13",
+  "run_id": "after-live-82",
+  "model": "z-ai/glm-5.3-flash",
+  "case": "H",
+  "passed": true
+ },
+ {
+  "transcript": "t14",
+  "run_id": "before-live-20",
+  "model": "z-ai/glm-5.3-flash",
+  "case": "B",
+  "passed": true
+ },
+ {
+  "transcript": "t15",
+  "run_id": "before-live-82",
+  "model": "z-ai/glm-5.3-flash",
+  "case": "H",
+  "passed": false
+ },
+ {
+  "transcript": "t16",
+  "run_id": "after-live-10",
+  "model": "z-ai/glm-5.3-flash",
+  "case": "A",
+  "passed": true
+ },
+ {
+  "transcript": "t17",
+  "run_id": "after-live-80",
+  "model": "z-ai/glm-5.3-flash",
+  "case": "H",
+  "passed": true
+ },
+ {
+  "transcript": "t18",
+  "run_id": "after-live-60",
+  "model": "z-ai/glm-5.3-flash",
+  "case": "F",
+  "passed": false
+ },
+ {
+  "transcript": "t19",
+  "run_id": "after-b-live-20",
+  "model": "z-ai/glm-5.3-flash",
+  "case": "B",
+  "passed": true
+ },
+ {
+  "transcript": "t20",
+  "run_id": "before-live-80",
+  "model": "z-ai/glm-5.3-flash",
+  "case": "H",
+  "passed": false
+ },
+ {
+  "transcript": "t21",
+  "run_id": "after-live-81",
+  "model": "z-ai/glm-5.3-flash",
+  "case": "H",
+  "passed": true
+ },
+ {
+  "transcript": "t22",
+  "run_id": "before-live-60",
+  "model": "z-ai/glm-5.3-flash",
+  "case": "F",
+  "passed": true
+ }
+]

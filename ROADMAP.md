@@ -11,11 +11,10 @@ deployed OpenClaw (the human, 2026-09-14). The audit of 2026-09-14
 (`reports/2026-09-14_harness_audit.md`) names what holds it below that;
 the queue below is the order approved for working through it.
 
-**Current approved step:** 30, built 2026-09-16 (shape approved by the
-human the same day: option B, the folder rule to the person's `AGENTS.md`,
-the environment line); the live measurement (the mini set, blind judges
-with the reworded rubric) is a priced run and waits for the human's word
-on its size. `reports/2026-09-16_item30_build.md`.
+**Current approved step:** none; 30 closed 2026-09-16 (built, measured
+on the full mini set before and after on GLM with three blind judges:
+9.91 and 9.91 of 10, the same). Next in the queue is 31, on the human's
+word.
 
 Observed defects are in `ISSUES.md`, which is not a plan and authorizes
 nothing. `docs/PRODUCT.md` is the product contract; `docs/PROJECT_MAP.md`,
@@ -124,19 +123,22 @@ one line each, evidence in the linked report:
   were already closed in 27 step 3. Deployed: the same code, the guards
   and the validation reach Telegram with the next deploy; nothing in the
   adapter beyond the preview. 1263 offline tests.
+- **30, briefs and descriptions say what, not how** (2026-09-16): every
+  text the model reads in the references' shape (facts, outcomes, a
+  sizing rule; no routes, no coaching from one turn), the folder rule
+  moved to the person's `AGENTS.md`, an environment line, the measurement
+  scoring outcomes not routes; the brief 1,086→880 words. Measured the
+  same day: the full mini set on GLM, old texts against new, 22
+  transcripts blind to three judges under the reworded rubric, 9.91 and
+  9.91 of 10; `loop_live` outcome checks the same on both sides but for a
+  provider stall. The deployed workspace's `AGENTS.md` gets the folder
+  rule at the next deploy. `reports/2026-09-16_item30_references.md`,
+  `reports/2026-09-16_item30_build.md`.
 
 ## Queue
 
 One item at a time; the human's word starts each. Order approved
 2026-09-14 (the human), after the audit.
-
-30. **Briefs and descriptions say what, not how** — built 2026-09-16,
-    the live measurement open. What is left of the step: the mini set
-    once on the new texts, judged blind with the reworded rubric, beside
-    the 2026-09-12 transcripts re-judged under the same rubric
-    (`reports/2026-09-16_item30_build.md` §4); the human names the size.
-    The deployed workspace's `AGENTS.md` gets the folder rule at the next
-    deploy.
 
 31. **Limits derived from the budget.** The context and output constants
     (`keep_results`, `keep_turns`, `STUB_MIN_CHARS`, the summary's words,
