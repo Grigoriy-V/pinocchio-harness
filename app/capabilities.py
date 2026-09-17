@@ -250,35 +250,19 @@ def _goal_lines(tools: Toolbox) -> list[str]:
 
 
 def _planning_lines(tools: Toolbox) -> list[str]:
-    """What a list costs, and what reads it once there is one.
+    """Nothing about the list beyond its own description.
 
-    The schema owns how to call it. Two things belong here that a schema cannot
-    say. The first is the price, because the model cannot see it: the list is
-    resent whole on every update and travels in the turn's messages from then
-    on, so an unnecessary list is paid for on every step that follows. The
-    second is the consequence, which is fairer stated than discovered: what is
-    still open is read when the turn tries to end.
-
-    Measured on 2026-08-31: three live runs where a plan cost 88-100 s against
-    about 50 s without one and changed nothing the model did, and one run after
-    the first rewrite of this line where a four-file application with eight
-    stated requirements was built with no list at all and nothing checked. So
-    this sits in the middle on purpose. It is neither an invitation nor a ban:
-    the price is stated, the handle is "several parts you could lose", and
-    which requests deserve a list stays the model's judgement rather than a
-    rule keyed to what the person happened to ask for.
+    Until 2026-09-17 a line here stated the list's price and what read it at
+    the ending; measured on 2026-08-31 (88-100 s against 50 with an
+    invitation, nothing checked with a discouragement) and on 2026-09-17 (no
+    list opened in 15 turns with either wording). The references' briefs
+    carry no such line; the tool's description carries the conditions.
     """
 
-    if "todo_write" not in tools.names:
-        return []
-    return [
-        # The references' shape (2026-09-16): the conditions, and the price and
-        # the consequence as facts, because the model cannot see either.
-        "- todo_write is your own list of steps for work with several steps; a "
-        "single-step request has none. Every update resends the whole list, and "
-        "it is carried on every step after that; what is still open is read when "
-        "you try to finish."
-    ]
+    # Nothing (the human, 2026-09-17): when a list is opened, when not, and how
+    # it is updated are the tool's own description, in the references' shape;
+    # the references' briefs add no price line, and neither does this one.
+    return []
 
 
 def _memory_lines(tools: Toolbox) -> list[str]:

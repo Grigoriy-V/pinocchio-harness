@@ -238,33 +238,28 @@ def test_observation_guidance_appears_only_with_the_tool(
     assert "use_page" not in capability_brief(reading_only)
 
 
-def test_planning_guidance_appears_only_with_the_tool(
+def test_the_list_is_described_by_its_tool_and_the_brief_adds_nothing(
     registry: CapabilityRegistry,
 ) -> None:
-    """And it says the two things the schema cannot: the price of a list, and
-    what reads it once there is one.
-
-    It has to sit between two live failures on 2026-08-31. Read as an
-    invitation, it cost 88-100 s against about 50 s and changed nothing the
-    model did. Rewritten to read as a discouragement, it produced a four-file
-    application with eight stated requirements, no list, and nothing checked.
-    So what is asserted here is the handle and the price, and that neither a
-    prohibition nor an encouragement is left in the wording.
-    """
+    """The references' shape (the human, 2026-09-17): the tool's description
+    says when a list is opened, when not, and how it is updated; the brief
+    names the tool in the inventory and says nothing more, and no price
+    line and no invitation ("if unsure, use it") is anywhere."""
 
     from app.tools import todo_tools
+    from app.tools.todo import DESCRIPTION
+
+    assert "three or more distinct steps" in DESCRIPTION
+    assert "listed several tasks" in DESCRIPTION and "asked for a plan" in DESCRIPTION
+    assert "not for one task" in DESCRIPTION and "or for a question" in DESCRIPTION
+    assert "not by intent" in DESCRIPTION
+    assert "same response as the next step's tool call" in DESCRIPTION
+    assert "unsure" not in DESCRIPTION and "spends" not in DESCRIPTION
 
     planning = registry.toolbox(registry.grant(capabilities=(FILESYSTEM_READ,)), todo_tools())
-
     guided = capability_brief(planning)
-
-    # The references' shape (roadmap 30): the condition, literal (ISS-0016:
-    # "when you can hold it in your head" made GLM never open a list), and
-    # the price and the consequence as facts.
-    assert "work with several steps" in guided
-    assert "single-step request has none" in guided
-    assert "resends the whole list" in guided
-    assert "read when you try to finish" in guided
+    assert guided.count("todo_write") == 1, "the inventory, and no line of its own"
+    assert "resends" not in guided and "read when you try to finish" not in guided
     assert "todo_write" not in capability_brief(everything(registry))
 
 

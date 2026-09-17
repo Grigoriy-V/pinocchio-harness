@@ -44,14 +44,21 @@ INVALID = "todo.invalid"
 MAX_ITEMS = 20
 MAX_CONTENT_CHARS = 200
 
+# The references' shape (the human, 2026-09-17): when, when not, how to
+# update. Claude Code's `TodoWrite`: three or more distinct steps, the person
+# listed several tasks or asked for a list; not one task, not under three
+# steps, not a question. Hermes: completed only when the work is done, not by
+# intent. Codex: one step in progress; update after a sub-task. No price and
+# no invitation: "if unsure, use it" cost 88-100 s against 50 on 2026-08-31.
 DESCRIPTION = (
-    "Your own list of steps for work with several steps; a single-step request "
-    "has none. Each call sends the whole list and replaces the previous one: "
-    "there are no partial updates. One item per outcome, not per tool call; at "
-    "most one item in_progress while work remains; an item is completed when it "
-    "is done. Send an update in the same response as the next step's tool call, "
-    "or with the final answer: a response that holds only an update spends a "
-    "whole step on bookkeeping."
+    "Your own list of steps. Use it when the work has three or more distinct "
+    "steps, when the person listed several tasks, or when they asked for a plan; "
+    "not for one task, for work under three steps, or for a question. Each call "
+    "sends the whole list and replaces the previous one: there are no partial "
+    "updates. One item per outcome, not per tool call; at most one item "
+    "in_progress while work remains; mark an item completed when its work is "
+    "done, not by intent, in the same response as the next step's tool call or "
+    "with the final answer."
 )
 
 PARAMETERS: dict[str, Any] = {
@@ -193,7 +200,7 @@ def todo_tools() -> list[Tool]:
             name=TOOL_NAME,
             description=DESCRIPTION,
             returns="the list as it now stands.",
-            leaves="the list in this turn's messages; what is still open is read when you try to finish.",
+            leaves="the list in this turn's messages.",
             parameters=PARAMETERS,
             run=_write,
         )
