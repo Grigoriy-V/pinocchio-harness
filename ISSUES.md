@@ -22,6 +22,7 @@ authorizes nothing; `ROADMAP.md` alone orders work. Evidence lives in
 
 | Id | Status | Defect | Related |
 |---|---|---|---|
+| ISS-0079 | open, both profiles | the parallel group of a batch (reads launched at once, roadmap 32) is verified offline only: no live turn has produced two reads in one response, so its behaviour with a real model and real tools is a claim, not an observation | roadmap 32, 33 |
 | ISS-0078 | fixed 2026-09-17 (deployed at the next deploy) | Telegram answers a batch's consent question with one button, and the loop read the calls the answer did not name as declined | roadmap 32 |
 | ISS-0077 | open, both profiles | a `<select>` (or any control) inside a `<label>` has no line and no ref in `use_page`'s structure: the walker emits the label's text and does not descend | roadmap 31 smoke |
 | ISS-0076 | fixed 2026-09-14 | after a page reload a turn's tool calls come back as separate rows: the one collapsed step per turn is not kept | 0071, roadmap 27 |
@@ -107,6 +108,30 @@ in use since 2026-09-06; it is not seen on the hosted model.
 ---
 
 ## Open
+
+### ISS-0079 — the parallel group has never run live
+
+- **Status:** open. Recorded 2026-09-17 on the human's word, at the close
+  of roadmap 32.
+- **Seen:** in every live run of 2026-09-17 (the mini set, Y, Z, 1, G
+  twice, the smokes: about 40 turns on GLM 5.3 Flash) the model sent one
+  tool call per response except for calls that run as barriers (three
+  `write_file`, four `send_file`, a `write_file` beside a `run_command`);
+  no `tools_parallel` event was recorded, so `run_group` with two or more
+  calls has run only under `tests/test_tool_batches.py`'s fake tools.
+- **Costs:** a claim in the maps ("reads run at once") that no real turn
+  has shown; a defect in the group's cancellation, ordering or result
+  placement with real tools (a page session, a spill file, a runner) would
+  first be met by a person.
+- **Reproduce:** not reproducible on this model set; a model that sends
+  several reads in one response (or the provider's `parallel_tool_calls`
+  flag, roadmap 33) is needed.
+- **Cause:** the model's habit, not the harness's: the harness groups what
+  it is given.
+- **Evidence:** `reports/prompt_runs/2026-09-17_item32_live/`,
+  `reports/prompt_runs/2026-09-17_todo*/` (no `tools_parallel` line in any
+  log); `reports/2026-09-17_item32_build.md` §4.
+- **Related:** roadmap 32 (built), 33 (`parallel_tool_calls`).
 
 ### ISS-0077 — a control inside a `<label>` has no ref in the page structure
 
