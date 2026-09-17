@@ -476,10 +476,14 @@ in use since 2026-09-06; it is not seen on the hosted model.
 
 ### ISS-0016 — the plan is a list of phases, ticked in bulk
 
-- **Status:** open. 2026-09-17: with `todo_write` offered always (roadmap
-  32) GLM 5.3 Flash opened no list in 14 turns, three of them work of 4–7
-  calls (`reports/2026-09-17_todo_measurement.md`); nothing to tick, in
-  bulk or otherwise, was seen on this model. (2026-09-07: the brief's planning line and the tool's
+- **Status:** open. 2026-09-17: with the description in the references'
+  shape (three or more steps; completed when done, in the same response as
+  the next call) GLM 5.3 Flash opened a list on G (eight requirements) and
+  kept it exactly this way: three items at the start, no update through
+  24 tool calls, all three ticked at the end in a response of its own
+  (`reports/2026-09-17_todo_measurement.md`); on Y, Z, 1 (4–8 calls) no
+  list, as the conditions say. The model's behaviour under the references'
+  contract, not a wording defect. (2026-09-07: the brief's planning line and the tool's
   description state the condition — three or more parts, or more than five
   tool calls — instead of "when you can hold it in your head"; roadmap 16;
   measured by item 8)

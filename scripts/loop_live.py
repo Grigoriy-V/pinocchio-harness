@@ -1050,7 +1050,8 @@ async def run_scenarios(
                 "1", "1 failing tests fixed, each fix written down", one,
                 checks={
                     "the tests were run": "run_command" in one.tools,
-                    "the last run is green": "exit code: 0" in last_run and "OK" in last_run,
+                    # unittest says OK, pytest says "3 passed"; either is the outcome.
+                    "the last run is green": "exit code: 0" in last_run and ("OK" in last_run or "passed" in last_run),
                     "the tests were not changed": (root / "test_stats.py").read_text(encoding="utf-8") == tests,
                     "CHANGES.md has three lines or more": len([l for l in changes.splitlines() if l.strip()]) >= 3,
                     "the answer says three": "3" in one.answer or "три" in one.answer.lower(),

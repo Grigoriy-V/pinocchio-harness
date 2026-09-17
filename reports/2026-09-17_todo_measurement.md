@@ -82,3 +82,41 @@ calls). The description's new condition on updates cannot be measured on
 it and stands as written for a model that does open lists. Whether the
 list is kept offered at its schema price on this model is the human's
 call; nothing in the tool is changed until a list appears in a turn.
+
+## The description in the references' shape (the human's word, 2026-09-17, third pass)
+
+The human: the brief adds nothing; the tool's description says when, when
+not, and how to update, as the references' do, with no price line. Written
+(`app/tools/todo.py`): "Use it when the work has three or more distinct
+steps, when the person listed several tasks, or when they asked for a plan;
+not for one task, for work under three steps, or for a question. … mark an
+item completed when its work is done, not by intent, in the same response
+as the next step's tool call or with the final answer." The brief's
+planning line is gone; "what is still open is read when you try to finish"
+is gone from `Leaves` (the ending's objection has been off since
+2026-09-03, so the sentence was not true).
+
+G, Y, Z, 1 once each (`reports/prompt_runs/2026-09-17_todo_wording/`):
+
+| request | calls / tools / s / checks | the list |
+|---|---|---|
+| G eight requirements | 23 / 27 / 297 / 7 of 8 (one `use_page` expression failed, the model went on) | **opened**: three items at the start, one in progress; never updated while the work ran (three writes, seventeen page actions, four sends); all three ticked completed at the end in a response of its own, then the answer in another |
+| Y package, tests, README | 4 / 4 / — / 6 of 6 | none (four tool calls; the model read it as under the threshold or as one task) |
+| Z CSV to JSON to page | 7 / 6 / — / 5 of 5 | none |
+| 1 three fixes, CHANGES.md | 9 / 8 / — / 6 of 6 (the check "the last run is green" looked for unittest's OK and the model ran pytest, "3 passed"; the check now reads either) | none |
+
+**Finding:** with the references' conditions the list opens where they say
+it should (eight requirements) and not where they say it should not (four
+to eight calls, one task). How it is kept is ISS-0016 exactly: opened once,
+ticked in bulk at the end, and the final tick in a response of its own
+(+2 model calls against the G of the same day without a list: 23 against
+20; 297 s against 229 s). The update condition ("in the same response as
+the next step's tool call or with the final answer") was not followed by
+this model, which sends one call per response throughout the suite (no
+`tools_parallel` event in any run today).
+
+So on GLM 5.3 Flash the list, when it opens, is a plan shown at the start
+and closed at the end: two calls for a visible plan and no tracking in
+between. Whether that is worth its two calls is the human's call; the
+wording now matches the references and is not the cause. ISS-0016 stays
+open as the model's behaviour under the references' contract.

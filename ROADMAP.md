@@ -178,9 +178,11 @@ One item at a time; the human's word starts each. Order approved
     list stays offered; `set_goal` withdrawn from the default set (8
     closed); the tool's description makes an update ride beside the next
     step's call, priced; one G turn with the list: 8/8 checks, 20 calls,
-    229 s, no list opened. Closed for this model: GLM opens no list in 15
-    turns up to eight requirements; the tool stays offered as the
-    references offer theirs; its defects wait for a turn with a list.
+    229 s, no list opened. Then (the human) the description rewritten in
+    the references' shape (when, when not, how to update; no price line,
+    the brief adds nothing): G opens a list (three items at the start, all
+    ticked at the end in a call of its own, +2 calls), Y, Z, 1 open none,
+    as the conditions say; ISS-0016 stays as the model's behaviour. Closed.
 
 33. **The model layer and telemetry.** A per-model-family profile so the
     system-message flattening, the `<|"|>` repair and the end-marker
