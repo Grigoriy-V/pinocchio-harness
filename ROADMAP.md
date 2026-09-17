@@ -12,9 +12,9 @@ deployed OpenClaw (the human, 2026-09-14). The audit of 2026-09-14
 the queue below is the order approved for working through it.
 
 **Current approved step:** 32 is built, tested, checked live and the todo
-measurement is done (2026-09-17, `reports/2026-09-17_item32_build.md`,
-`reports/2026-09-17_todo_measurement.md`); its result waits for the
-human's word (the options in the report), then 33.
+measurement is done and answered (2026-09-17,
+`reports/2026-09-17_item32_build.md`, `reports/2026-09-17_todo_measurement.md`).
+Next in the order: 33, on the human's word.
 
 Observed defects are in `ISSUES.md`, which is not a plan and authorizes
 nothing. `docs/PRODUCT.md` is the product contract; `docs/PROJECT_MAP.md`,
@@ -174,9 +174,13 @@ One item at a time; the human's word starts each. Order approved
     `todo_write` offered, three of them long requests (Y, Z, 1) run with
     and without the tool, GLM 5.3 Flash never opened a list and the offer
     cost nothing (the same calls, seconds and outcomes as the control);
-    `set_goal` was not called either. The options (leave it offered; one G
-    turn with the list; drop it for this model) wait for the human's word;
-    ISS-0016's fixes and 8 wait with them.
+    `set_goal` was not called either. The human's word (2026-09-17): the
+    list stays offered; `set_goal` withdrawn from the default set (8
+    closed); the tool's description makes an update ride beside the next
+    step's call, priced; one G turn with the list: 8/8 checks, 20 calls,
+    229 s, no list opened. Closed for this model: GLM opens no list in 15
+    turns up to eight requirements; the tool stays offered as the
+    references offer theirs; its defects wait for a turn with a list.
 
 33. **The model layer and telemetry.** A per-model-family profile so the
     system-message flattening, the `<|"|>` repair and the end-marker
@@ -209,9 +213,6 @@ Waiting, not in the order above:
    modes, on Windows a write-restricted token, the working folder and the
    commands (27). Open: no boundary outside Windows (the platform seam
    below). `reports/2026-09-04_v2_isolated_execution_review.md` §10–§11.
-
-8. **The plan and the goal together.** Whether `todo_write` replaces
-   `set_goal` or both stand is decided by the todo measurement of 32.
 
 13. **The model chosen from Telegram; Gemini's cache.** (a) Gemini 3.1
     Flash-Lite with thinking against without; (b) `cache_control`

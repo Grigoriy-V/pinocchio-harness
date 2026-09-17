@@ -70,7 +70,6 @@ from app.tools import (
     history_tools,
     memory_tools,
     todo_tools,
-    goal_tools,
 )
 
 # LangGraph's own guard against a loop that never ends. Each step is two
@@ -409,10 +408,12 @@ class Agent:
                 # no root. Offered always since 2026-09-17, as the references
                 # offer theirs; the model decides whether a request has steps.
                 *todo_tools(),
-                # The goal: the request's parts, written once by the model
-                # before it starts. Always offered; the model decides whether
-                # a request has more than one thing in it (2026-09-05).
-                *goal_tools(),
+                # The goal (`set_goal`, 2026-09-05, a cheap stand-in for the
+                # list) is withdrawn since 2026-09-17 (the human): measured
+                # unused beside the always-offered list, and two tools for
+                # the request's parts cost schema tokens and a choice. The
+                # tool stays in `app/tools/goal.py`; `goal_tools()` here
+                # brings it back.
             ],
             # The mode, read here, per toolbox, so `/mode` takes effect from
             # the next message: `careful` makes the tools that change the

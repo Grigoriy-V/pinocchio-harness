@@ -48,7 +48,6 @@ from app.telemetry.inspect import tool_calls
 from app.telemetry.sqlite import SqliteTelemetry
 from app.telemetry.trace import Telemetry
 from app.tools import Tool, Toolbox
-from app.tools.goal import TOOL_NAME as GOAL_TOOL
 from app.tools.todo import TOOL_NAME as TODO_TOOL
 
 RUNS = Path("reports/prompt_runs")
@@ -327,21 +326,21 @@ def planning(agent: Agent, mode: str) -> None:
 def goal(agent: Agent, mode: str) -> None:
     """Take the goal tool away for the length of one run (`--goal off`).
 
-    The product offers it always; the comparison is the loop with the
-    request's parts written down against the loop without, the way
-    `--planning none` is for the plan.
+    The product withdrew it on 2026-09-17; `on` adds it back for a
+    comparison of the loop with the request's parts written down against
+    the loop without.
     """
 
-    if mode == "on":
+    if mode == "off":
         return
+    from app.tools import goal_tools
+
     original = agent.toolbox
 
-    def without(thread_id: str) -> Toolbox:
-        return Toolbox(
-            [tool for tool in original(thread_id)._tools.values() if tool.name != GOAL_TOOL]  # noqa: SLF001
-        )
+    def with_goal(thread_id: str) -> Toolbox:
+        return Toolbox([*original(thread_id)._tools.values(), *goal_tools()])  # noqa: SLF001
 
-    agent.toolbox = without  # type: ignore[method-assign]
+    agent.toolbox = with_goal  # type: ignore[method-assign]
 
 
 def select(only: Sequence[str] = (), external: bool = False) -> list[Scenario]:
@@ -639,8 +638,8 @@ def parse(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--goal",
         choices=("on", "off"),
-        default="on",
-        help="whether the set_goal tool is offered, as the product offers it",
+        default="off",
+        help="whether the set_goal tool is offered; the product withdrew it on 2026-09-17",
     )
     parser.add_argument(
         "--no-stream",

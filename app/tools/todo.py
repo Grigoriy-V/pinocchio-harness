@@ -49,7 +49,9 @@ DESCRIPTION = (
     "has none. Each call sends the whole list and replaces the previous one: "
     "there are no partial updates. One item per outcome, not per tool call; at "
     "most one item in_progress while work remains; an item is completed when it "
-    "is done, not in one batch at the end."
+    "is done. Send an update in the same response as the next step's tool call, "
+    "or with the final answer: a response that holds only an update spends a "
+    "whole step on bookkeeping."
 )
 
 PARAMETERS: dict[str, Any] = {

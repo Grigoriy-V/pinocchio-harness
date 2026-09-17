@@ -45,6 +45,7 @@ and says what replaced it.
 | 2026-08-31 | The plan is the state of one turn | amended 2026-09-03 twice |
 | 2026-09-03 | The surface is shortened by age; the volatile layer goes last | amended 2026-09-04 |
 | 2026-09-03 | The plan is off unless the person turns it on | superseded 2026-09-17 |
+| 2026-09-17 | The list is offered always and updated beside the next step; the goal is withdrawn | standing |
 | 2026-09-03 | A tool result names the action its output enables | standing |
 | 2026-09-03 | An open plan item no longer refuses the ending | standing |
 | 2026-09-03 | Text beside a tool call is said once; a local page may load its CDN | standing |
@@ -970,3 +971,28 @@ Deployed, the same code at the next deploy (a gate): Telegram's one-button
 approval becomes correct there, the MCP tools move behind `find_tools`, the
 repeat counters change; no background command exists deployed, so no
 notice is ever posted there.
+
+## 2026-09-17 — The list is offered always and updated beside the next step; the goal is withdrawn
+
+Decision (the human, 2026-09-17, on `reports/2026-09-17_todo_measurement.md`):
+`todo_write` stays offered always; its description makes an update a
+priced condition: sent in the same response as the next step's tool call
+or with the final answer, because a response holding only an update spends
+a whole step. `set_goal` (2026-09-05, the cheap stand-in for the list) is
+withdrawn from the default set; the tool stays in `app/tools/goal.py` and
+`goal_tools()` brings it back on a measurement that shows a multi-part
+request stopping short without it. Whether the model opens a list at all
+is measured on a request of G's size (eight requirements) before anything
+else in the tool is changed.
+
+Why: on 2026-09-03 a list cost 12 model calls where 5 did the work, each
+"done" its own completion, because this model sends one call per response;
+the references' models update the list beside the next call for free. On
+2026-09-17, with the list offered in 14 turns, GLM 5.3 Flash opened none
+and called `set_goal` in none of six long turns, every outcome passing; two
+tools for the request's parts cost about 700 schema tokens a request and a
+choice between them, for nothing measured.
+
+Consequences: the toolbox holds `todo_write` and not `set_goal`; roadmap 8
+is closed; the todo's remaining defects (ISS-0016, a plan the person
+corrects) wait for a turn in which a list appears.

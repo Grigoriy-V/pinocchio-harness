@@ -57,3 +57,28 @@ measure nothing about the tool).
 appeared; the goal was called in none of the six long turns either (the
 tools lists above hold no `set_goal`), which is the same finding about the
 same model.
+
+## The human's word, and the G turn (2026-09-17, later the same day)
+
+The human chose: the list stays offered; `set_goal` withdrawn from the
+default set (roadmap 8 closed); `todo_write`'s description makes an update
+a priced condition ("Send an update in the same response as the next
+step's tool call, or with the final answer: a response that holds only an
+update spends a whole step on bookkeeping"); and one G turn with the list,
+the request of eight stated requirements, to see whether a list opens.
+
+G with the list (`reports/prompt_runs/2026-09-17_todo_g/`): 8 of 8 checks,
+20 model calls, 22 tool calls (3 writes, 17 page actions, 2 sends), 229 s,
+219,463 input tokens; **0 calls to `todo_write`**. The list's schema was in
+every request: `Agent.toolbox` offers it with no switch (asserted by
+`tests/test_goal.py` and `tests/test_telegram_adapter.py` on the schemas
+the model is sent), and the schema estimate of the with-list rooms runs
+above the control's (the calibrated estimate differs per room, so the
+difference is not a clean number for the tool's price).
+
+**Finding, closed for this model:** GLM 5.3 Flash opens no list at any size
+of work in this suite (15 turns, up to eight requirements and 22 tool
+calls). The description's new condition on updates cannot be measured on
+it and stands as written for a model that does open lists. Whether the
+list is kept offered at its schema price on this model is the human's
+call; nothing in the tool is changed until a list appears in a turn.

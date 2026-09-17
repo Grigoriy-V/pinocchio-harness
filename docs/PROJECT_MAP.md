@@ -130,12 +130,13 @@ load context ─> model ─> tools ─(risky calls)─> approve ─> model ─> 
   tools of the dying step run again, the rest are answered `interrupted`;
   `persist` is idempotent (DECISIONS 2026-09-04).
 
-Two things the model may write down for one turn, both living in the
-arguments of its own last call inside the turn's messages and cleared by the
-next user message: the **goal** (`set_goal`, offered always, the request's
-parts written once) and the **list** (`todo_write`, offered always since
-2026-09-17; the switch of 2026-09-03 is gone). Nothing in the loop reads
-either back.
+One thing the model may write down for one turn, living in the arguments
+of its own last call inside the turn's messages and cleared by the next
+user message: the **list** (`todo_write`, offered always since 2026-09-17;
+the switch of 2026-09-03 is gone; an update rides beside the next step's
+call). The **goal** (`set_goal`, 2026-09-05) is withdrawn from the default
+set since 2026-09-17, measured unused beside the list; `app/tools/goal.py`
+stays. Nothing in the loop reads either back.
 
 ## Context and memory
 
@@ -208,7 +209,7 @@ documents.read            read_document, view_pages                      (app/to
 browser.page              use_page                                       (app/tools/browser.py)
 web.search / fetch / view search_web, fetch_page, view_web_page          (app/tools/web.py)
 presentation.files        send_file                                      (app/tools/presentation.py)
-always                    remember_fact, search_memory, search_history, read_history, set_goal, todo_write
+always                    remember_fact, search_memory, search_history, read_history, todo_write
 mcp.<server>              <server>_<tool> for each allowed tool, in the catalog behind find_tools  (app/tools/mcp.py)
 ```
 

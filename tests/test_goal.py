@@ -81,7 +81,7 @@ def test_the_brief_lists_the_tool_and_says_nothing_more_about_it(tmp_path: Path)
     assert "set_goal" not in without
 
 
-def test_the_product_offers_the_goal_by_default(tmp_path: Path, monkeypatch) -> None:
+def test_the_product_offers_the_list_and_not_the_goal(tmp_path: Path, monkeypatch) -> None:
     from app.agent.runtime import create_agent
     from app.config import AgentSettings, ModelSettings
 
@@ -97,5 +97,7 @@ def test_the_product_offers_the_goal_by_default(tmp_path: Path, monkeypatch) -> 
     finally:
         asyncio.run(agent.aclose())
 
-    assert TOOL_NAME in names
-    assert "todo_write" in names  # offered always since 2026-09-17
+    # Withdrawn 2026-09-17 (the human): the list is offered always, the goal
+    # is not; the tool itself stays and is wired by `goal_tools()`.
+    assert TOOL_NAME not in names
+    assert "todo_write" in names
